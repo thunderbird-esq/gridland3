@@ -1,0 +1,48 @@
+[
+  {
+    "ip": "3.213.24.5",
+    "port": 80,
+    "service": "",
+    "banner": "gunicorn/19.9.0 <!DOCTYPE html>",
+    "analysis_time": 58.3491530418396,
+    "confidence": 0.9199999999999999,
+    "vulnerabilities": [
+      {
+        "id": "default-auth-bypass",
+        "severity": "HIGH",
+        "confidence": 0.95,
+        "description": "Default or weak authentication credentials detected",
+        "exploit_available": true
+      },
+      {
+        "id": "dahua-default-creds",
+        "severity": "HIGH",
+        "confidence": 0.92,
+        "description": "Dahua camera with default credentials",
+        "exploit_available": true
+      },
+      {
+        "id": "hikvision-backdoor",
+        "severity": "CRITICAL",
+        "confidence": 0.98,
+        "description": "Hikvision camera with known authentication bypass vulnerability",
+        "exploit_available": true
+      },
+      {
+        "id": "MISSING-SECURITY-HEADERS",
+        "severity": "LOW",
+        "confidence": 0.9,
+        "description": "Missing security headers: strict-transport-security, content-security-policy, x-frame-options, x-content-type-options, x-xss-protection, referrer-policy, permissions-policy",
+        "exploit_available": false
+      },
+      {
+        "id": "HTTP-INFO-DISCLOSURE",
+        "severity": "LOW",
+        "confidence": 0.85,
+        "description": "Information disclosure in headers: server: gunicorn/19.9.0",
+        "exploit_available": false
+      }
+    ],
+    "streams": []
+  }
+]
