@@ -1,0 +1,11 @@
+requests
+ipaddress
+flask
+shodan
+python-dotenv
+click
+requests
+tabulate
+colorama
+python-vlc
+

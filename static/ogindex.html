@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HelloBird :: Sousveillance Console</title>
+    <!-- Assumes style.css and other assets from the system.css repo are in this directory -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="windows">
+    <div class="window" style="width: 800px; margin: 50px auto;">
+        <div class="title-bar">
+            <div class="title-bar-text">HelloBird :: Sousveillance Console</div>
+        </div>
+        <div class="window-body">
+
+            <fieldset>
+                <legend>Discovery (The Net)</legend>
+                <p>Find potential targets using Shodan queries (e.g., "webcamxp", "server: webcam").</p>
+                <div class="field-row">
+                    <input id="discoveryQuery" type="text" placeholder="Enter Shodan query..." style="flex-grow: 1; margin-right: 5px;" />
+                    <button id="discoverButton">Discover</button>
+                </div>
+                <div class="sunken-panel" id="discovery-results" style="margin-top: 10px; height: 150px; overflow-y: scroll; font-family: 'monaco', monospace; font-size: 12px;">
+                    <p>Discovery results will appear here...</p>
+                </div>
+            </fieldset>
+
+            <fieldset style="margin-top: 20px;">
+                <legend>Analysis (The Scalpel)</legend>
+                <p>Select a target from above or enter an IP to perform a deep-dive analysis.</p>
+                <div class="field-row-stacked" style="margin-top: 10px;">
+                    <label for="ipAddress">Target IP:</label>
+                    <input id="ipAddress" type="text" placeholder="e.g., 8.8.8.8" />
+                </div>
+                <section class="field-row" style="justify-content: flex-end; margin-top: 10px;">
+                    <button id="scanButton">Scan Target</button>
+                </section>
+                <div class="sunken-panel" id="output-container" style="margin-top: 10px; height: 300px; overflow-y: scroll; font-family: 'monaco', monospace; font-size: 12px; line-height: 1.2;">
+                    <p>Analysis results will appear here...</p>
+                </div>
+            </fieldset>
+
+            <div id="video-container" style="margin-top: 10px; background-color: black; display: none;">
+               <video id="video-player" style="width: 100%;" controls autoplay></video>
+            </div>
+        </div>
+        <div class="status-bar">
+            <p id="statusBar" class="status-bar-field">Ready</p>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const ipAddressInput = document.getElementById('ipAddress');
+            const scanButton = document.getElementById('scanButton');
+            const outputContainer = document.getElementById('output-container');
+            const statusBar = document.getElementById('statusBar');
+            const videoContainer = document.getElementById('video-container');
+            const videoPlayer = document.getElementById('video-player');
+            const discoveryQueryInput = document.getElementById('discoveryQuery');
+            const discoverButton = document.getElementById('discoverButton');
+            const discoveryResultsPanel = document.getElementById('discovery-results');
+            let eventSource;
+
+            discoverButton.addEventListener('click', async () => {
+                const query = discoveryQueryInput.value.trim();
+                if (!query) { return; }
+                statusBar.textContent = `Discovering targets with query: ${query}...`;
+                discoveryResultsPanel.innerHTML = '<p>Searching...</p>';
+                try {
+                    const response = await fetch('/discover', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query: query })
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        discoveryResultsPanel.innerHTML = '';
+                        if (data.length === 0) {
+                            discoveryResultsPanel.innerHTML = '<p>No results found.</p>';
+                        } else {
+                            data.forEach(ip => {
+                                const ipLink = document.createElement('a');
+                                ipLink.href = '#';
+                                ipLink.textContent = ip;
+                                ipLink.classList.add('ip-link');
+                                ipLink.style.display = 'block';
+                                ipLink.style.padding = '2px 4px';
+                                discoveryResultsPanel.appendChild(ipLink);
+                            });
+                        }
+                    } else {
+                        discoveryResultsPanel.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+                    }
+                } catch (e) {
+                    discoveryResultsPanel.innerHTML = `<p style="color: red;">Network error during discovery.</p>`;
+                } finally {
+                    statusBar.textContent = 'Discovery complete.';
+                }
+            });
+
+            discoveryResultsPanel.addEventListener('click', (e) => {
+                if (e.target.classList.contains('ip-link')) {
+                    e.preventDefault();
+                    const ip = e.target.textContent;
+                    ipAddressInput.value = ip;
+                    scanButton.click();
+                }
+            });
+
+            scanButton.addEventListener('click', () => {
+                const ip = ipAddressInput.value.trim();
+                if (!ip) { return; }
+                if (eventSource) { eventSource.close(); }
+                outputContainer.innerHTML = '';
+                statusBar.textContent = `Analyzing ${ip}...`;
+                scanButton.disabled = true;
+                discoverButton.disabled = true;
+                eventSource = new EventSource('/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: ip }),
+                });
+                eventSource.onmessage = function(event) {
+                    const line = document.createElement('div');
+                    const content = event.data;
+                    const urlRegex = /(rtsp|rtmp|http|https)?:\\/\\/[^\\s"']+/gi;
+                    line.innerHTML = content.replace(urlRegex, (url) => {
+                        return `<a href="#" class="stream-link" data-url="${url}">${url}</a>`;
+                    });
+                    outputContainer.appendChild(line);
+                    outputContainer.scrollTop = outputContainer.scrollHeight;
+                };
+                eventSource.onerror = function() {
+                    statusBar.textContent = 'Analysis complete.';
+                    scanButton.disabled = false;
+                    discoverButton.disabled = false;
+                    eventSource.close();
+                };
+            });
+
+            outputContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('stream-link')) {
+                    e.preventDefault();
+                    const streamUrl = e.target.getAttribute('data-url');
+                    statusBar.textContent = `Attempting to connect to stream: ${streamUrl}`;
+                    videoContainer.style.display = 'block';
+                    const encodedUrl = btoa(streamUrl);
+                    videoPlayer.src = `/stream/${encodedUrl}`;
+                    videoPlayer.load();
+                    videoPlayer.play().catch(error => console.error("Playback failed:", error));
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+
