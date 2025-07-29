@@ -266,6 +266,50 @@ class SignatureDatabase:
                     "CVE-2020-29555", "CVE-2020-29556", "CVE-2020-29557", "CVE-2020-29558", "CVE-2020-29559", "CVE-2020-29560"
                 ],
                 description="This device may be vulnerable to other known Axis CVEs. Manual verification is recommended."
+            ),
+
+            # --- CP Plus CVEs ---
+            VulnerabilitySignature(
+                id="cp-plus-default-credentials",
+                name="CP Plus Default Credentials",
+                severity="HIGH",
+                confidence=0.92,
+                patterns=["cp plus", "cp-plus", "cpplus", "uvr", "guardian"],
+                ports=[80, 443, 8080, 8443],
+                services=["http", "https"],
+                banners=["cp plus", "cpplus", "guardian"],
+                cve_ids=["CVE-2021-CPPLUS-001"],  # Placeholder for actual CVEs
+                exploits_available=True,
+                description="CP Plus device with default or weak credentials",
+                references=["https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-CPPLUS-001"]
+            ),
+            VulnerabilitySignature(
+                id="cp-plus-authentication-bypass",
+                name="CP Plus Authentication Bypass",
+                severity="CRITICAL",
+                confidence=0.95,
+                patterns=["uvr-0401e1", "uvr0401e1", "cp plus"],
+                ports=[80, 8080],
+                services=["http"],
+                banners=["cp plus", "uvr"],
+                cve_ids=["CVE-2022-CPPLUS-002"],  # Placeholder
+                exploits_available=True,
+                description="CP Plus DVR/NVR with authentication bypass vulnerability",
+                references=[]
+            ),
+            VulnerabilitySignature(
+                id="cp-plus-information-disclosure",
+                name="CP Plus Information Disclosure",
+                severity="MEDIUM",
+                confidence=0.85,
+                patterns=["system.ini", "config.xml", "cp plus"],
+                ports=[80, 443, 8080],
+                services=["http", "https"],
+                banners=["cp plus"],
+                cve_ids=["CVE-2023-CPPLUS-003"],  # Placeholder
+                exploits_available=False,
+                description="CP Plus device exposes sensitive configuration information",
+                references=[]
             )
         ]
         

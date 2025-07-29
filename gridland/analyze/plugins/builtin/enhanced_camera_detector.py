@@ -17,8 +17,6 @@ from gridland.core.logger import get_logger
 
 logger = get_logger(__name__)
 
-__all__ = ["EnhancedCameraDetector"]
-
 @dataclass
 class CameraIndicator:
     """Camera detection indicator with confidence scoring"""
@@ -63,14 +61,20 @@ class EnhancedCameraDetector(VulnerabilityPlugin):
     with enhanced confidence scoring and brand identification.
     """
 
-    def __init__(self):
-        super().__init__()
-        self.metadata = PluginMetadata(
+    @staticmethod
+    def get_metadata() -> PluginMetadata:
+        return PluginMetadata(
             name="Enhanced Camera Detector",
             version="2.0.0",
             author="GRIDLAND Security Team",
+            plugin_type="vulnerability",
+            supported_services=["http", "https"],
+            supported_ports=[80, 443, 8080, 8443, 8000, 8001, 8008, 8081, 8888, 9999],
             description="Multi-method camera detection with advanced heuristics and confidence scoring"
         )
+
+    def __init__(self):
+        super().__init__()
         self.detection_database = self._load_detection_database()
         self.memory_pool = get_memory_pool()
         self.optimizer = DetectionOptimizer()

@@ -13,6 +13,7 @@ from .banner_grabber import banner_grabber
 from .ip_context_scanner import ip_context_scanner
 from .enhanced_stream_scanner import enhanced_stream_scanner
 from .enhanced_camera_detector import EnhancedCameraDetector
+from .cp_plus_scanner import CPPlusScanner
 
 # Export all built-in plugins for automatic discovery
 __all__ = [
