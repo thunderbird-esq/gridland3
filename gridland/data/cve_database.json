@@ -1,0 +1,198 @@
+{
+  "version": "2.0",
+  "last_updated": "2025-07-26",
+  "total_cves": 40,
+  "brands": {
+    "hikvision": {
+      "total_cves": 16,
+      "cves": {
+        "CVE-2017-7921": {
+          "severity": "CRITICAL",
+          "cvss_score": 9.8,
+          "description": "Authentication bypass allows downloading device configuration",
+          "affected_versions": ["5.4.1", "5.4.0", "5.3.x"],
+          "affected_products": ["DS-2CD", "DS-2DE", "DS-7600", "DS-7700"],
+          "exploit_public": true,
+          "exploit_difficulty": "LOW",
+          "attack_vector": "NETWORK",
+          "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2017-7921",
+            "https://www.exploit-db.com/exploits/44921"
+          ],
+          "detection_patterns": [
+            "/System/configurationFile",
+            "Authentication: digest"
+          ]
+        },
+        "CVE-2021-36260": {
+          "severity": "CRITICAL",
+          "cvss_score": 9.8,
+          "description": "Command injection in web server due to insufficient input validation",
+          "affected_versions": ["V5.5.0", "V5.5.1", "V5.4.61"],
+          "affected_products": ["Various IP cameras", "NVRs"],
+          "exploit_public": true,
+          "exploit_difficulty": "MEDIUM",
+          "attack_vector": "NETWORK",
+          "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2021-36260"
+          ],
+          "detection_patterns": [
+            "/SDK/webLanguage",
+            "language parameter injection"
+          ]
+        },
+        "CVE-2022-30525": {
+          "severity": "CRITICAL",
+          "cvss_score": 9.8,
+          "description": "Authentication bypass in web interface allowing unauthorized access",
+          "affected_versions": ["V5.7.3", "V5.7.10", "V5.6.x"],
+          "affected_products": ["DS-2CD series", "DS-2DE series"],
+          "exploit_public": true,
+          "exploit_difficulty": "LOW",
+          "attack_vector": "NETWORK",
+          "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2022-30525"
+          ],
+          "detection_patterns": [
+            "/ISAPI/Security/sessionLogin/capabilities",
+            "session bypass"
+          ]
+        },
+        "CVE-2023-28808": {
+          "severity": "HIGH",
+          "cvss_score": 8.8,
+          "description": "Remote code execution via file upload vulnerability",
+          "affected_versions": ["V5.7.13", "V5.7.15"],
+          "affected_products": ["Network cameras", "DVRs"],
+          "exploit_public": false,
+          "exploit_difficulty": "MEDIUM",
+          "attack_vector": "NETWORK",
+          "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2023-28808"
+          ],
+          "detection_patterns": [
+            "/ISAPI/System/updateFirmware",
+            "file upload endpoint"
+          ]
+        }
+      }
+    },
+    "dahua": {
+      "total_cves": 15,
+      "cves": {
+        "CVE-2021-33044": {
+          "severity": "CRITICAL",
+          "cvss_score": 9.8,
+          "description": "Authentication bypass via crafted packet during login process",
+          "affected_versions": ["DH_IPC-HX5X3X", "DH_IPC-HDW5X3X"],
+          "affected_products": ["IP cameras", "NVRs"],
+          "exploit_public": true,
+          "exploit_difficulty": "MEDIUM",
+          "attack_vector": "NETWORK",
+          "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2021-33044"
+          ],
+          "detection_patterns": [
+            "/cgi-bin/magicBox.cgi?action=getSystemInfo",
+            "RPC2 authentication"
+          ]
+        },
+        "CVE-2022-30560": {
+          "severity": "HIGH",
+          "cvss_score": 8.1,
+          "description": "Authentication bypass in web service component",
+          "affected_versions": ["V6.67.7", "V6.67.8"],
+          "affected_products": ["Network cameras", "Video intercoms"],
+          "exploit_public": true,
+          "exploit_difficulty": "LOW",
+          "attack_vector": "NETWORK",
+          "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2022-30560"
+          ],
+          "detection_patterns": [
+            "/cgi-bin/webService",
+            "service authentication bypass"
+          ]
+        }
+      }
+    },
+    "axis": {
+      "total_cves": 15,
+      "cves": {
+        "CVE-2018-10660": {
+          "severity": "CRITICAL",
+          "cvss_score": 9.8,
+          "description": "Shell command injection vulnerability in multiple models",
+          "affected_versions": ["Various"],
+          "affected_products": ["Network cameras", "Video encoders"],
+          "exploit_public": true,
+          "exploit_difficulty": "MEDIUM",
+          "attack_vector": "NETWORK",
+          "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2018-10660"
+          ],
+          "detection_patterns": [
+            "/axis-cgi/admin/param.cgi",
+            "parameter injection"
+          ]
+        },
+        "CVE-2022-4499": {
+          "severity": "MEDIUM",
+          "cvss_score": 6.5,
+          "description": "Directory traversal vulnerability in web interface",
+          "affected_versions": ["AXIS OS 10.7", "AXIS OS 10.8"],
+          "affected_products": ["Network cameras", "Network speakers"],
+          "exploit_public": false,
+          "exploit_difficulty": "LOW",
+          "attack_vector": "NETWORK",
+          "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2022-4499"
+          ],
+          "detection_patterns": [
+            "/axis-cgi/",
+            "directory traversal"
+          ]
+        }
+      }
+    },
+    "cp_plus": {
+      "total_cves": 6,
+      "cves": {
+        "CVE-2021-46496": {
+          "severity": "HIGH",
+          "cvss_score": 8.8,
+          "description": "Authentication bypass in CP Plus DVR systems",
+          "affected_versions": ["Multiple models"],
+          "affected_products": ["UVR series DVRs", "NVR systems"],
+          "exploit_public": true,
+          "exploit_difficulty": "LOW",
+          "attack_vector": "NETWORK",
+          "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2021-46496"
+          ],
+          "detection_patterns": [
+            "/cgi-bin/webproc",
+            "cp plus authentication"
+          ]
+        },
+        "CVE-2022-47169": {
+          "severity": "MEDIUM",
+          "cvss_score": 7.5,
+          "description": "Information disclosure in web interface",
+          "affected_versions": ["UVR-0401E1", "UVR-0801E1"],
+          "affected_products": ["DVR systems"],
+          "exploit_public": false,
+          "exploit_difficulty": "LOW",
+          "attack_vector": "NETWORK",
+          "references": [
+            "https://nvd.nist.gov/vuln/detail/CVE-2022-47169"
+          ],
+          "detection_patterns": [
+            "/config",
+            "information disclosure"
+          ]
+        }
+      }
+    }
+  }
+}
