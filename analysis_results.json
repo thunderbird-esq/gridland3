@@ -1,0 +1,103 @@
+[
+  {
+    "ip": "3.213.24.5",
+    "port": 80,
+    "service": "unknown",
+    "banner": "gunicorn/19.9.0 <!DOCTYPE html>",
+    "analysis_time": 30.671584129333496,
+    "confidence": 0.8859999999999999,
+    "vulnerabilities": [
+      {
+        "id": "generic-default-auth",
+        "severity": "CRITICAL",
+        "confidence": 0.95,
+        "description": "The device is accessible using common default credentials.",
+        "exploit_available": false
+      },
+      {
+        "id": "BEHAVIORAL-ANOMALY-ANOMALY_2",
+        "severity": "MEDIUM",
+        "confidence": 0.75,
+        "description": "Behavioral anomaly detected: anomaly_2",
+        "exploit_available": false
+      },
+      {
+        "id": "WEAK-CREDENTIALS-DISCOVERED",
+        "severity": "HIGH",
+        "confidence": 0.95,
+        "description": "Weak credentials discovered: 1/33 successful",
+        "exploit_available": true
+      },
+      {
+        "id": "AUTOMATED-EXPLOITATION-SUCCESS",
+        "severity": "CRITICAL",
+        "confidence": 0.98,
+        "description": "Automated exploitation successful: 1/4 attempts",
+        "exploit_available": true
+      },
+      {
+        "id": "NETWORK-TOPOLOGY-EXPOSURE",
+        "severity": "LOW",
+        "confidence": 0.8,
+        "description": "Network topology mapping: Cluster cluster_3, 1 relationships",
+        "exploit_available": false
+      }
+    ],
+    "streams": []
+  },
+  {
+    "ip": "3.213.24.5",
+    "port": 443,
+    "service": "unknown",
+    "banner": "",
+    "analysis_time": 36.04326629638672,
+    "confidence": 0.7857483814695109,
+    "vulnerabilities": [
+      {
+        "id": "ADVANCED-FINGERPRINT-CRYPTOGRAPHIC",
+        "severity": "MEDIUM",
+        "confidence": 0.8,
+        "description": "Advanced fingerprinting detected cryptographic characteristics: {'confidence': 0.8, 'ssl_characteristics': {'cipher_suites': ['TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384', 'TLS_RSA_WITH_AES_128_CBC_SHA'], 'tls_version': 'TLSv1.2', 'certificate_details': 'self-signed'}, 'behavioral_score': 0.7}",
+        "exploit_available": false
+      },
+      {
+        "id": "ML-PREDICTED-BUFFER_OVERFLOW",
+        "severity": "MEDIUM",
+        "confidence": 0.6089991495018322,
+        "description": "ML vulnerability prediction: buffer_overflow (confidence: 0.61)",
+        "exploit_available": false
+      },
+      {
+        "id": "ML-PREDICTED-AUTHENTICATION_BYPASS",
+        "severity": "MEDIUM",
+        "confidence": 0.7092035752803886,
+        "description": "ML vulnerability prediction: authentication_bypass (confidence: 0.71)",
+        "exploit_available": false
+      },
+      {
+        "id": "AUTOMATED-EXPLOITATION-SUCCESS",
+        "severity": "CRITICAL",
+        "confidence": 0.98,
+        "description": "Automated exploitation successful: 1/10 attempts",
+        "exploit_available": true
+      },
+      {
+        "id": "NETWORK-TOPOLOGY-EXPOSURE",
+        "severity": "LOW",
+        "confidence": 0.8,
+        "description": "Network topology mapping: Cluster cluster_5, 1 relationships",
+        "exploit_available": false
+      }
+    ],
+    "streams": [
+      {
+        "protocol": "websocket",
+        "url": "http://3.213.24.5:443/live/ws",
+        "codec": "",
+        "resolution": "",
+        "accessible": true,
+        "authenticated": false
+      }
+    ]
+  }
+]

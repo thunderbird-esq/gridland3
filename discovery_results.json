@@ -1,0 +1,20 @@
+[
+  {
+    "ip": "3.213.24.5",
+    "port": 80,
+    "protocol": "tcp",
+    "service": "unknown",
+    "banner": "",
+    "timestamp": "1753778012",
+    "source": "masscan"
+  },
+  {
+    "ip": "3.213.24.5",
+    "port": 443,
+    "protocol": "tcp",
+    "service": "unknown",
+    "banner": "",
+    "timestamp": "1753778012",
+    "source": "masscan"
+  }
+]
