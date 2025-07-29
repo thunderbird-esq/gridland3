@@ -444,3 +444,41 @@ def initialize_scheduler(max_workers: Optional[int] = None,
     )
     _global_scheduler.start()
     return _global_scheduler
+
+
+class PortScanTaskScheduler(AdaptiveTaskScheduler):
+    """Specialized scheduler for high-volume port scanning."""
+
+    def distribute_port_scan_tasks(self, ip_range: str, ports: List[int]) -> List[Future]:
+        """Distribute port scanning across workers efficiently."""
+
+        # Group ports into optimal batch sizes
+        batch_size = max(10, len(ports) // self.max_workers)
+        port_batches = [ports[i:i+batch_size] for i in range(0, len(ports), batch_size)]
+
+        tasks = []
+        for batch in port_batches:
+            # This assumes a function `scan_ports_batch` exists
+            # that can be called as a task.
+            # We would need to define this function elsewhere.
+            # For now, we'll use a placeholder.
+            from ..discover.masscan_engine import MasscanEngine
+            engine = MasscanEngine()
+
+            # The task should be a callable.
+            # We'll represent it as a tuple of (function, args)
+            task_callable = engine.scan_range
+            task_args = (ip_range, batch)
+
+            # The scheduler's submit_task should handle this.
+            # We are returning a list of futures.
+            future = self.submit_task(task_callable, *task_args)
+            tasks.append(future)
+
+        return tasks
+
+# Placeholder for a potential PortScanTask dataclass
+@dataclass
+class PortScanTask:
+    ip_range: str
+    ports: List[int]

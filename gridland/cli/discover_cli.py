@@ -121,8 +121,11 @@ class ProgressIndicator:
 @click.option('--dry-run',
               is_flag=True,
               help='Show what would be done without executing')
+@click.option('--show-port-preview',
+              is_flag=True,
+              help='Display ports that will be scanned and exit')
 def discover(engine, range, query, ports, scan_mode, port_categories, rate, limit, country, cve, brands, 
-            cameras_only, output, output_format, input_file, verbose, dry_run):
+            cameras_only, output, output_format, input_file, verbose, dry_run, show_port_preview):
     """
     Discover camera targets using various engines.
     
@@ -182,6 +185,10 @@ def discover(engine, range, query, ports, scan_mode, port_categories, rate, limi
     if dry_run:
         _show_dry_run(engine, range, query, port_list, scan_mode, port_categories, rate, limit, country, cve, brand_list, input_file, port_manager)
         return
+
+    if show_port_preview:
+        _show_port_preview(port_list, scan_mode, port_manager, rate)
+        return
     
     # Execute discovery
     try:
@@ -230,6 +237,29 @@ def _validate_inputs(engine, range, query, input_file):
         return False
     
     return True
+
+
+def _estimate_scan_time(num_ports: int, rate: int) -> float:
+    """Estimate scan time in seconds based on port count and masscan rate."""
+    # This is a rough estimation. Real-world time can vary based on network conditions.
+    # Formula: (num_ports * 2) / rate + constant overhead
+    base_time = (num_ports * 2) / rate
+    overhead = 5  # 5 seconds for initialization, etc.
+    return base_time + overhead
+
+
+def _show_port_preview(ports: List[int], scan_mode: str, port_manager, rate: Optional[int]):
+    """Display a preview of the ports to be scanned and exit."""
+    config = get_config()
+    scan_rate = rate or config.masscan_rate
+
+    click.echo(f"Scan Preview ({scan_mode} mode):")
+    click.echo(f"Total ports to scan: {len(ports)}")
+    click.echo(f"Port summary: {port_manager.summarize_port_ranges(ports)}")
+
+    estimated_time = _estimate_scan_time(len(ports), scan_rate)
+    click.echo(f"Estimated scan time: {estimated_time:.2f} seconds (at {scan_rate} pps)")
+    click.echo("\nNo scan will be executed.")
 
 
 def _show_dry_run(engine, range, query, ports, scan_mode, port_categories, rate, limit, country, cve, brands, input_file, port_manager):

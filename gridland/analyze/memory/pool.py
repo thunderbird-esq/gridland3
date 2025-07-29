@@ -237,7 +237,9 @@ class AnalysisMemoryPool:
             'vulnerabilities': 10000,
             'streams': 5000,
             'analysis_results': 2000,
-            'generic_objects': 1000
+            'generic_objects': 1000,
+            'discovery_pool': 50000,
+            'port_result_pool': 100000,
         }
         
         # Initialize object pools

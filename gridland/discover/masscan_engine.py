@@ -14,9 +14,10 @@ from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 from uuid import uuid4
 
-from ..core.config import get_config
+from ..core.config import get_config, get_port_manager
 from ..core.logger import get_logger
 from ..core.network import NetworkValidator, IPRangeGenerator
+from .adaptive_scanner import AdaptivePortScanner
 
 logger = get_logger(__name__)
 
@@ -351,3 +352,38 @@ class MasscanEngine:
             }
             for r in results
         ]
+
+
+class EnhancedMasscanEngine(MasscanEngine):
+    """Masscan engine with comprehensive camera port intelligence."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.port_manager = get_port_manager()
+        self.adaptive_scanner = AdaptivePortScanner()
+
+    def scan_range_comprehensive(self, ip_range: str,
+                               scan_mode: str = "BALANCED",
+                               custom_categories: Optional[List[str]] = None) -> List[MasscanResult]:
+        """Enhanced scanning with category-based port selection."""
+
+        # Get appropriate ports for scan mode
+        if custom_categories:
+            ports = self.port_manager.get_ports_for_categories(custom_categories)
+        elif scan_mode == "ADAPTIVE":
+            ports = self.adaptive_scanner.get_adaptive_port_list()
+        else:
+            ports = self.port_manager.get_ports_for_scan_mode(scan_mode)
+
+        # Log scan scope for visibility
+        logger.info(f"Comprehensive scan: {len(ports)} ports in {scan_mode} mode")
+        logger.debug(f"Port ranges: {self._summarize_port_ranges(ports)}")
+
+        return self.scan_range(ip_range, ports=ports)
+
+    def _summarize_port_ranges(self, ports: List[int]) -> str:
+        """Summarize port list for logging."""
+        if not ports:
+            return "none"
+
+        return self.port_manager.summarize_port_ranges(ports)
