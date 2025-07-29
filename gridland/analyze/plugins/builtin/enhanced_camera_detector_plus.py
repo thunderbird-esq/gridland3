@@ -1,6 +1,7 @@
 """
 Enhanced Camera Detection Plugin with multi-method analysis.
 Implements CamXploit.py detection logic (lines 313-442) with architectural improvements.
+This is a new plugin that does not replace existing functionality.
 """
 
 import asyncio
@@ -25,7 +26,7 @@ class CameraIndicator:
     confidence: float
     brand: Optional[str] = None
 
-class EnhancedCameraDetector(VulnerabilityPlugin):
+class EnhancedCameraDetectorPlus(VulnerabilityPlugin):
     """
     Advanced camera detection using multi-method analysis.
 
@@ -36,8 +37,8 @@ class EnhancedCameraDetector(VulnerabilityPlugin):
     def __init__(self):
         super().__init__()
         self.metadata = PluginMetadata(
-            name="Enhanced Camera Detector",
-            version="2.0.0",
+            name="Enhanced Camera Detector Plus",
+            version="1.0.0",
             author="GRIDLAND Security Team",
             description="Multi-method camera detection with advanced heuristics and confidence scoring"
         )
@@ -303,7 +304,7 @@ class EnhancedCameraDetector(VulnerabilityPlugin):
         if not indicators:
             return []
 
-        # Calculate overall confidence using weighted average
+        # Calculate overall camera confidence using weighted average
         total_weight = sum(indicator.confidence for indicator in indicators)
         weighted_confidence = total_weight / len(indicators) if indicators else 0
 
@@ -326,7 +327,7 @@ class EnhancedCameraDetector(VulnerabilityPlugin):
 
         # Generate vulnerability result
         vuln_result = self.memory_pool.get_vulnerability_result()
-        vuln_result.id = "enhanced-camera-detection"
+        vuln_result.id = "enhanced-camera-detection-plus"
         vuln_result.severity = "INFO"
         vuln_result.confidence = weighted_confidence
         vuln_result.description = self._generate_detection_description(indicators, detected_brand)

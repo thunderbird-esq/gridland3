@@ -1,0 +1,63 @@
+{
+  "version": "1.0",
+  "last_updated": "2025-07-28",
+  "source": "CamXploit.py intelligence extraction (lines 836-938)",
+  "protocols": {
+    "rtsp": {
+      "generic": [
+        "/live.sdp", "/h264.sdp", "/stream1", "/stream2", "/main", "/sub",
+        "/video", "/cam/realmonitor", "/Streaming/Channels/1", "/Streaming/Channels/101"
+      ],
+      "onvif": [
+        "/onvif/streaming/channels/1", "/live/0/onvif.sdp", "/live/1/onvif.sdp",
+        "/live/0/h264.sdp", "/live/0/mpeg4.sdp", "/live/1/h264.sdp"
+      ],
+      "hikvision": [
+        "/Streaming/Channels/1", "/Streaming/Channels/101", "/Streaming/Channels/201",
+        "/cgi-bin/hi3510/snap.cgi", "/ISAPI/Streaming/channels/1/picture"
+      ],
+      "dahua": [
+        "/cam/realmonitor?channel=1&subtype=0", "/cam/realmonitor?channel=1&subtype=1",
+        "/cgi-bin/snapshot.cgi?channel=1"
+      ],
+      "axis": [
+        "/axis-media/media.amp", "/axis-cgi/mjpg/video.cgi",
+        "/axis-cgi/com/ptz.cgi", "/mjpg/video.mjpg"
+      ],
+      "cp_plus": [
+        "/cgi-bin/snapshot.cgi", "/cgi-bin/video.cgi", "/cgi-bin/stream.cgi",
+        "/cgi-bin/live.cgi"
+      ]
+    },
+    "rtmp": {
+      "generic": [
+        "/live", "/stream", "/hls", "/flv", "/rtmp",
+        "/live/stream", "/live/stream1", "/live/stream2"
+      ],
+      "variants": [
+        "/live/main", "/live/sub", "/live/video", "/live/audio",
+        "/live/av", "/live/rtmp", "/live/rtmps"
+      ]
+    },
+    "http": {
+      "snapshots": [
+        "/snapshot.jpg", "/img/snapshot.cgi", "/cgi-bin/snapshot.cgi",
+        "/axis-cgi/jpg/image.cgi", "/cgi-bin/viewer/video.jpg"
+      ],
+      "mjpeg_streams": [
+        "/mjpg/video.mjpg", "/cgi-bin/mjpg/video.cgi", "/axis-cgi/mjpg/video.cgi",
+        "/video/mjpg.cgi", "/mjpg.cgi", "/videostream.cgi"
+      ],
+      "api_endpoints": [
+        "/api/video", "/api/stream", "/api/live", "/api/video/live",
+        "/api/stream/live", "/api/camera/live", "/api/camera/stream",
+        "/api/camera/video", "/api/camera/snapshot", "/api/camera/feed"
+      ]
+    }
+  },
+  "content_types": [
+    "video/mp4", "video/h264", "video/mpeg", "video/quicktime",
+    "image/jpeg", "image/mjpeg", "application/octet-stream",
+    "application/x-mpegURL", "video/MP2T", "multipart/x-mixed-replace"
+  ]
+}

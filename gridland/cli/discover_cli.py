@@ -82,18 +82,14 @@ class ProgressIndicator:
 @click.option('--query', '-q',
               help='Search query for ShodanSpider engine')
 @click.option('--ports', '-p',
-              help='Comma-separated port list (overrides scan-mode and categories)')
-@click.option('--scan-mode',
+              help='Comma-separated port list (default: comprehensive camera ports)')
+@click.option('--scan-mode-plus',
               type=click.Choice(['FAST', 'BALANCED', 'COMPREHENSIVE']),
-              default='BALANCED',
-              help='Scan intensity: FAST (~20 ports), BALANCED (~100 ports), COMPREHENSIVE (all ports)')
-@click.option('--port-categories',
+              help='Use enhanced scan intensity: FAST (~20 ports), BALANCED (~100 ports), COMPREHENSIVE (all ports)')
+@click.option('--port-categories-plus',
               multiple=True,
               type=click.Choice(get_port_manager().get_available_categories()),
-              help='Specific port categories to scan (overrides scan-mode)')
-@click.option('--show-port-preview',
-              is_flag=True,
-              help='Display ports that will be scanned and exit')
+              help='Use specific enhanced port categories to scan')
 @click.option('--rate', 
               type=int,
               help='Masscan scan rate in packets/second (default: from config)')
@@ -124,27 +120,27 @@ class ProgressIndicator:
 @click.option('--dry-run',
               is_flag=True,
               help='Show what would be done without executing')
-def discover(engine, range, query, ports, scan_mode, port_categories, show_port_preview, rate, limit, country, cve, brands,
-            cameras_only, output, output_format, input_file, verbose, dry_run):
+def discover(engine, range, query, ports, scan_mode_plus, port_categories_plus, rate, limit, country, cve, brands,
+            cameras_only, output, output_format, input_file, verbose, dry_run, show_port_preview):
     """
     Discover camera targets using various engines.
     
     Examples:
     
-      # Scan local network with masscan using balanced port coverage
-      gl-discover --engine masscan --range 192.168.1.0/24 --scan-mode BALANCED
-
-      # Scan with specific port categories
-      gl-discover -r 192.168.1.0/24 --port-categories standard_web rtsp_ecosystem
-
-      # Preview the ports for a comprehensive scan without running it
-      gl-discover -r 192.168.1.0/24 --scan-mode COMPREHENSIVE --show-port-preview
+      # Scan local network with masscan
+      gl-discover --engine masscan --range 192.168.1.0/24
       
       # Search for cameras using ShodanSpider
       gl-discover --engine shodanspider --query "camera"
       
       # Search for specific camera brands
       gl-discover --engine shodanspider --brands "hikvision,dahua"
+
+      # Scan targets from file
+      gl-discover --input-file targets.txt --output results.json
+
+      # Search for CVE-vulnerable devices
+      gl-discover --engine shodanspider --cve CVE-2021-36260
     """
     # Setup
     config = get_config()
@@ -168,15 +164,20 @@ def discover(engine, range, query, ports, scan_mode, port_categories, show_port_
         except ValueError:
             logger.error(f"Invalid port specification: {ports}")
             sys.exit(1)
-    elif port_categories:
-        port_list = port_manager.get_ports_for_categories(list(port_categories))
-        logger.info(f"Using port categories {list(port_categories)}: {len(port_list)} ports")
+    elif port_categories_plus:
+        # Use specific categories
+        port_list = port_manager.get_ports_for_categories(list(port_categories_plus))
+        logger.info(f"Using plus port categories {list(port_categories_plus)}: {len(port_list)} ports")
+    elif scan_mode_plus:
+        # Use scan mode to determine ports
+        port_list = port_manager.get_ports_for_scan_mode(scan_mode_plus)
+        logger.info(f"Using {scan_mode_plus} scan mode: {len(port_list)} ports")
     else:
-        port_list = port_manager.get_ports_for_scan_mode(scan_mode)
-        logger.info(f"Using {scan_mode} scan mode: {len(port_list)} ports")
+        port_list = config.get_ports_list()
+        logger.info(f"Using default ports: {len(port_list)} ports")
 
     if show_port_preview:
-        _show_port_preview(port_list, scan_mode, port_categories, port_manager)
+        _show_port_preview(port_list, scan_mode_plus, port_categories_plus, port_manager)
         return
 
     # Parse brands if provided
@@ -185,14 +186,14 @@ def discover(engine, range, query, ports, scan_mode, port_categories, show_port_
         brand_list = [b.strip() for b in brands.split(',')]
     
     if dry_run:
-        _show_dry_run(engine, range, query, port_list, scan_mode, port_categories, rate, limit, country, cve, brand_list, input_file, port_manager)
+        _show_dry_run(engine, range, query, port_list, scan_mode_plus, port_categories_plus, rate, limit, country, cve, brand_list, input_file, port_manager)
         return
     
     # Execute discovery
     try:
-        with ProgressIndicator(f"Running {engine} discovery", show_spinner=not verbose) as p:
+        with ProgressIndicator(f"Running {engine} discovery", show_spinner=not verbose):
             results = _execute_discovery(
-                engine, range, query, port_list, scan_mode, port_categories, rate, limit, country,
+                engine, range, query, port_list, scan_mode_plus, port_categories_plus, rate, limit, country,
                 cve, brand_list, input_file, config
             )
         
@@ -278,32 +279,7 @@ def _show_dry_run(engine, range, query, ports, scan_mode, port_categories, rate,
     print("\nNo actual scanning will be performed.")
 
 
-def _show_port_preview(ports: List[int], scan_mode: str, port_categories: Optional[List[str]], port_manager):
-    """Display a preview of the ports to be scanned."""
-    print("GRIDLAND Discovery - Port Preview")
-    print("=" * 40)
-
-    if port_categories:
-        print(f"Scan using categories: {', '.join(port_categories)}")
-    else:
-        print(f"Scan Mode: {scan_mode}")
-
-    print(f"Total ports to be scanned: {len(ports)}")
-
-    port_summary = port_manager.summarize_port_ranges(ports)
-    print(f"Port ranges: {port_summary}")
-
-    # Show first few ports for reference
-    print(f"Sample ports: {', '.join(map(str, ports[:20]))}")
-    if len(ports) > 20:
-        print(f"  ... and {len(ports) - 20} more")
-
-    # Estimate scan time (very rough estimate)
-    estimated_time = (len(ports) / 500) * 60  # Rough guess: 1 min per 500 ports
-    print(f"\nEstimated scan time: ~{estimated_time:.1f} seconds (highly dependent on network)")
-
-
-def _execute_discovery(engine, range, query, ports, scan_mode, port_categories, rate, limit, country,
+def _execute_discovery(engine, range, query, ports, rate, limit, country,
                       cve, brands, input_file, config):
     """Execute discovery based on selected engine and parameters."""
     results = []
@@ -314,7 +290,7 @@ def _execute_discovery(engine, range, query, ports, scan_mode, port_categories, 
         logger.info(f"Auto-selected engine: {engine}")
     
     if engine == 'masscan':
-        results = _run_masscan_discovery(range, ports, scan_mode, port_categories, rate, input_file, config)
+        results = _run_masscan_discovery(range, ports, rate, input_file, config)
     
     elif engine == 'shodanspider':
         results = _run_shodanspider_discovery(query, limit, country, cve, brands, config)
@@ -356,7 +332,7 @@ def _auto_select_engine(range, query, input_file):
     return 'masscan'
 
 
-def _run_masscan_discovery(range, ports, scan_mode, port_categories, rate, input_file, config):
+def _run_masscan_discovery(range, ports, scan_mode_plus, port_categories_plus, rate, input_file, config):
     """Execute discovery using Masscan engine."""
     engine = MasscanEngine(config)
     
@@ -367,16 +343,13 @@ def _run_masscan_discovery(range, ports, scan_mode, port_categories, rate, input
     
     if input_file:
         # Scan targets from file
-        # Note: scan_mode and port_categories are not directly used here, ports list is passed
         results = engine.scan_targets_file(input_file, ports)
     elif range:
         # Scan IP range
-        results = engine.scan_range_comprehensive(
-            range,
-            scan_mode=scan_mode,
-            custom_categories=list(port_categories) if port_categories else None,
-            rate=rate
-        )
+        if scan_mode_plus or port_categories_plus:
+            results = engine.scan_range_comprehensive(range, scan_mode=scan_mode_plus, custom_categories=list(port_categories_plus) if port_categories_plus else None, rate=rate)
+        else:
+            results = engine.scan_range(range, ports, rate)
     
     # Convert to common format
     return [

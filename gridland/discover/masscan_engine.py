@@ -14,7 +14,7 @@ from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 from uuid import uuid4
 
-from ..core.config import get_config, get_port_manager
+from ..core.config import get_config
 from ..core.logger import get_logger
 from ..core.network import NetworkValidator, IPRangeGenerator
 
@@ -36,10 +36,23 @@ class MasscanEngine:
     
     def __init__(self, config=None):
         self.config = config or get_config()
-        self.port_manager = get_port_manager()
         self.masscan_path = self._find_masscan()
         self.temp_dir = self.config.temp_dir
         
+        # Common camera ports for focused scanning
+        self.camera_ports = [
+            80, 443,           # HTTP/HTTPS
+            554,               # RTSP
+            8080, 8081, 8000,  # HTTP alternatives
+            8443, 8888, 9000,  # HTTPS alternatives
+            81, 82, 83,        # HTTP alternatives
+            5000, 5001,        # Camera management
+            37777, 37778,      # Dahua
+            8899,              # Hikvision
+            4567,              # Axis
+            1024, 1025,        # Various camera systems
+        ]
+
     def _find_masscan(self) -> Optional[str]:
         """Locate masscan executable."""
         common_paths = [
@@ -67,25 +80,21 @@ class MasscanEngine:
         """Check if masscan is available."""
         return self.masscan_path is not None
     
-    def scan_range_comprehensive(self, ip_range: str,
-                               scan_mode: str = "BALANCED",
-                               custom_categories: List[str] = None,
-                               rate: Optional[int] = None) -> List[MasscanResult]:
+    def scan_range(self, ip_range: str, ports: Optional[List[int]] = None,
+                   rate: Optional[int] = None) -> List[MasscanResult]:
         """
-        Enhanced scanning with category-based port selection.
+        Scan IP range for open ports using masscan.
         
         Args:
             ip_range: CIDR notation, IP range, or single IP
-            scan_mode: FAST, BALANCED, or COMPREHENSIVE
-            custom_categories: List of port categories to scan
-            rate: Scan rate in packets/second
+            ports: List of ports to scan (default: camera ports)
+            rate: Scan rate in packets/second (default: from config)
             
         Returns:
             List of MasscanResult objects
         """
         if not self.is_available():
             logger.error("Masscan not available - falling back to internal scanner")
-            ports = self.port_manager.get_ports_for_scan_mode(scan_mode)
             return self._fallback_scan(ip_range, ports)
         
         # Validate inputs
@@ -93,12 +102,7 @@ class MasscanEngine:
             logger.error(f"Invalid IP range: {ip_range}")
             return []
         
-        # Get ports for scan mode or custom categories
-        if custom_categories:
-            ports = self.port_manager.get_ports_for_categories(custom_categories)
-        else:
-            ports = self.port_manager.get_ports_for_scan_mode(scan_mode)
-
+        ports = ports or self.camera_ports
         rate = rate or self.config.masscan_rate
         
         # Generate unique output file
@@ -109,8 +113,7 @@ class MasscanEngine:
             cmd = self._build_command(ip_range, ports, rate, output_file)
             
             # Execute scan with monitoring
-            logger.info(f"Starting masscan scan of {ip_range} ({len(ports)} ports in {scan_mode} mode, rate: {rate} pps)")
-            logger.debug(f"Port summary: {self.port_manager.summarize_port_ranges(ports)}")
+            logger.info(f"Starting masscan scan of {ip_range} ({len(ports)} ports, rate: {rate} pps)")
             start_time = time.time()
             
             result = self._execute_masscan(cmd)
