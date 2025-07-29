@@ -1,0 +1,220 @@
+{
+  "version": "2.0",
+  "last_updated": "2025-07-27",
+  "source": "CamXploit.py intelligence extraction (lines 836-938) with revolutionary enhancements",
+  "protocols": {
+    "rtsp": {
+      "generic": [
+        "/live.sdp", "/h264.sdp", "/stream1", "/stream2", "/main", "/sub", "/video",
+        "/cam/realmonitor", "/Streaming/Channels/1", "/Streaming/Channels/101",
+        "/stream", "/stream/0", "/stream/1", "/live", "/live/0", "/live/1",
+        "/live/ch1", "/live/ch01", "/live/main", "/live/sub", "/media",
+        "/media/video1", "/media/video2", "/MediaInput/h264", "/MediaInput/mpeg4"
+      ],
+      "onvif": [
+        "/onvif/streaming/channels/1", "/onvif/streaming/channels/101",
+        "/live/0/onvif.sdp", "/live/1/onvif.sdp", "/live/0/h264.sdp",
+        "/live/0/mpeg4.sdp", "/live/1/h264.sdp", "/live/1/mpeg4.sdp",
+        "/live/0/audio.sdp", "/live/1/audio.sdp"
+      ],
+      "hikvision": [
+        "/Streaming/Channels/1", "/Streaming/Channels/101", "/Streaming/Channels/201",
+        "/Streaming/Channels/301", "/Streaming/Channels/401", "/Streaming/Channels/501",
+        "/cgi-bin/hi3510/snap.cgi", "/ISAPI/Streaming/channels/1/picture",
+        "/ISAPI/Streaming/channels/101/picture", "/PSIA/streaming/channels/1",
+        "/PSIA/streaming/channels/101", "/h264/ch1/main/av_stream",
+        "/h264/ch1/sub/av_stream", "/h264/ch2/main/av_stream", "/h264/ch2/sub/av_stream"
+      ],
+      "dahua": [
+        "/cam/realmonitor?channel=1&subtype=0", "/cam/realmonitor?channel=1&subtype=1",
+        "/cam/realmonitor?channel=2&subtype=0", "/cam/realmonitor?channel=2&subtype=1",
+        "/cam/realmonitor?channel=3&subtype=0", "/cam/realmonitor?channel=3&subtype=1",
+        "/cam/realmonitor?channel=4&subtype=0", "/cam/realmonitor?channel=4&subtype=1",
+        "/live", "/av0_0", "/av0_1", "/av1_0", "/av1_1",
+        "/cgi-bin/snapshot.cgi?channel=1", "/cgi-bin/snapshot.cgi?channel=2"
+      ],
+      "axis": [
+        "/axis-media/media.amp", "/axis-media/media.amp?camera=1",
+        "/axis-media/media.amp?camera=2", "/axis-media/media.amp?videocodec=h264",
+        "/axis-media/media.amp?videocodec=mpeg4", "/axis-cgi/mjpg/video.cgi",
+        "/mjpg/video.mjpg", "/axis-cgi/com/ptz.cgi"
+      ],
+      "sony": [
+        "/cam1/mpeg4", "/cam2/mpeg4", "/cam1/mjpeg", "/cam2/mjpeg",
+        "/video1", "/video2", "/sony/mjpeg", "/sony/mpeg4"
+      ],
+      "bosch": [
+        "/rtsp_tunnel", "/media/rtsp/channel1", "/media/rtsp/channel2",
+        "/bosch/channel1", "/bosch/channel2"
+      ],
+      "panasonic": [
+        "/MediaInput/stream_1", "/MediaInput/stream_2", "/nphMotionJpeg",
+        "/panasonic/stream1", "/panasonic/stream2"
+      ],
+      "cp_plus": [
+        "/cgi-bin/snapshot.cgi", "/cgi-bin/video.cgi", "/cgi-bin/stream.cgi",
+        "/cgi-bin/live.cgi", "/cam1/stream", "/cam2/stream"
+      ],
+      "foscam": [
+        "/videoMain", "/videoSub", "/video.cgi", "/mjpeg.cgi",
+        "/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2&usr=admin&pwd="
+      ],
+      "vivotek": [
+        "/live.sdp", "/live2.sdp", "/live3.sdp", "/vivotek/live",
+        "/setup/live", "/live/av0", "/live/av1"
+      ]
+    },
+    "rtmp": {
+      "generic": [
+        "/live", "/stream", "/hls", "/flv", "/rtmp",
+        "/live/stream", "/live/stream1", "/live/stream2",
+        "/live/main", "/live/sub", "/live/video", "/live/audio",
+        "/live/av", "/live/rtmp", "/live/rtmps"
+      ],
+      "variants": [
+        "/stream/live", "/stream/video", "/stream/audio",
+        "/media/live", "/media/stream", "/app/live",
+        "/publish/live", "/broadcast/live", "/feed/live"
+      ],
+      "hls": [
+        "/live.m3u8", "/stream.m3u8", "/hls/live.m3u8",
+        "/hls/stream.m3u8", "/playlist.m3u8", "/master.m3u8"
+      ]
+    },
+    "http": {
+      "snapshots": [
+        "/snapshot.jpg", "/img/snapshot.cgi", "/cgi-bin/snapshot.cgi",
+        "/axis-cgi/jpg/image.cgi", "/cgi-bin/viewer/video.jpg",
+        "/web/tmpfs/auto.jpg", "/tmpfs/auto.jpg", "/snapshot.cgi",
+        "/image.jpg", "/picture.jpg", "/cam.jpg", "/webcam.jpg",
+        "/cgi-bin/hi3510/snap.cgi", "/cgi-bin/image.cgi",
+        "/api/snapshot.jpg", "/api/image.jpg", "/snap.jpg"
+      ],
+      "mjpeg_streams": [
+        "/mjpg/video.mjpg", "/cgi-bin/mjpg/video.cgi", "/axis-cgi/mjpg/video.cgi",
+        "/video/mjpg.cgi", "/mjpg.cgi", "/videostream.cgi", "/live.cgi",
+        "/stream.cgi", "/video.cgi", "/mjpeg", "/mjpeg.cgi",
+        "/cgi-bin/video.cgi", "/cgi-bin/stream.cgi", "/video/stream",
+        "/mjpeg/stream", "/live/mjpeg", "/stream/mjpeg"
+      ],
+      "api_endpoints": [
+        "/api/video", "/api/stream", "/api/live", "/api/video/live",
+        "/api/stream/live", "/api/camera/live", "/api/camera/stream",
+        "/api/camera/video", "/api/camera/snapshot", "/api/camera/feed",
+        "/api/v1/video", "/api/v1/stream", "/api/v1/camera",
+        "/api/v2/video", "/api/v2/stream", "/api/v2/camera",
+        "/rest/video", "/rest/stream", "/rest/camera",
+        "/webapi/video", "/webapi/stream", "/webapi/camera"
+      ],
+      "cgi_endpoints": [
+        "/cgi-bin/viewer/video.jpg", "/cgi-bin/faststream.jpg",
+        "/cgi-bin/view/view.cgi", "/cgi-bin/viewvideo.cgi",
+        "/cgi-bin/guestimage.html", "/cgi-bin/view/index.shtml",
+        "/view/view.shtml", "/view/indexFrame.shtml",
+        "/ViewerFrame?Mode=Motion", "/ViewerFrame?Mode=Refresh"
+      ],
+      "brand_specific": {
+        "hikvision": [
+          "/ISAPI/streaming/channels/1/httppreview",
+          "/ISAPI/streaming/channels/101/httppreview",
+          "/ISAPI/Streaming/channels/1/picture",
+          "/ISAPI/System/deviceInfo"
+        ],
+        "dahua": [
+          "/cgi-bin/snapshot.cgi?channel=1",
+          "/cgi-bin/snapshot.cgi?channel=2",
+          "/DM_WEB/snapshot.cgi"
+        ],
+        "axis": [
+          "/jpg/image.cgi", "/mjpg/video.mjpg",
+          "/axis-cgi/mjpg/video.cgi", "/axis-cgi/jpg/image.cgi"
+        ],
+        "foscam": [
+          "/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2",
+          "/cgi-bin/CGIProxy.fcgi?cmd=getStreamUri",
+          "/snapshot.cgi?user=admin&pwd=&count=0"
+        ]
+      }
+    },
+    "websocket": {
+      "generic": [
+        "/ws", "/websocket", "/socket", "/live/ws",
+        "/stream/ws", "/video/ws", "/camera/ws"
+      ],
+      "api": [
+        "/api/ws", "/api/websocket", "/api/stream/ws",
+        "/api/video/ws", "/ws/stream", "/ws/video"
+      ]
+    },
+    "webrtc": {
+      "generic": [
+        "/webrtc", "/rtc", "/webrtc/stream", "/webrtc/video",
+        "/api/webrtc", "/stream/webrtc", "/video/webrtc"
+      ],
+      "signaling": [
+        "/signaling", "/signal", "/offer", "/answer",
+        "/ice", "/candidate", "/sdp"
+      ]
+    }
+  },
+  "content_types": {
+    "video": [
+      "video/mp4", "video/h264", "video/h265", "video/mpeg",
+      "video/quicktime", "video/x-msvideo", "video/webm",
+      "video/MP2T", "video/x-flv"
+    ],
+    "image": [
+      "image/jpeg", "image/jpg", "image/png", "image/gif",
+      "image/bmp", "image/tiff"
+    ],
+    "stream": [
+      "multipart/x-mixed-replace", "application/octet-stream",
+      "application/x-mpegURL", "application/vnd.apple.mpegurl",
+      "application/dash+xml", "video/mp2t"
+    ],
+    "audio": [
+      "audio/mpeg", "audio/aac", "audio/wav", "audio/ogg",
+      "audio/mp3", "audio/x-wav"
+    ]
+  },
+  "detection_patterns": {
+    "rtsp_success": [
+      "RTSP/1.0 200 OK", "RTSP/1.0 401", "OPTIONS", "DESCRIBE"
+    ],
+    "http_stream_indicators": [
+      "boundary=", "multipart/x-mixed-replace", "image/jpeg",
+      "video/", "Content-Length: 0", "Transfer-Encoding: chunked"
+    ],
+    "authentication_challenges": [
+      "WWW-Authenticate", "401 Unauthorized", "403 Forbidden",
+      "Basic realm=", "Digest realm="
+    ]
+  },
+  "port_protocols": {
+    "rtsp": [554, 8554, 1554, 2554, 3554, 4554, 5554, 6554, 7554, 9554, 10554],
+    "rtmp": [1935, 1936, 1937, 19350, 19351],
+    "http": [80, 8080, 8000, 8001, 8008, 8081, 8082, 8083, 8090, 9000],
+    "https": [443, 8443, 9443, 8843, 4443],
+    "websocket": [8080, 9090, 3000, 8000],
+    "webrtc": [3478, 5349, 49152, 65535]
+  },
+  "optimization": {
+    "high_success_paths": [
+      "/snapshot.jpg", "/mjpg/video.mjpg", "/live.sdp",
+      "/stream1", "/video", "/live", "/api/snapshot.jpg"
+    ],
+    "brand_priority_indicators": {
+      "hikvision": ["ds-", "hikvision", "isapi"],
+      "dahua": ["dahua", "dh-", "ipc-"],
+      "axis": ["axis", "vapix"],
+      "sony": ["sony", "snc-"],
+      "foscam": ["foscam", "fi"]
+    },
+    "timeout_recommendations": {
+      "rtsp": 5,
+      "http": 3,
+      "rtmp": 8,
+      "websocket": 10
+    }
+  }
+}
