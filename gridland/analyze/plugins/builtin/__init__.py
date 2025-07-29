@@ -14,6 +14,7 @@ from .ip_context_scanner import ip_context_scanner
 from .enhanced_stream_scanner import enhanced_stream_scanner
 from .enhanced_camera_detector import EnhancedCameraDetector
 from .cp_plus_scanner import CPPlusScanner
+from .advanced_fingerprinting_scanner import AdvancedFingerprintingScanner
 
 # Export all built-in plugins for automatic discovery
 __all__ = [
@@ -24,7 +25,9 @@ __all__ = [
     'banner_grabber',
     'ip_context_scanner',
     'enhanced_stream_scanner',
-    'EnhancedCameraDetector'
+    'EnhancedCameraDetector',
+    'CPPlusScanner',
+    'AdvancedFingerprintingScanner'
 ]
 
 # Plugin registry for automatic loading
@@ -36,5 +39,7 @@ BUILTIN_PLUGINS = [
     banner_grabber,
     ip_context_scanner,
     enhanced_stream_scanner,
-    EnhancedCameraDetector()
+    EnhancedCameraDetector(),
+    CPPlusScanner(),
+    AdvancedFingerprintingScanner()
 ]
