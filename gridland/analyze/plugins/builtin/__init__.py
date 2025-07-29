@@ -12,6 +12,7 @@ from .generic_camera_scanner import generic_camera_scanner
 from .banner_grabber import banner_grabber
 from .ip_context_scanner import ip_context_scanner
 from .enhanced_stream_scanner import enhanced_stream_scanner
+from .enhanced_camera_detector import EnhancedCameraDetector
 
 # Export all built-in plugins for automatic discovery
 __all__ = [
@@ -21,7 +22,8 @@ __all__ = [
     'generic_camera_scanner',
     'banner_grabber',
     'ip_context_scanner',
-    'enhanced_stream_scanner'
+    'enhanced_stream_scanner',
+    'EnhancedCameraDetector'
 ]
 
 # Plugin registry for automatic loading
@@ -32,5 +34,6 @@ BUILTIN_PLUGINS = [
     generic_camera_scanner,
     banner_grabber,
     ip_context_scanner,
-    enhanced_stream_scanner
+    enhanced_stream_scanner,
+    EnhancedCameraDetector()
 ]

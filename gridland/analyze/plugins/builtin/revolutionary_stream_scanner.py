@@ -137,7 +137,7 @@ class RevolutionaryStreamScanner(VulnerabilityPlugin):
             description="Next-generation stream discovery with ML-powered capabilities and vulnerability correlation"
         )
     
-    async def analyze_vulnerability(self, target_ip: str, target_port: int,
+    async def scan_vulnerabilities(self, target_ip: str, target_port: int,
                                   service: str, banner: str) -> List[Any]:
         """
         Revolutionary vulnerability analysis combining:
