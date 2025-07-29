@@ -1,0 +1,1 @@
+"""Target discovery module for GRIDLAND."""
