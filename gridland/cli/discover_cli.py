@@ -278,7 +278,32 @@ def _show_dry_run(engine, range, query, ports, scan_mode, port_categories, rate,
     print("\nNo actual scanning will be performed.")
 
 
-def _execute_discovery(engine, range, query, ports, rate, limit, country, 
+def _show_port_preview(ports: List[int], scan_mode: str, port_categories: Optional[List[str]], port_manager):
+    """Display a preview of the ports to be scanned."""
+    print("GRIDLAND Discovery - Port Preview")
+    print("=" * 40)
+
+    if port_categories:
+        print(f"Scan using categories: {', '.join(port_categories)}")
+    else:
+        print(f"Scan Mode: {scan_mode}")
+
+    print(f"Total ports to be scanned: {len(ports)}")
+
+    port_summary = port_manager.summarize_port_ranges(ports)
+    print(f"Port ranges: {port_summary}")
+
+    # Show first few ports for reference
+    print(f"Sample ports: {', '.join(map(str, ports[:20]))}")
+    if len(ports) > 20:
+        print(f"  ... and {len(ports) - 20} more")
+
+    # Estimate scan time (very rough estimate)
+    estimated_time = (len(ports) / 500) * 60  # Rough guess: 1 min per 500 ports
+    print(f"\nEstimated scan time: ~{estimated_time:.1f} seconds (highly dependent on network)")
+
+
+def _execute_discovery(engine, range, query, ports, scan_mode, port_categories, rate, limit, country,
                       cve, brands, input_file, config):
     """Execute discovery based on selected engine and parameters."""
     results = []
@@ -289,7 +314,7 @@ def _execute_discovery(engine, range, query, ports, rate, limit, country,
         logger.info(f"Auto-selected engine: {engine}")
     
     if engine == 'masscan':
-        results = _run_masscan_discovery(range, ports, rate, input_file, config)
+        results = _run_masscan_discovery(range, ports, scan_mode, port_categories, rate, input_file, config)
     
     elif engine == 'shodanspider':
         results = _run_shodanspider_discovery(query, limit, country, cve, brands, config)
@@ -331,57 +356,6 @@ def _auto_select_engine(range, query, input_file):
     return 'masscan'
 
 
-def _show_port_preview(ports: List[int], scan_mode: str, port_categories: Optional[List[str]], port_manager):
-    """Display a preview of the ports to be scanned."""
-    print("GRIDLAND Discovery - Port Preview")
-    print("=" * 40)
-
-    if port_categories:
-        print(f"Scan using categories: {', '.join(port_categories)}")
-    else:
-        print(f"Scan Mode: {scan_mode}")
-
-    print(f"Total ports to be scanned: {len(ports)}")
-
-    port_summary = port_manager.summarize_port_ranges(ports)
-    print(f"Port ranges: {port_summary}")
-
-    # Show first few ports for reference
-    print(f"Sample ports: {', '.join(map(str, ports[:20]))}")
-    if len(ports) > 20:
-        print(f"  ... and {len(ports) - 20} more")
-
-    # Estimate scan time (very rough estimate)
-    estimated_time = (len(ports) / 500) * 60  # Rough guess: 1 min per 500 ports
-    print(f"\nEstimated scan time: ~{estimated_time:.1f} seconds (highly dependent on network)")
-
-
-def _execute_discovery(engine, range, query, ports, scan_mode, port_categories, rate, limit, country,
-                      cve, brands, input_file, config):
-    """Execute discovery based on selected engine and parameters."""
-    results = []
-
-    # Auto-select engine if needed
-    if engine == 'auto':
-        engine = _auto_select_engine(range, query, input_file)
-        logger.info(f"Auto-selected engine: {engine}")
-
-    if engine == 'masscan':
-        results = _run_masscan_discovery(range, ports, scan_mode, port_categories, rate, input_file, config)
-
-    elif engine == 'shodanspider':
-        results = _run_shodanspider_discovery(query, limit, country, cve, brands, config)
-
-    elif engine == 'censys':
-        results = _run_censys_discovery(query, limit, country, brands, config)
-
-    else:
-        logger.error(f"Unknown engine: {engine}")
-        return []
-
-    return results
-
-
 def _run_masscan_discovery(range, ports, scan_mode, port_categories, rate, input_file, config):
     """Execute discovery using Masscan engine."""
     engine = MasscanEngine(config)
@@ -400,7 +374,7 @@ def _run_masscan_discovery(range, ports, scan_mode, port_categories, rate, input
         results = engine.scan_range_comprehensive(
             range,
             scan_mode=scan_mode,
-            custom_categories=port_categories,
+            custom_categories=list(port_categories) if port_categories else None,
             rate=rate
         )
     
