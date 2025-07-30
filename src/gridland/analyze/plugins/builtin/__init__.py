@@ -32,17 +32,20 @@ __all__ = [
     'multi_protocol_stream_scanner'
 ]
 
-# Plugin registry for automatic loading
-BUILTIN_PLUGINS = [
-    hikvision_scanner.hikvision_scanner,
-    dahua_scanner.dahua_scanner,
-    axis_scanner.axis_scanner,
-    banner_grabber.banner_grabber,
-    ip_context_scanner.ip_context_scanner,
-    enhanced_camera_detector.EnhancedCameraDetector(),
-    cp_plus_scanner.CPPlusScanner(),
-    advanced_fingerprinting_scanner.AdvancedFingerprintingScanner(None, None),
-    cve_correlation_scanner.CVECorrelationScanner(),
-    enhanced_credential_scanner.EnhancedCredentialScanner(),
-    multi_protocol_stream_scanner.MultiProtocolStreamScanner()
+# In gridland/analyze/plugins/builtin/__init__.py
+
+# This file serves as the registry for all built-in plugins.
+# The PluginManager will discover and instantiate the classes listed here.
+
+from .enhanced_camera_detector import EnhancedCameraDetector
+from .advanced_fingerprinting_scanner import AdvancedFingerprintingScanner
+# Import other plugin classes here as they are created
+
+# --- THIS IS THE FIX ---
+# We provide a list of the plugin CLASSES, not instances.
+# The PluginManager will handle creating instances of these classes at runtime.
+available_plugins = [
+    EnhancedCameraDetector,
+    AdvancedFingerprintingScanner,
 ]
+# --- END OF FIX ---

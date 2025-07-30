@@ -26,26 +26,12 @@ from urllib.parse import urlparse, urljoin
 import aiohttp
 import ssl
 
-from gridland.analyze.plugins.manager import VulnerabilityPlugin, PluginMetadata
+from gridland.analyze.core.models import StreamPlugin, PluginMetadata, StreamResult
 from gridland.analyze.memory import get_memory_pool
 from gridland.core.logger import get_logger
+from gridland.core.models import StreamEndpoint
 
 logger = get_logger(__name__)
-
-
-@dataclass
-class StreamEndpoint:
-    """Enhanced stream endpoint with comprehensive metadata"""
-    url: str
-    protocol: str
-    brand: Optional[str]
-    content_type: Optional[str]
-    response_size: Optional[int]
-    authentication_required: bool
-    confidence: float
-    response_time: float
-    quality_score: float
-    metadata: Dict[str, any]
 
 
 class StreamPathOptimizer:
@@ -72,7 +58,7 @@ class StreamPathOptimizer:
             
             # Brand-specific boost
             if brand and brand.lower() in path.lower():
-                score += 0.3
+                score += 0.5
             
             # Common path patterns
             common_patterns = ['/video', '/stream', '/live', '/snapshot', '/mjpg']
@@ -103,7 +89,7 @@ class StreamPathOptimizer:
         self.success_history[key] = new_score
 
 
-class EnhancedStreamScanner(VulnerabilityPlugin):
+class EnhancedStreamScanner(StreamPlugin):
     """
     Revolutionary multi-protocol stream scanner with comprehensive intelligence.
     
@@ -112,7 +98,7 @@ class EnhancedStreamScanner(VulnerabilityPlugin):
     and innovative quality assessment capabilities.
     """
     
-    def __init__(self):
+    def __init__(self, scheduler, memory_pool):
         super().__init__()
         self.memory_pool = get_memory_pool()
         self.stream_database = self._load_stream_database()
@@ -180,7 +166,7 @@ class EnhancedStreamScanner(VulnerabilityPlugin):
             }
         }
     
-    async def scan_vulnerabilities(self, target_ip: str, target_port: int,
+    async def analyze_streams(self, target_ip: str, target_port: int,
                                  service: str, banner: str) -> List[any]:
         """
         Revolutionary stream vulnerability scanning with multi-protocol support.
@@ -215,7 +201,7 @@ class EnhancedStreamScanner(VulnerabilityPlugin):
                 results = await self._assess_stream_quality(results)
             
             # Phase 5: Vulnerability Correlation and Reporting
-            vulnerability_results = await self._create_vulnerability_reports(
+            stream_results = await self._create_stream_reports(
                 target_ip, target_port, results, brand_info
             )
             
@@ -223,9 +209,9 @@ class EnhancedStreamScanner(VulnerabilityPlugin):
             self._update_scan_statistics(results)
             
             scan_time = time.time() - self.scan_stats["scan_start_time"]
-            logger.info(f"✅ Enhanced scanning complete: {len(vulnerability_results)} findings in {scan_time:.2f}s")
+            logger.info(f"✅ Enhanced scanning complete: {len(stream_results)} findings in {scan_time:.2f}s")
             
-            return vulnerability_results
+            return stream_results
             
         except Exception as e:
             logger.error(f"❌ Enhanced stream scanning failed: {e}")
@@ -463,92 +449,32 @@ class EnhancedStreamScanner(VulnerabilityPlugin):
         
         return streams
     
-    async def _test_http_streams(self, target_ip: str, target_port: int,
-                               brand: Optional[str], service: str) -> List[StreamEndpoint]:
-        """Comprehensive HTTP stream testing with content validation"""
+    async def _test_http_streams(self, session: aiohttp.ClientSession, target_ip: str, target_port: int, brand: str) -> List[StreamResult]:
+        """
+        Tests common HTTP/MJPEG stream paths for a given target.
+        Accepts a session object to allow for testing with mocks.
+        """
         streams = []
+        base_url = f"http://{target_ip}:{target_port}"
         
-        protocol = "https" if service == "https" or target_port == 443 else "http"
+        # Get the optimized list of paths to check
         http_paths = self._get_optimized_paths("http", brand)
-        
-        logger.debug(f"Testing {len(http_paths)} HTTP paths for {brand or 'generic'} camera")
-        
-        connector = aiohttp.TCPConnector(ssl=False, limit=50)
-        timeout = aiohttp.ClientTimeout(total=5)
-        
-        async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
-            for path in http_paths:
-                try:
-                    stream_url = f"{protocol}://{target_ip}:{target_port}{path}"
-                    
-                    start_time = time.time()
-                    async with session.get(stream_url) as response:
-                        response_time = (time.time() - start_time) * 1000
-                        
-                        self.scan_stats["total_endpoints_tested"] += 1
-                        
-                        if response.status == 200:
-                            content_type = response.headers.get('content-type', '').lower()
-                            content_length = response.headers.get('content-length', '0')
-                            
-                            # Validate that it's actually a stream/image
-                            if self._is_stream_content_type(content_type):
-                                confidence = self._calculate_http_confidence(
-                                    content_type, path, brand, response.headers
-                                )
-                                quality_score = self._estimate_http_quality(
-                                    content_type, content_length, response.headers
-                                )
-                                
-                                stream = StreamEndpoint(
-                                    url=stream_url,
-                                    protocol="http",
-                                    brand=brand,
-                                    content_type=content_type,
-                                    response_size=int(content_length) if content_length.isdigit() else None,
-                                    authentication_required=False,
-                                    confidence=confidence,
-                                    response_time=response_time,
-                                    quality_score=quality_score,
-                                    metadata={
-                                        "headers": dict(response.headers),
-                                        "path": path,
-                                        "discovery_method": "enhanced_http_scan"
-                                    }
-                                )
-                                streams.append(stream)
-                                self.scan_stats["successful_discoveries"] += 1
-                                
-                                # Record success
-                                self.path_optimizer.record_success("http", path, True)
-                        
-                        elif response.status == 401:
-                            # Authentication required but endpoint exists
-                            stream = StreamEndpoint(
-                                url=stream_url,
-                                protocol="http",
-                                brand=brand,
-                                content_type=None,
-                                response_size=None,
-                                authentication_required=True,
-                                confidence=0.75,
-                                response_time=response_time,
-                                quality_score=0.5,  # Unknown quality
-                                metadata={
-                                    "headers": dict(response.headers),
-                                    "path": path,
-                                    "discovery_method": "enhanced_http_scan"
-                                }
-                            )
-                            streams.append(stream)
-                            self.path_optimizer.record_success("http", path, True)
-                        else:
-                            self.path_optimizer.record_success("http", path, False)
-                            
-                except Exception as e:
-                    logger.debug(f"HTTP test failed for {path}: {e}")
-                    self.path_optimizer.record_success("http", path, False)
-        
+
+        for path in http_paths:
+            full_url = f"{base_url}{path}"
+            try:
+                # Use the session object that was passed into the method
+                async with session.get(full_url, timeout=self.timeout) as response:
+                    if response.status == 200 and "image" in response.headers.get("content-type", "").lower():
+                        stream_result = self.memory_pool.acquire_stream_result()
+                        stream_result.url = full_url
+                        stream_result.protocol = "http"
+                        stream_result.is_authenticated = False # Assuming public for now
+                        streams.append(stream_result)
+            except asyncio.TimeoutError:
+                continue
+            except Exception:
+                continue
         return streams
     
     async def _test_rtmp_streams(self, target_ip: str, target_port: int,
@@ -870,39 +796,24 @@ class EnhancedStreamScanner(VulnerabilityPlugin):
         # Future enhancement could include actual stream analysis
         return streams
     
-    async def _create_vulnerability_reports(self, target_ip: str, target_port: int,
+    async def _create_stream_reports(self, target_ip: str, target_port: int,
                                           streams: List[StreamEndpoint],
                                           brand_info: Dict) -> List[any]:
-        """Create vulnerability reports from discovered streams"""
-        vulnerability_results = []
+        """Create stream reports from discovered streams"""
+        stream_results = []
         
         for stream in streams:
             try:
                 # Create main stream discovery result
-                vuln_result = self.memory_pool.acquire_vulnerability_result()
-                vuln_result.ip = target_ip
-                vuln_result.port = target_port
-                vuln_result.service = stream.protocol
-                vuln_result.vulnerability_id = "STREAM-DISCOVERY-ENHANCED"
-                
-                # Determine severity based on accessibility and quality
-                if not stream.authentication_required:
-                    if stream.quality_score >= 0.8:
-                        vuln_result.severity = "HIGH"
-                    elif stream.quality_score >= 0.6:
-                        vuln_result.severity = "MEDIUM"
-                    else:
-                        vuln_result.severity = "LOW"
-                else:
-                    vuln_result.severity = "MEDIUM"
-                
-                vuln_result.confidence = int(stream.confidence * 100)
-                vuln_result.description = f"Enhanced {stream.protocol.upper()} stream discovered: {stream.url}"
-                vuln_result.exploit_available = not stream.authentication_required
+                stream_result = self.memory_pool.acquire_stream_result()
+                stream_result.ip = target_ip
+                stream_result.port = target_port
+                stream_result.service = stream.protocol
+                stream_result.stream_url = stream.url
+                stream_result.accessible = not stream.authentication_required
                 
                 # Comprehensive details
                 details = {
-                    "stream_url": stream.url,
                     "protocol": stream.protocol,
                     "brand": stream.brand or "unknown",
                     "content_type": stream.content_type,
@@ -915,38 +826,14 @@ class EnhancedStreamScanner(VulnerabilityPlugin):
                     "metadata": stream.metadata,
                     "brand_detection": brand_info
                 }
-                vuln_result.details = json.dumps(details)
+                stream_result.details = json.dumps(details)
                 
-                vulnerability_results.append(vuln_result)
+                stream_results.append(stream_result)
                 
             except Exception as e:
-                logger.debug(f"Error creating vulnerability report for stream {stream.url}: {e}")
+                logger.debug(f"Error creating stream report for stream {stream.url}: {e}")
         
-        # Create summary report if multiple streams found
-        if len(streams) > 1:
-            summary_result = self.memory_pool.acquire_vulnerability_result()
-            summary_result.ip = target_ip
-            summary_result.port = target_port
-            summary_result.service = "multi-protocol"
-            summary_result.vulnerability_id = "MULTIPLE-STREAMS-EXPOSED"
-            summary_result.severity = "HIGH"
-            summary_result.confidence = 95
-            summary_result.description = f"Multiple stream endpoints discovered: {len(streams)} streams across protocols"
-            summary_result.exploit_available = any(not s.authentication_required for s in streams)
-            
-            summary_details = {
-                "total_streams": len(streams),
-                "protocols": list(set(s.protocol for s in streams)),
-                "unauthenticated_streams": len([s for s in streams if not s.authentication_required]),
-                "high_quality_streams": len([s for s in streams if s.quality_score >= 0.8]),
-                "brands_detected": list(set(s.brand for s in streams if s.brand)),
-                "discovery_method": "enhanced_comprehensive_scan"
-            }
-            summary_result.details = json.dumps(summary_details)
-            
-            vulnerability_results.append(summary_result)
-        
-        return vulnerability_results
+        return stream_results
     
     def _update_scan_statistics(self, streams: List[StreamEndpoint]):
         """Update scanning performance statistics"""
@@ -968,6 +855,3 @@ class EnhancedStreamScanner(VulnerabilityPlugin):
         if self.scan_stats["total_endpoints_tested"] % 50 == 0:
             logger.debug(f"Enhanced scanner stats: {self.scan_stats}")
 
-
-# Plugin instance for automatic discovery
-enhanced_stream_scanner = EnhancedStreamScanner()
