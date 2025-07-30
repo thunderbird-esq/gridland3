@@ -72,17 +72,45 @@ class ProgressIndicator:
         self.last_update = current_time
 
 
-def configure_discover_parser(parser):
-    """Adds 'discover' command arguments to the parser."""
-    parser.add_argument("--engine", choices=['masscan', 'shodanspider', 'censys', 'auto'], default='auto', help='Discovery engine to use (default: auto)')
-    parser.add_argument("-r", "--range", help='IP range to scan (CIDR notation, range, or single IP)')
-    parser.add_argument("-q", "--query", help='Search query for ShodanSpider engine')
-    # ... add other arguments ...
-
-def handle_discover_command(args):
-    """The logic that runs when 'discover' is called."""
-    print(f"Starting discovery with engine: {args.engine}")
-    # ... your original discovery logic goes here ...
+@click.command('discover')
+@click.option('--engine', type=click.Choice(['masscan', 'shodanspider', 'censys', 'auto']), default='auto', help='Discovery engine to use.')
+@click.option('-r', '--range', 'ip_range', help='IP range to scan (CIDR notation, range, or single IP).')
+@click.option('-q', 'query', help='Search query for ShodanSpider or Censys engines.')
+@click.option('-p', '--ports', help='Comma-separated list of ports to scan.')
+@click.option('--scan-mode', type=click.Choice(['QUICK', 'DEFAULT', 'THOROUGH', 'CUSTOM']), default='DEFAULT', help='Port scan mode.')
+@click.option('--port-categories', multiple=True, type=click.Choice(['WEB', 'RTSP', 'ONVIF', 'COMMON']), help='Specific port categories to scan.')
+@click.option('--rate', type=int, help='Masscan rate in packets/sec.')
+@click.option('--limit', type=int, default=100, help='Limit number of results for search engines.')
+@click.option('--country', help='Two-letter country code to filter results.')
+@click.option('--cve', help='Search for devices vulnerable to a specific CVE.')
+@click.option('--brands', help='Comma-separated list of camera brands to search for.')
+@click.option('--input-file', type=click.Path(exists=True, dir_okay=False), help='File with targets to scan (one per line).')
+@click.option('--output', type=click.Path(dir_okay=False), help='Output file for results (JSON).')
+@click.option('--output-format', type=click.Choice(['table', 'json', 'csv', 'xml']), default='table', help='Output format.')
+@click.option('--cameras-only', is_flag=True, help='Attempt to filter for likely camera candidates.')
+@click.option('--dry-run', is_flag=True, help='Show what would be executed without running.')
+@click.option('--show-port-preview', is_flag=True, help='Show a preview of ports to be scanned and exit.')
+@click.option('-v', '--verbose', is_flag=True, help='Enable verbose output.')
+def discover(
+    engine: str,
+    ip_range: Optional[str],
+    query: Optional[str],
+    ports: Optional[str],
+    scan_mode: str,
+    port_categories: List[str],
+    rate: Optional[int],
+    limit: int,
+    country: Optional[str],
+    cve: Optional[str],
+    brands: Optional[str],
+    input_file: Optional[str],
+    output: Optional[str],
+    output_format: str,
+    cameras_only: bool,
+    dry_run: bool,
+    show_port_preview: bool,
+    verbose: bool
+):
     """
     Discover camera targets using various engines.
     
@@ -111,7 +139,7 @@ def handle_discover_command(args):
     logger.info("GRIDLAND Discovery Engine starting")
     
     # Validate inputs
-    if not _validate_inputs(engine, range, query, input_file):
+    if not _validate_inputs(engine, ip_range, query, input_file):
         sys.exit(1)
     
     # Initialize port manager
@@ -140,7 +168,7 @@ def handle_discover_command(args):
         brand_list = [b.strip() for b in brands.split(',')]
     
     if dry_run:
-        _show_dry_run(engine, range, query, port_list, scan_mode, port_categories, rate, limit, country, cve, brand_list, input_file, port_manager)
+        _show_dry_run(engine, ip_range, query, port_list, scan_mode, port_categories, rate, limit, country, cve, brand_list, input_file, port_manager)
         return
 
     if show_port_preview:
@@ -151,7 +179,7 @@ def handle_discover_command(args):
     try:
         with ProgressIndicator(f"Running {engine} discovery", show_spinner=not verbose):
             results = _execute_discovery(
-                engine, range, query, port_list, rate, limit, country, 
+                engine, ip_range, query, port_list, rate, limit, country,
                 cve, brand_list, input_file, config
             )
         

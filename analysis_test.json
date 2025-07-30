@@ -1,0 +1,100 @@
+[
+  {
+    "ip": "httpbin.org",
+    "port": 80,
+    "service": "http",
+    "banner": "gunicorn/19.9.0 <!DOCTYPE html>",
+    "analysis_time": 0.6646883487701416,
+    "confidence": 0.8518550366836396,
+    "vulnerabilities": [
+      {
+        "id": "cp-plus-information-disclosure",
+        "severity": "MEDIUM",
+        "confidence": 0.85,
+        "description": "CP Plus device exposes sensitive configuration information",
+        "exploit_available": false
+      },
+      {
+        "id": "cp-plus-authentication-bypass",
+        "severity": "CRITICAL",
+        "confidence": 0.95,
+        "description": "CP Plus DVR/NVR with authentication bypass vulnerability",
+        "exploit_available": true
+      },
+      {
+        "id": "generic-default-auth",
+        "severity": "CRITICAL",
+        "confidence": 0.95,
+        "description": "The device is accessible using common default credentials.",
+        "exploit_available": false
+      },
+      {
+        "id": "cp-plus-default-credentials",
+        "severity": "HIGH",
+        "confidence": 0.92,
+        "description": "CP Plus device with default or weak credentials",
+        "exploit_available": true
+      },
+      {
+        "id": "ADVANCED-FINGERPRINT-PROTOCOL",
+        "severity": "MEDIUM",
+        "confidence": 0.9,
+        "description": "Advanced fingerprinting detected protocol characteristics: {'confidence': 0.9, 'detected_protocol': 'http', 'service_match': True, 'behavioral_score': 0.8}",
+        "exploit_available": false
+      },
+      {
+        "id": "ML-PREDICTED-BUFFER_OVERFLOW",
+        "severity": "HIGH",
+        "confidence": 0.8272489240128762,
+        "description": "ML vulnerability prediction: buffer_overflow (confidence: 0.83)",
+        "exploit_available": false
+      },
+      {
+        "id": "ML-PREDICTED-INFORMATION_DISCLOSURE",
+        "severity": "MEDIUM",
+        "confidence": 0.7789798345313373,
+        "description": "ML vulnerability prediction: information_disclosure (confidence: 0.78)",
+        "exploit_available": false
+      },
+      {
+        "id": "ML-PREDICTED-PRIVILEGE_ESCALATION",
+        "severity": "HIGH",
+        "confidence": 0.8145574797934975,
+        "description": "ML vulnerability prediction: privilege_escalation (confidence: 0.81)",
+        "exploit_available": false
+      },
+      {
+        "id": "WEAK-CREDENTIALS-DISCOVERED",
+        "severity": "HIGH",
+        "confidence": 0.95,
+        "description": "Weak credentials discovered: 2/14 successful",
+        "exploit_available": true
+      },
+      {
+        "id": "NETWORK-TOPOLOGY-EXPOSURE",
+        "severity": "LOW",
+        "confidence": 0.8,
+        "description": "Network topology mapping: Cluster cluster_4, 1 relationships",
+        "exploit_available": false
+      }
+    ],
+    "streams": [
+      {
+        "protocol": "websocket",
+        "url": "http://httpbin.org:80/live/ws",
+        "codec": "",
+        "resolution": "",
+        "accessible": true,
+        "authenticated": false
+      },
+      {
+        "protocol": "websocket",
+        "url": "http://httpbin.org:80/video/ws",
+        "codec": "",
+        "resolution": "",
+        "accessible": true,
+        "authenticated": false
+      }
+    ]
+  }
+]

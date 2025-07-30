@@ -11,7 +11,7 @@ from dataclasses import dataclass
 import json
 
 from gridland.analyze.memory.pool import get_memory_pool, VulnerabilityResult
-from gridland.analyze.plugins.manager import VulnerabilityPlugin, PluginMetadata
+from gridland.analyze.plugins.manager import VulnerabilityPlugin, PluginMetadata, AnalysisPlugin
 from gridland.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -33,20 +33,21 @@ class CPPlusScanner(VulnerabilityPlugin):
     based on CamXploit.py intelligence with enhanced model identification.
     """
 
-    metadata = PluginMetadata(
-        name="CP Plus Scanner",
-        version="1.0.0",
-        author="GRIDLAND Security Team",
-        plugin_type="vulnerability",
-        supported_services=["http", "https"],
-        supported_ports=[80, 443, 8080, 8443, 8000, 8001],
-        description="Specialized vulnerability scanner for CP Plus cameras and DVR systems"
-    )
-
     def __init__(self):
         super().__init__()
         self.cp_plus_database = self._load_cp_plus_database()
         self.memory_pool = get_memory_pool()
+
+    def get_metadata(self) -> PluginMetadata:
+        return PluginMetadata(
+            name="CP Plus Scanner",
+            version="1.0.0",
+            author="GRIDLAND Security Team",
+            plugin_type="vulnerability",
+            supported_services=["http", "https"],
+            supported_ports=[80, 443, 8080, 8443, 8000, 8001],
+            description="Specialized vulnerability scanner for CP Plus cameras and DVR systems"
+        )
 
     def _load_cp_plus_database(self) -> Dict:
         """Load CP Plus device database with models and vulnerabilities"""

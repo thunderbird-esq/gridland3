@@ -92,18 +92,41 @@ class ProgressIndicator:
         self.last_update = current_time
 
 
-def configure_analyze_parser(parser):
-    """Adds 'analyze' command arguments to the parser."""
-    parser.add_argument("-t", "--target", required=True, help="Target IP, range, or CIDR.")
-    # ... add other arguments from your original main() ...
-
-def handle_analyze_command(args):
-    """The logic that runs when 'analyze' is called."""
-    print(f"Starting analysis on target: {args.target}")
-    # ... your original analysis engine setup and execution logic goes here ...
-
-# The old main() function in this file can now be removed or commented out.
-# def main(): ...
+@click.command('analyze')
+@click.option('-t', '--targets', help='Comma-separated list of targets (IP:port).')
+@click.option('--input-file', type=click.Path(exists=True, dir_okay=False), help='File with targets to analyze.')
+@click.option('--discovery-results', type=click.Path(exists=True, dir_okay=False), help='Load targets from discovery JSON file.')
+@click.option('--output', type=click.Path(dir_okay=False), help='Output file for results (JSON).')
+@click.option('--output-format', type=click.Choice(['table', 'json', 'csv', 'summary']), default='table', help='Output format.')
+@click.option('--performance-mode', type=click.Choice(['FAST', 'BALANCED', 'THOROUGH']), default='BALANCED', help='Analysis performance mode.')
+@click.option('--max-concurrent', type=int, help='Override max concurrent targets.')
+@click.option('--timeout', type=int, help='Override timeout per target.')
+@click.option('--confidence-threshold', type=float, help='Signature confidence threshold (0.0-1.0).')
+@click.option('--disable-vulnerabilities', is_flag=True, help='Disable vulnerability scanning.')
+@click.option('--disable-streams', is_flag=True, help='Disable stream analysis.')
+@click.option('--disable-plugins', is_flag=True, help='Disable all plugins.')
+@click.option('--enrich', is_flag=True, help='Enable IP context enrichment plugins.')
+@click.option('--show-statistics', is_flag=True, help='Show detailed performance statistics.')
+@click.option('--dry-run', is_flag=True, help='Show what would be analyzed without running.')
+@click.option('-v', '--verbose', is_flag=True, help='Enable verbose output.')
+def analyze(
+    targets: Optional[str],
+    input_file: Optional[str],
+    discovery_results: Optional[str],
+    output: Optional[str],
+    output_format: str,
+    performance_mode: str,
+    max_concurrent: Optional[int],
+    timeout: Optional[int],
+    confidence_threshold: Optional[float],
+    disable_vulnerabilities: bool,
+    disable_streams: bool,
+    disable_plugins: bool,
+    enrich: bool,
+    show_statistics: bool,
+    dry_run: bool,
+    verbose: bool
+):
     """
     Analyze targets for vulnerabilities and streams using the revolutionary Phase 3 engine.
     
@@ -575,6 +598,3 @@ def _show_performance_statistics():
         if count > 0:
             print(f"  {plugin_type} plugins: {count}")
 
-
-if __name__ == '__main__':
-    analyze()
