@@ -1,0 +1,16 @@
+# Global settings for GRIDLAND3
+# This file allows easy tuning of performance and behavior.
+
+# Network settings for all scanner plugins
+network:
+  # Timeout in seconds for all HTTP/TCP connection attempts
+  timeout: 10
+  # Number of retries for failed connections
+  retries: 2
+  # User-Agent to use for all HTTP requests
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 GRIDLAND3-Scanner"
+
+# Scheduler settings
+scheduler:
+  # Number of concurrent worker threads for scanning tasks
+  max_workers: 50

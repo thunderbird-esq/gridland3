@@ -16,6 +16,7 @@ from gridland.analyze.memory.pool import get_memory_pool, VulnerabilityResult
 from gridland.analyze.plugins.manager import VulnerabilityPlugin, PluginMetadata
 from gridland.core.logger import get_logger
 from ...core.database_manager import db_manager
+from ...core.config_manager import config_manager
 
 logger = get_logger(__name__)
 
@@ -227,8 +228,10 @@ async def _fingerprint_hikvision(self, target_ip: str, target_port: int) -> Opti
     fingerprint = DeviceFingerprint(brand="hikvision", capabilities=[], api_endpoints=[])
 
     try:
+        request_timeout = config_manager.get('network', 'timeout', default=10)
+
         connector = aiohttp.TCPConnector(ssl=False)
-        timeout = aiohttp.ClientTimeout(total=10)
+        timeout = aiohttp.ClientTimeout(total=request_timeout)
         async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
             hik_db = self.fingerprinting_database['hikvision']
             for endpoint in hik_db['endpoints']:
@@ -372,8 +375,9 @@ async def _fingerprint_dahua(self, target_ip: str, target_port: int) -> Optional
     fingerprint = DeviceFingerprint(brand="dahua", capabilities=[], api_endpoints=[])
 
     try:
+        request_timeout = config_manager.get('network', 'timeout', default=10)
         connector = aiohttp.TCPConnector(ssl=False)
-        timeout = aiohttp.ClientTimeout(total=10)
+        timeout = aiohttp.ClientTimeout(total=request_timeout)
         async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
             dahua_db = self.fingerprinting_database['dahua']
             for endpoint in dahua_db['endpoints']:
@@ -399,8 +403,9 @@ async def _fingerprint_axis(self, target_ip: str, target_port: int) -> Optional[
     fingerprint = DeviceFingerprint(brand="axis", capabilities=[], api_endpoints=[])
 
     try:
+        request_timeout = config_manager.get('network', 'timeout', default=10)
         connector = aiohttp.TCPConnector(ssl=False)
-        timeout = aiohttp.ClientTimeout(total=10)
+        timeout = aiohttp.ClientTimeout(total=request_timeout)
         async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
             axis_db = self.fingerprinting_database['axis']
             for endpoint in axis_db['endpoints']:
