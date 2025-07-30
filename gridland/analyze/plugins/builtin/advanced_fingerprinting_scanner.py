@@ -434,19 +434,22 @@ class AdvancedFingerprintingScanner(VulnerabilityPlugin):
 
         for field, patterns in cp_db['content_patterns'].items():
             for pattern in patterns:
-                if isinstance(pattern, str) and pattern in content_lower:
-                    if field == 'device_type':
-                        fingerprint.device_type = pattern.upper()
-                else:
-                    # Regex pattern
-                    match = re.search(pattern, content, re.IGNORECASE)
-                    if match:
-                        value = match.group(1).strip()
-                        if field == 'model':
-                            fingerprint.model = value
-                        elif field == 'firmware':
-                            fingerprint.firmware_version = value
-                        break
+                try:
+                    if isinstance(pattern, str) and pattern in content_lower:
+                        if field == 'device_type':
+                            fingerprint.device_type = pattern.upper()
+                    else:
+                        # Regex pattern
+                        match = re.search(pattern, content, re.IGNORECASE)
+                        if match:
+                            value = match.group(1).strip()
+                            if field == 'model':
+                                fingerprint.model = value
+                            elif field == 'firmware':
+                                fingerprint.firmware_version = value
+                            break
+                except Exception as e:
+                    logger.debug(f"Firmware pattern extraction error: {e}")
 
     async def _test_credentials(self, session: aiohttp.ClientSession, base_url: str,
                               brand: str) -> Optional[Tuple[str, str]]:
