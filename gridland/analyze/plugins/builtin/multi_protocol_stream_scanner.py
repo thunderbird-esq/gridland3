@@ -55,15 +55,16 @@ class MultiProtocolStreamScanner(StreamPlugin):
     validation methods with detailed stream intelligence collection.
     """
 
-    metadata = PluginMetadata(
-        name="Multi-Protocol Stream Scanner",
-        version="2.0.0",
-        author="GRIDLAND Security Team",
-        plugin_type="stream",
-        supported_services=["http", "https", "rtsp", "rtmp", "mms", "onvif"],
-        supported_ports=[80, 443, 554, 1935, 1755, 3702, 8080, 8443, 8554, 10554],
-        description="Comprehensive multi-protocol stream detection with detailed validation"
-    )
+    def get_metadata(self) -> PluginMetadata:
+        return PluginMetadata(
+            name="Multi-Protocol Stream Scanner",
+            version="2.0.0",
+            author="GRIDLAND Security Team",
+            plugin_type="stream",
+            supported_services=["http", "https", "rtsp", "rtmp", "mms", "onvif"],
+            supported_ports=[80, 443, 554, 1935, 1755, 3702, 8080, 8443, 8554, 10554],
+            description="Comprehensive multi-protocol stream detection with detailed validation"
+        )
 
     def __init__(self):
         super().__init__()

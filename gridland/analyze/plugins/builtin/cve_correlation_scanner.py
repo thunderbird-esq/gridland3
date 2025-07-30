@@ -40,15 +40,16 @@ class CVECorrelationScanner(VulnerabilityPlugin):
     detailed vulnerability assessments with exploit information.
     """
 
-    metadata = PluginMetadata(
-        name="CVE Correlation Scanner",
-        version="2.0.0",
-        author="GRIDLAND Security Team",
-        plugin_type="vulnerability",
-        supported_services=["http", "https"],
-        supported_ports=[80, 443, 8080, 8443, 8000, 8001],
-        description="Comprehensive CVE correlation with detailed vulnerability intelligence"
-    )
+    def get_metadata(self) -> PluginMetadata:
+        return PluginMetadata(
+            name="CVE Correlation Scanner",
+            version="2.0.0",
+            author="GRIDLAND Security Team",
+            plugin_type="vulnerability",
+            supported_services=["http", "https"],
+            supported_ports=[80, 443, 8080, 8443, 8000, 8001],
+            description="Comprehensive CVE correlation with detailed vulnerability intelligence"
+        )
 
     def __init__(self):
         super().__init__()

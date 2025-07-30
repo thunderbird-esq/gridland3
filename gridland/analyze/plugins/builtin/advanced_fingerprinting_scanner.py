@@ -12,26 +12,13 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 import json
 
-from ...core.logger import logger
-from ...core.models import BasePlugin, DeviceFingerprint
-from ...core.database_manager import db_manager # <-- IMPORT THE SINGLETON
+from gridland.core.logger import get_logger
+from gridland.core.models import BasePlugin, DeviceFingerprint
+from gridland.core.database_manager import db_manager # <-- IMPORT THE SINGLETON
+
+logger = get_logger(__name__)
 import aiohttp
 from typing import Optional
-
-@dataclass
-class DeviceFingerprint:
-    """Comprehensive device fingerprint information"""
-    brand: str
-    model: Optional[str] = None
-    firmware_version: Optional[str] = None
-    hardware_version: Optional[str] = None
-    serial_number: Optional[str] = None
-    device_type: Optional[str] = None
-    capabilities: List[str] = field(default_factory=list)
-    api_endpoints: List[str] = field(default_factory=list)
-    authentication_methods: List[str] = field(default_factory=list)
-    configuration_access: bool = False
-    vulnerability_indicators: List[str] = field(default_factory=list)
 
 class AdvancedFingerprintingScanner(BasePlugin):
     def __init__(self, scheduler, memory_pool):
@@ -88,7 +75,7 @@ async def _fingerprint_hikvision(self, target_ip: str, target_port: int) -> Opti
                             fingerprint.api_endpoints.append(endpoint)
                             content = await response.text()
                             if "deviceInfo" in endpoint or "configurationFile" in endpoint:
-                                await self._parse_hikvision_xml(content, fingerprint)
+                                self._parse_hikvision_xml(content, fingerprint)
                             if "configurationFile" in endpoint:
                                 fingerprint.configuration_access = True
                 except Exception:
@@ -98,36 +85,26 @@ async def _fingerprint_hikvision(self, target_ip: str, target_port: int) -> Opti
 
     return fingerprint if fingerprint.api_endpoints else None
 
-    async def _parse_hikvision_xml(self, content: str, fingerprint: DeviceFingerprint):
+    def _parse_hikvision_xml(self, content: str, fingerprint: DeviceFingerprint):
         """Parse Hikvision ISAPI XML responses"""
-
         try:
             root = ET.fromstring(content)
+            namespace = "{http://www.hikvision.com/ver20/XMLSchema}"
 
-            # Extract device information using multiple XPath patterns
-            hik_db = self.fingerprinting_database['hikvision']
+            model = root.find(f'{namespace}model')
+            if model is not None:
+                fingerprint.model = model.text
 
-            for field, paths in hik_db['xml_paths'].items():
-                for path in paths:
-                    element = root.find(path)
-                    if element is not None and element.text:
-                        if field == 'model':
-                            fingerprint.model = element.text.strip()
-                        elif field == 'firmware':
-                            fingerprint.firmware_version = element.text.strip()
-                        elif field == 'hardware':
-                            fingerprint.hardware_version = element.text.strip()
-                        elif field == 'serial':
-                            fingerprint.serial_number = element.text.strip()
-                        break
+            firmware_version = root.find(f'{namespace}firmwareVersion')
+            if firmware_version is not None:
+                fingerprint.firmware_version = firmware_version.text
 
-            # Extract capabilities
-            caps = root.findall('.//capability') + root.findall('.//Channel')
-            if caps:
-                fingerprint.capabilities.extend([cap.get('name', 'unknown') for cap in caps[:5]])
+            device_type = root.find(f'{namespace}deviceType')
+            if device_type is not None:
+                fingerprint.device_type = device_type.text
 
         except ET.ParseError as e:
-            logger.debug(f"XML parsing failed: {e}")
+            logger.debug(f"XML parsing failed for Hikvision: {e}")
 
     async def _parse_dahua_response(self, content: str, fingerprint: DeviceFingerprint):
         """Parse Dahua magicBox.cgi responses"""

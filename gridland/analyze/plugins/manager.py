@@ -15,8 +15,8 @@ from typing import Dict, List, Optional, Type, Any, Callable
 from dataclasses import dataclass
 from uuid import uuid4
 
-from ...core.logger import get_logger
-from ...core.config import get_config
+from gridland.core.logger import get_logger
+from gridland.core.config import get_config
 from ..memory import VulnerabilityResult, StreamResult, AnalysisResult
 
 logger = get_logger(__name__)
@@ -43,7 +43,6 @@ class AnalysisPlugin(ABC):
     def __init__(self):
         self.plugin_id = str(uuid4())
         self.enabled = True
-        self.metadata = self.get_metadata()
     
     @abstractmethod
     def get_metadata(self) -> PluginMetadata:

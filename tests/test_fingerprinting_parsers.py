@@ -19,7 +19,7 @@ HIKVISION_DEVICE_INFO_XML = """
 def scanner_instance():
     """Creates a mock instance of the scanner for testing."""
     # We use MagicMock to avoid initializing the real scheduler and memory pool
-    scanner = AdvancedFingerprintingScanner()
+    scanner = AdvancedFingerprintingScanner(MagicMock(), MagicMock())
     return scanner
 
 def test_parse_hikvision_xml(scanner_instance):

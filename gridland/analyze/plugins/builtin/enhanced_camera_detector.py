@@ -61,21 +61,26 @@ class EnhancedCameraDetector(VulnerabilityPlugin):
     with enhanced confidence scoring and brand identification.
     """
 
-    metadata = PluginMetadata(
-        name="Enhanced Camera Detector",
-        version="2.0.0",
-        author="GRIDLAND Security Team",
-        plugin_type="vulnerability",
-        supported_services=["http", "https"],
-        supported_ports=[80, 443, 8080, 8443, 8000, 8001, 8008, 8081, 8888, 9999],
-        description="Multi-method camera detection with advanced heuristics and confidence scoring"
-    )
+    def get_metadata(self) -> PluginMetadata:
+        return PluginMetadata(
+            name="Enhanced Camera Detector",
+            version="2.0.0",
+            author="GRIDLAND Security Team",
+            plugin_type="vulnerability",
+            supported_services=["http", "https"],
+            supported_ports=[80, 443, 8080, 8443, 8000, 8001, 8008, 8081, 8888, 9999],
+            description="Multi-method camera detection with advanced heuristics and confidence scoring"
+        )
 
     def __init__(self):
         super().__init__()
         self.detection_database = self._load_detection_database()
         self.memory_pool = get_memory_pool()
         self.optimizer = DetectionOptimizer()
+
+    async def scan_vulnerabilities(self, target_ip: str, target_port: int,
+                                banner: Optional[str] = None) -> List:
+        return await analyze_vulnerabilities(self, target_ip, target_port, banner)
 
     def _load_detection_database(self) -> Dict:
         """Load comprehensive camera detection patterns"""
@@ -172,7 +177,7 @@ async def analyze_vulnerabilities(self, target_ip: str, target_port: int,
 
         for brand, keywords in self.detection_database["server_keywords"].items():
             for keyword in keywords:
-                if keyword in server_lower:
+                if re.search(r'\b' + re.escape(keyword) + r'\b', server_lower):
                     confidence = 0.85 if brand != 'generic' else 0.60
                     indicators.append(CameraIndicator(
                         indicator_type="server_header",
@@ -291,7 +296,7 @@ async def analyze_vulnerabilities(self, target_ip: str, target_port: int,
         content_lower = content.lower()
 
         for category, keywords in self.detection_database["content_keywords"].items():
-            found_keywords = [kw for kw in keywords if kw in content_lower]
+            found_keywords = [kw for kw in keywords if re.search(r'\b' + re.escape(kw) + r'\b', content_lower)]
 
             if found_keywords:
                 # Calculate confidence based on keyword relevance and count

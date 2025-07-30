@@ -10,10 +10,10 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from colorama import init, Fore, Back, Style
+# from colorama import init, Fore, Back, Style
 
 # Initialize colorama for cross-platform colored output
-init(autoreset=True)
+# init(autoreset=True)
 
 
 class GridlandFormatter(logging.Formatter):
@@ -21,11 +21,11 @@ class GridlandFormatter(logging.Formatter):
     
     # Color mappings for different log levels
     COLORS = {
-        'DEBUG': Fore.BLUE,
-        'INFO': Fore.GREEN,
-        'WARNING': Fore.YELLOW,
-        'ERROR': Fore.RED,
-        'CRITICAL': Fore.MAGENTA + Style.BRIGHT
+        'DEBUG': 'blue',
+        'INFO': 'green',
+        'WARNING': 'yellow',
+        'ERROR': 'red',
+        'CRITICAL': 'magenta'
     }
     
     # Symbols for different log levels
@@ -58,9 +58,9 @@ class GridlandFormatter(logging.Formatter):
             formatted = f"{symbol} {formatted}"
         
         # Add color if enabled and outputting to TTY
-        if self.use_color and sys.stderr.isatty() and level_name in self.COLORS:
-            color = self.COLORS[level_name]
-            formatted = f"{color}{formatted}{Style.RESET_ALL}"
+        # if self.use_color and sys.stderr.isatty() and level_name in self.COLORS:
+        #     color = self.COLORS[level_name]
+        #     formatted = f"{color}{formatted}"
         
         return formatted
 
@@ -139,10 +139,10 @@ class SecurityLogger:
     def vulnerability_found(self, target: str, vuln_type: str, severity: str = "medium"):
         """Log discovery of vulnerability."""
         severity_colors = {
-            'low': Fore.YELLOW,
-            'medium': Fore.LIGHTYELLOW_EX,
-            'high': Fore.RED,
-            'critical': Fore.MAGENTA + Style.BRIGHT
+            'low': 'yellow',
+            'medium': 'lightyellow',
+            'high': 'red',
+            'critical': 'magenta'
         }
         
         symbol = "🔓" if severity in ['high', 'critical'] else "⚠️"

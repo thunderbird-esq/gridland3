@@ -2,7 +2,9 @@ import json
 import os
 from pathlib import Path
 from threading import Lock
-from ..core.logger import logger
+from gridland.core.logger import get_logger
+
+logger = get_logger(__name__)
 
 class DatabaseManager:
     _instance = None
