@@ -1,0 +1,398 @@
+/**
+ * GRIDLAND-specific styles for Macintosh Plus interface
+ * Application-specific styling that extends system.css
+ */
+
+/* Application-specific colors */
+:root {
+  --gridland-success: #008000;
+  --gridland-warning: #ff8000;
+  --gridland-error: #ff0000;
+  --gridland-info: #0080ff;
+  --gridland-critical: #ff0080;
+}
+
+/* Vulnerability severity indicators */
+.severity-critical {
+  color: var(--gridland-critical);
+  font-weight: bold;
+}
+
+.severity-high {
+  color: var(--gridland-error);
+  font-weight: bold;
+}
+
+.severity-medium {
+  color: var(--gridland-warning);
+}
+
+.severity-low {
+  color: var(--gridland-info);
+}
+
+.severity-info {
+  color: var(--mac-dark-gray);
+}
+
+/* Status indicators */
+.status-scanning {
+  color: var(--gridland-warning);
+}
+
+.status-complete {
+  color: var(--gridland-success);
+}
+
+.status-error {
+  color: var(--gridland-error);
+}
+
+.status-queued {
+  color: var(--mac-dark-gray);
+}
+
+/* Progress indicators */
+.progress-bar-container {
+  width: 100%;
+  height: 8px;
+  border: 1px inset var(--mac-border);
+  background: var(--mac-window);
+  margin: 2px 0;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--mac-border);
+  transition: width 0.3s ease;
+}
+
+/* Stream quality indicators */
+.stream-quality-excellent {
+  color: var(--gridland-success);
+}
+
+.stream-quality-good {
+  color: var(--gridland-info);
+}
+
+.stream-quality-poor {
+  color: var(--gridland-warning);
+}
+
+.stream-quality-unknown {
+  color: var(--mac-shadow);
+}
+
+/* Vulnerability icons */
+.vuln-icon {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  text-align: center;
+  font-size: 8px;
+  line-height: 12px;
+}
+
+.vuln-icon.critical::before {
+  content: '💀';
+}
+
+.vuln-icon.high::before {
+  content: '🔓';
+}
+
+.vuln-icon.medium::before {
+  content: '⚠️';
+}
+
+.vuln-icon.low::before {
+  content: 'ℹ️';
+}
+
+.vuln-icon.info::before {
+  content: '📋';
+}
+
+/* Target type indicators */
+.target-type {
+  font-size: 7px;
+  padding: 1px 3px;
+  border-radius: 2px;
+  background: var(--mac-light-gray);
+  border: 1px solid var(--mac-border);
+  margin-left: 4px;
+}
+
+.target-type.camera {
+  background: #e6ffe6;
+  border-color: var(--gridland-success);
+}
+
+.target-type.dvr {
+  background: #e6f3ff;
+  border-color: var(--gridland-info);
+}
+
+.target-type.nvr {
+  background: #fff3e6;
+  border-color: var(--gridland-warning);
+}
+
+.target-type.unknown {
+  background: var(--mac-light-gray);
+  border-color: var(--mac-shadow);
+}
+
+/* Brand indicators */
+.brand-indicator {
+  font-size: 7px;
+  font-family: var(--font-monaco);
+  color: var(--mac-dark-gray);
+  margin-left: 4px;
+}
+
+.brand-hikvision {
+  color: #ff4444;
+}
+
+.brand-dahua {
+  color: #4444ff;
+}
+
+.brand-axis {
+  color: #44ff44;
+}
+
+.brand-sony {
+  color: #ff8844;
+}
+
+/* Scan mode indicators */
+.scan-mode {
+  font-size: 7px;
+  padding: 1px 2px;
+  background: var(--mac-bg);
+  border: 1px solid var(--mac-border);
+  margin-left: 2px;
+}
+
+.scan-mode.fast {
+  background: #ffe6e6;
+  border-color: var(--gridland-error);
+}
+
+.scan-mode.balanced {
+  background: #fff3e6;
+  border-color: var(--gridland-warning);
+}
+
+.scan-mode.comprehensive {
+  background: #e6ffe6;
+  border-color: var(--gridland-success);
+}
+
+/* Stream protocol indicators */
+.protocol-indicator {
+  font-size: 7px;
+  font-family: var(--font-monaco);
+  padding: 1px 3px;
+  background: var(--mac-light-gray);
+  border: 1px solid var(--mac-border);
+  margin-right: 4px;
+}
+
+.protocol-rtsp {
+  background: #e6f3ff;
+  border-color: var(--gridland-info);
+}
+
+.protocol-http {
+  background: #e6ffe6;
+  border-color: var(--gridland-success);
+}
+
+.protocol-rtmp {
+  background: #fff3e6;
+  border-color: var(--gridland-warning);
+}
+
+/* Tooltip styling */
+.tooltip {
+  position: absolute;
+  background: var(--mac-window);
+  border: 1px solid var(--mac-border);
+  padding: 4px 6px;
+  font-size: 8px;
+  z-index: 3000;
+  box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  pointer-events: none;
+  max-width: 200px;
+}
+
+/* Loading states */
+.loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,0.4),
+    transparent
+  );
+  animation: loading-sweep 1.5s infinite;
+}
+
+@keyframes loading-sweep {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Blinking cursor for active fields */
+.cursor-blink {
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Context menu styling */
+.context-menu {
+  position: absolute;
+  background: var(--mac-window);
+  border: 1px solid var(--mac-border);
+  box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  z-index: 2500;
+  min-width: 120px;
+}
+
+.context-menu-item {
+  padding: 4px 12px;
+  font-size: 9px;
+  cursor: pointer;
+  border-bottom: 1px dotted var(--mac-shadow);
+}
+
+.context-menu-item:hover {
+  background: var(--mac-highlight);
+  color: var(--mac-window);
+}
+
+.context-menu-item.disabled {
+  color: var(--mac-shadow);
+  cursor: default;
+}
+
+.context-menu-item.disabled:hover {
+  background: transparent;
+  color: var(--mac-shadow);
+}
+
+.context-menu-separator {
+  height: 1px;
+  background: var(--mac-border);
+  margin: 2px 0;
+}
+
+/* Drag and drop styling */
+.drag-over {
+  background: var(--mac-light-gray);
+  border: 2px dashed var(--mac-border);
+}
+
+.dragging {
+  opacity: 0.5;
+  transform: rotate(2deg);
+}
+
+/* Selection styling */
+.selectable {
+  cursor: pointer;
+}
+
+.selectable:hover {
+  background: var(--mac-light-gray);
+}
+
+.selectable.selected {
+  background: var(--mac-highlight);
+  color: var(--mac-window);
+}
+
+/* Keyboard focus indicators */
+.mac-input:focus,
+.mac-button:focus,
+.list-item:focus {
+  outline: 1px dotted var(--mac-border);
+  outline-offset: -1px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --mac-bg: #ffffff;
+    --mac-window: #ffffff;
+    --mac-text: #000000;
+    --mac-border: #000000;
+    --mac-shadow: #666666;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dark mode support (for modern systems) */
+@media (prefers-color-scheme: dark) {
+  .mac-desktop.dark-mode {
+    --mac-bg: #404040;
+    --mac-window: #606060;
+    --mac-text: #ffffff;
+    --mac-border: #808080;
+    --mac-shadow: #202020;
+    --mac-light-gray: #505050;
+    --mac-dark-gray: #c0c0c0;
+  }
+}
+
+/* Print-specific styles */
+@media print {
+  .mac-window {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+  }
+  
+  .panel {
+    page-break-inside: avoid;
+    margin-bottom: 20px;
+  }
+  
+  .stream-preview {
+    display: none;
+  }
+  
+  .mac-button {
+    display: none;
+  }
+}

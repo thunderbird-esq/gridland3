@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GRIDLAND v3.0 - Security Reconnaissance</title>
+    <link rel="stylesheet" href="css/system.css">
+    <link rel="stylesheet" href="css/gridland.css">
+    <link rel="preload" href="sounds/mac-startup.wav" as="audio">
+    <link rel="preload" href="sounds/mac-button.wav" as="audio">
+    <link rel="preload" href="sounds/mac-alert.wav" as="audio">
+    <link rel="preload" href="sounds/mac-success.wav" as="audio">
+</head>
+<body class="mac-desktop">
+    <!-- Menu Bar -->
+    <div class="menu-bar">
+        <div class="menu-item apple-menu">🍎</div>
+        <div class="menu-item">File</div>
+        <div class="menu-item">Edit</div>
+        <div class="menu-item">Targets</div>
+        <div class="menu-item">Analysis</div>
+        <div class="menu-item">Tools</div>
+        <div class="menu-item">Window</div>
+        <div class="menu-item">Help</div>
+        <div class="menu-spacer"></div>
+        <div class="menu-clock" id="menuClock">2:47 PM</div>
+    </div>
+
+    <!-- Main Application Window -->
+    <div class="mac-window main-window" id="mainWindow">
+        <!-- Title Bar -->
+        <div class="title-bar">
+            <div class="close-box" id="closeBox"></div>
+            <div class="title">GRIDLAND v3.0 - Security Reconnaissance</div>
+            <div class="zoom-box" id="zoomBox"></div>
+        </div>
+
+        <!-- Window Content -->
+        <div class="window-content">
+            <!-- Target Discovery Panel (The Net) -->
+            <div class="panel discovery-panel">
+                <div class="panel-header">Target Discovery</div>
+                <div class="panel-content">
+                    <div class="field-group">
+                        <label for="shodanQuery">Search Query:</label>
+                        <input type="text" id="shodanQuery" class="mac-input" placeholder="port:554 country:US">
+                        <button class="mac-button" id="discoverBtn">Discover</button>
+                    </div>
+                    <div class="list-box" id="discoveryResults">
+                        <div class="list-header">Discovered Targets</div>
+                        <div class="list-content" id="targetList">
+                            <div class="list-item placeholder">No targets discovered yet</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analysis Queue Panel (The Scalpel) -->
+            <div class="panel analysis-panel">
+                <div class="panel-header">Analysis Queue</div>
+                <div class="panel-content">
+                    <div class="analysis-controls">
+                        <button class="mac-button" id="addTargetBtn">Add Target...</button>
+                        <button class="mac-button" id="removeTargetBtn" disabled>Remove</button>
+                        <button class="mac-button default-button" id="startAnalysisBtn">Start Analysis</button>
+                        <button class="mac-button" id="stopAnalysisBtn" disabled>Stop</button>
+                    </div>
+                    <div class="analysis-queue" id="analysisQueue">
+                        <div class="queue-header">
+                            <div class="col-ip">IP Address</div>
+                            <div class="col-status">Status</div>
+                            <div class="col-progress">Progress</div>
+                            <div class="col-vulns">Vulns</div>
+                        </div>
+                        <div class="queue-content" id="queueContent">
+                            <div class="queue-item placeholder">
+                                <div class="col-ip">No targets queued</div>
+                                <div class="col-status">-</div>
+                                <div class="col-progress">-</div>
+                                <div class="col-vulns">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stream Monitor Panel -->
+            <div class="panel stream-panel">
+                <div class="panel-header">Stream Monitor</div>
+                <div class="panel-content">
+                    <div class="stream-preview" id="streamPreview">
+                        <div class="preview-placeholder">No Stream</div>
+                        <video id="streamVideo" style="display: none;"></video>
+                    </div>
+                    <div class="stream-controls">
+                        <button class="mac-button small" id="fullScreenBtn">Full Screen</button>
+                        <button class="mac-button small" id="recordBtn">Record</button>
+                    </div>
+                    <div class="stream-info" id="streamInfo">
+                        <div class="info-line">Status: Inactive</div>
+                        <div class="info-line">Resolution: -</div>
+                        <div class="info-line">Codec: -</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-item" id="statusText">Ready</div>
+            <div class="status-separator"></div>
+            <div class="status-item" id="targetCount">Targets: 0</div>
+            <div class="status-separator"></div>
+            <div class="status-item" id="scanCount">Scanned: 0</div>
+            <div class="status-separator"></div>
+            <div class="status-item" id="vulnCount">Vulnerabilities: 0</div>
+            <div class="status-separator"></div>
+            <div class="status-item" id="timeDisplay">2:47 PM</div>
+        </div>
+
+        <!-- Resize Handle -->
+        <div class="size-box" id="sizeBox"></div>
+    </div>
+
+    <!-- Modal Dialogs -->
+    <div class="modal-overlay" id="modalOverlay" style="display: none;">
+        <!-- About Dialog -->
+        <div class="mac-dialog about-dialog" id="aboutDialog" style="display: none;">
+            <div class="dialog-title-bar">
+                <div class="dialog-title">About GRIDLAND</div>
+            </div>
+            <div class="dialog-content">
+                <div class="about-content">
+                    <div class="app-icon">🔍</div>
+                    <div class="app-info">
+                        <div class="app-name">GRIDLAND v3.0</div>
+                        <div class="app-subtitle">Security Reconnaissance</div>
+                        <div class="app-description">Professional Camera Analysis Toolkit</div>
+                        <div class="app-copyright">© 2025 Security Research Labs</div>
+                        <div class="app-details">Built on existing backend with 6 security plugins</div>
+                    </div>
+                </div>
+                <div class="dialog-buttons">
+                    <button class="mac-button default-button" id="aboutOkBtn">OK</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Target Dialog -->
+        <div class="mac-dialog add-target-dialog" id="addTargetDialog" style="display: none;">
+            <div class="dialog-title-bar">
+                <div class="dialog-title">Add Target</div>
+            </div>
+            <div class="dialog-content">
+                <div class="field-group">
+                    <label for="targetIp">IP Address:</label>
+                    <input type="text" id="targetIp" class="mac-input" placeholder="192.168.1.100">
+                </div>
+                <div class="field-group">
+                    <label for="targetPort">Port (optional):</label>
+                    <input type="text" id="targetPort" class="mac-input" placeholder="80">
+                </div>
+                <div class="dialog-buttons">
+                    <button class="mac-button" id="addTargetCancelBtn">Cancel</button>
+                    <button class="mac-button default-button" id="addTargetOkBtn">Add</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Dialog -->
+        <div class="mac-dialog progress-dialog" id="progressDialog" style="display: none;">
+            <div class="dialog-title-bar">
+                <div class="dialog-title">Scanning Progress</div>
+            </div>
+            <div class="dialog-content">
+                <div class="progress-info">
+                    <div id="progressTarget">Scanning: 192.168.1.100</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                    </div>
+                    <div id="progressPercent">0%</div>
+                    <div id="progressStatus">Initializing scan...</div>
+                </div>
+                <div class="dialog-buttons">
+                    <button class="mac-button" id="progressCancelBtn">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Dialog -->
+        <div class="mac-dialog error-dialog" id="errorDialog" style="display: none;">
+            <div class="dialog-title-bar">
+                <div class="dialog-title">Error</div>
+            </div>
+            <div class="dialog-content">
+                <div class="error-content">
+                    <div class="error-icon">⚠️</div>
+                    <div class="error-message" id="errorMessage">An error occurred</div>
+                </div>
+                <div class="dialog-buttons">
+                    <button class="mac-button default-button" id="errorOkBtn">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Channel Guide (Hidden by default) -->
+    <div class="channel-guide" id="channelGuide" style="display: none;">
+        <div class="guide-header">Camera Channels</div>
+        <div class="guide-content" id="guideContent">
+            <!-- Populated dynamically -->
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/sounds.js"></script>
+    <script src="js/gridland-api.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

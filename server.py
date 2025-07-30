@@ -117,6 +117,16 @@ def stream(stream_url_b64):
 def index():
     return app.send_static_file('index.html')
 
+@app.route('/ui/')
+def ui_interface():
+    """Serve the Macintosh Plus native interface."""
+    return app.send_static_file('gridland-ui/index.html')
+
+@app.route('/ui/<path:filename>')
+def ui_assets(filename):
+    """Serve UI assets from gridland-ui directory."""
+    return app.send_from_directory('gridland-ui', filename)
+
 if __name__ == '__main__':
     # **FIXED:** Enabled debug mode but DISABLED the reloader to guarantee traceback visibility.
     app.run(host='0.0.0.0', port=8080, threaded=True, debug=True, use_reloader=False)
