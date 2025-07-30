@@ -12,13 +12,11 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 import json
 
-from gridland.analyze.memory.pool import get_memory_pool, VulnerabilityResult
-from gridland.analyze.plugins.manager import VulnerabilityPlugin, PluginMetadata
-from gridland.core.logger import get_logger
-from gridland.core.database_manager import db_manager
-from gridland.core.config_manager import config_manager
-
-logger = get_logger(__name__)
+from ...core.logger import logger
+from ...core.models import BasePlugin, DeviceFingerprint
+from ...core.database_manager import db_manager # <-- IMPORT THE SINGLETON
+import aiohttp
+from typing import Optional
 
 @dataclass
 class DeviceFingerprint:
@@ -35,176 +33,24 @@ class DeviceFingerprint:
     configuration_access: bool = False
     vulnerability_indicators: List[str] = field(default_factory=list)
 
-class AdvancedFingerprintingScanner(VulnerabilityPlugin):
-    """
-    Advanced device fingerprinting with brand-specific intelligence extraction.
+class AdvancedFingerprintingScanner(BasePlugin):
+    def __init__(self, scheduler, memory_pool):
+        super().__init__(scheduler, memory_pool)
+        self.plugin_name = "Advanced Fingerprinting Scanner"
 
-    Implements sophisticated fingerprinting methods from CamXploit.py with
-    enhanced device intelligence collection and vulnerability correlation.
-    """
-
-    metadata = PluginMetadata(
-        name="Advanced Fingerprinting Scanner",
-        version="2.0.0",
-        author="GRIDLAND Security Team",
-        plugin_type="vulnerability",
-        supported_services=["http", "https"],
-        supported_ports=[80, 443, 8080, 8443, 8000, 8001],
-        description="Brand-specific device fingerprinting with model/firmware extraction"
-    )
-
-    def __init__(self):
-        super().__init__()
+        # --- THIS IS THE FIX ---
+        # Instead of loading the file here, we get the already-loaded
+        # database from the global manager.
         self.fingerprinting_database = db_manager.get_db('fingerprinting_database')
-        self.memory_pool = get_memory_pool()
+
         if not self.fingerprinting_database:
-            logger.error("Could not load fingerprinting database. Disabling plugin.")
+            logger.error(
+                "Fingerprinting database not found in DatabaseManager. "
+                "The plugin will be disabled."
+            )
 
-    async def scan_vulnerabilities(self, target_ip: str, target_port: int,
-                                    service: str, banner: str) -> List[VulnerabilityResult]:
-        """Advanced fingerprinting with brand-specific intelligence extraction"""
-
-        # Only analyze web ports
-        if target_port not in [80, 443, 8080, 8443, 8000, 8001]:
-            return []
-
-        # Detect brand first
-        detected_brand = await self._detect_device_brand(target_ip, target_port, banner)
-
-        if not detected_brand:
-            return []
-
-        logger.info(f"Brand detected: {detected_brand} at {target_ip}:{target_port}")
-
-        # Perform brand-specific fingerprinting
-        fingerprint = await self._perform_brand_fingerprinting(
-            target_ip, target_port, detected_brand
-        )
-
-        if not fingerprint:
-            return []
-
-        # Generate comprehensive fingerprint result
-        return self._generate_fingerprint_results(fingerprint, target_ip, target_port)
-
-    async def _detect_device_brand(self, target_ip: str, target_port: int,
-                                 banner: Optional[str]) -> Optional[str]:
-        """Detect device brand using multiple methods"""
-
-        # Check banner first if available
-        if banner:
-            banner_lower = banner.lower()
-            if 'hikvision' in banner_lower:
-                return 'hikvision'
-            elif 'dahua' in banner_lower:
-                return 'dahua'
-            elif 'axis' in banner_lower:
-                return 'axis'
-            elif any(cp in banner_lower for cp in ['cp plus', 'cp-plus', 'cpplus']):
-                return 'cp_plus'
-
-        # Probe for brand-specific endpoints
-        protocol = "https" if target_port in [443, 8443] else "http"
-        base_url = f"{protocol}://{target_ip}:{target_port}"
-
-        try:
-            connector = aiohttp.TCPConnector(ssl=False)
-            timeout = aiohttp.ClientTimeout(total=5)
-
-            async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
-
-                # Test brand-specific endpoints
-                brand_tests = [
-                    ('hikvision', '/ISAPI/System/deviceInfo'),
-                    ('dahua', '/cgi-bin/magicBox.cgi?action=getSystemInfo'),
-                    ('axis', '/axis-cgi/admin/param.cgi?action=list'),
-                    ('cp_plus', '/cgi-bin/snapshot.cgi')
-                ]
-
-                for brand, endpoint in brand_tests:
-                    try:
-                        url = f"{base_url}{endpoint}"
-                        async with session.head(url, timeout=aiohttp.ClientTimeout(total=2)) as response:
-                            if response.status in [200, 401]:  # Endpoint exists
-                                return brand
-                    except Exception:
-                        continue
-
-        except Exception as e:
-            logger.debug(f"Brand detection failed: {e}")
-
-        return None
-
-    def _generate_fingerprint_results(self, fingerprint: DeviceFingerprint,
-                                    target_ip: str, target_port: int) -> List[VulnerabilityResult]:
-        """Generate comprehensive fingerprint vulnerability results"""
-
-        results = []
-
-        # Main fingerprint result
-        main_result = self.memory_pool.acquire_vulnerability_result()
-        main_result.vulnerability_id = "advanced-device-fingerprint"
-        main_result.severity = "INFO"
-        main_result.confidence = 0.95
-        main_result.ip = target_ip
-        main_result.port = target_port
-        main_result.description = self._generate_fingerprint_description(fingerprint)
-        main_result.exploit_available = False
-
-        results.append(main_result)
-
-        # Generate firmware-specific vulnerability alerts if applicable
-        if fingerprint.firmware_version:
-            firmware_vulns = self._check_firmware_vulnerabilities(fingerprint)
-            results.extend(firmware_vulns)
-
-        return results
-
-    def _generate_fingerprint_description(self, fingerprint: DeviceFingerprint) -> str:
-        """Generate human-readable fingerprint description"""
-
-        parts = [f"Advanced fingerprinting completed for {fingerprint.brand.replace('_', ' ').title()} device"]
-
-        if fingerprint.model:
-            parts.append(f"Model: {fingerprint.model}")
-
-        if fingerprint.firmware_version:
-            parts.append(f"Firmware: {fingerprint.firmware_version}")
-
-        if fingerprint.device_type:
-            parts.append(f"Type: {fingerprint.device_type}")
-
-        if fingerprint.api_endpoints:
-            parts.append(f"API endpoints: {len(fingerprint.api_endpoints)} discovered")
-
-        if fingerprint.configuration_access:
-            parts.append("Configuration access available")
-
-        return " | ".join(parts)
-
-    def _check_firmware_vulnerabilities(self, fingerprint: DeviceFingerprint) -> List[VulnerabilityResult]:
-        """Check firmware version against known vulnerabilities"""
-
-        # This would integrate with CVE database to match firmware versions
-        # to specific vulnerabilities - placeholder for future implementation
-
-        vulnerabilities = []
-
-        # Example: Check for known vulnerable firmware versions
-        if fingerprint.brand == 'hikvision' and fingerprint.firmware_version:
-            if any(vuln_version in fingerprint.firmware_version.lower()
-                   for vuln_version in ['v5.4.1', 'v5.4.0', 'v5.3']):
-
-                vuln_result = self.memory_pool.acquire_vulnerability_result()
-                vuln_result.vulnerability_id = "firmware-vulnerability-detected"
-                vuln_result.severity = "HIGH"
-                vuln_result.confidence = 0.90
-                vuln_result.description = f"Potentially vulnerable firmware version detected: {fingerprint.firmware_version}"
-                vuln_result.exploit_available = True
-
-                vulnerabilities.append(vuln_result)
-
-        return vulnerabilities
+    async def analyze(self, target: dict) -> Optional[DeviceFingerprint]:
+        pass
 
     async def _perform_brand_fingerprinting(self, target_ip: str, target_port: int,
                                           brand: str) -> Optional[DeviceFingerprint]:
