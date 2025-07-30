@@ -122,7 +122,8 @@ class PluginRegistry:
             'vulnerability': [],
             'stream': [],
             'banner': [],
-            'custom': []
+            'custom': [],
+            'enrichment': []
         }
         self.plugins_by_port: Dict[int, List[AnalysisPlugin]] = {}
         self.plugins_by_service: Dict[str, List[AnalysisPlugin]] = {}
@@ -131,34 +132,39 @@ class PluginRegistry:
     def register_plugin(self, plugin: AnalysisPlugin) -> bool:
         """Register a plugin in the registry."""
         try:
+            metadata = plugin.get_metadata()
             with self._lock:
                 # Add to main registry
                 self.plugins[plugin.plugin_id] = plugin
                 
                 # Add to type index
-                plugin_type = plugin.metadata.plugin_type.lower()
+                plugin_type = metadata.plugin_type.lower()
                 if plugin_type not in self.plugins_by_type:
                     self.plugins_by_type[plugin_type] = []
                 self.plugins_by_type[plugin_type].append(plugin)
                 
                 # Add to port index
-                for port in plugin.metadata.supported_ports:
+                for port in metadata.supported_ports:
                     if port not in self.plugins_by_port:
                         self.plugins_by_port[port] = []
                     self.plugins_by_port[port].append(plugin)
                 
                 # Add to service index
-                for service in plugin.metadata.supported_services:
+                for service in metadata.supported_services:
                     service_key = service.lower()
                     if service_key not in self.plugins_by_service:
                         self.plugins_by_service[service_key] = []
                     self.plugins_by_service[service_key].append(plugin)
             
-            logger.info(f"Registered plugin: {plugin.metadata.name} v{plugin.metadata.version}")
+            logger.info(f"Registered plugin: {metadata.name} v{metadata.version}")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to register plugin {plugin.metadata.name}: {e}")
+            try:
+                plugin_name = plugin.get_metadata().name
+            except:
+                plugin_name = "Unknown Plugin"
+            logger.error(f"Failed to register plugin {plugin_name}: {e}")
             return False
     
     def unregister_plugin(self, plugin_id: str) -> bool:
@@ -169,9 +175,10 @@ class PluginRegistry:
                     return False
                 
                 plugin = self.plugins[plugin_id]
+                metadata = plugin.get_metadata()
                 
                 # Remove from type index
-                plugin_type = plugin.metadata.plugin_type.lower()
+                plugin_type = metadata.plugin_type.lower()
                 if plugin_type in self.plugins_by_type:
                     self.plugins_by_type[plugin_type] = [
                         p for p in self.plugins_by_type[plugin_type] 
@@ -179,7 +186,7 @@ class PluginRegistry:
                     ]
                 
                 # Remove from port index
-                for port in plugin.metadata.supported_ports:
+                for port in metadata.supported_ports:
                     if port in self.plugins_by_port:
                         self.plugins_by_port[port] = [
                             p for p in self.plugins_by_port[port]
@@ -187,7 +194,7 @@ class PluginRegistry:
                         ]
                 
                 # Remove from service index
-                for service in plugin.metadata.supported_services:
+                for service in metadata.supported_services:
                     service_key = service.lower()
                     if service_key in self.plugins_by_service:
                         self.plugins_by_service[service_key] = [
@@ -201,7 +208,7 @@ class PluginRegistry:
                 # Remove from main registry
                 del self.plugins[plugin_id]
             
-            logger.info(f"Unregistered plugin: {plugin.metadata.name}")
+            logger.info(f"Unregistered plugin: {metadata.name}")
             return True
             
         except Exception as e:
@@ -225,7 +232,7 @@ class PluginRegistry:
             
             # Filter enabled plugins and sort by priority
             enabled_plugins = [p for p in applicable_plugins if p.enabled]
-            return sorted(enabled_plugins, key=lambda p: p.metadata.priority)
+            return sorted(enabled_plugins, key=lambda p: p.get_metadata().priority)
     
     def get_plugins_by_type(self, plugin_type: str) -> List[AnalysisPlugin]:
         """Get plugins by type."""
@@ -271,6 +278,29 @@ class PluginManager:
         
         loaded_count = 0
         
+        # Handle __init__.py for builtin plugins
+        init_file = directory / "__init__.py"
+        if init_file.exists():
+            try:
+                module_name = f"gridland_plugin_{directory.stem}_{uuid4().hex[:8]}"
+                spec = importlib.util.spec_from_file_location(module_name, init_file)
+                if spec and spec.loader:
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    if hasattr(module, 'get_builtin_plugins'):
+                        plugin_classes = module.get_builtin_plugins()
+                        for plugin_class in plugin_classes:
+                            try:
+                                plugin_instance = plugin_class()
+                                if plugin_instance.initialize():
+                                    if self.registry.register_plugin(plugin_instance):
+                                        loaded_count += 1
+                            except Exception as e:
+                                logger.error(f"Failed to instantiate plugin {plugin_class.__name__}: {e}")
+                        return loaded_count
+            except Exception as e:
+                logger.error(f"Failed to load plugins from {init_file}: {e}")
+
         # Look for Python files
         for plugin_file in directory.glob("*.py"):
             if plugin_file.name.startswith("_"):
@@ -419,11 +449,11 @@ class PluginManager:
             'plugin_details': [
                 {
                     'id': plugin.plugin_id,
-                    'name': plugin.metadata.name,
-                    'version': plugin.metadata.version,
-                    'type': plugin.metadata.plugin_type,
+                    'name': plugin.get_metadata().name,
+                    'version': plugin.get_metadata().version,
+                    'type': plugin.get_metadata().plugin_type,
                     'enabled': plugin.enabled,
-                    'priority': plugin.metadata.priority
+                    'priority': plugin.get_metadata().priority
                 }
                 for plugin in all_plugins
             ]
