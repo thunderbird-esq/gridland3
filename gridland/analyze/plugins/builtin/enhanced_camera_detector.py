@@ -14,6 +14,7 @@ from pathlib import Path
 from gridland.analyze.memory.pool import get_memory_pool, VulnerabilityResult
 from gridland.analyze.plugins.manager import VulnerabilityPlugin, PluginMetadata
 from gridland.core.logger import get_logger
+from gridland.core.database_manager import db_manager
 
 logger = get_logger(__name__)
 
@@ -81,6 +82,60 @@ class EnhancedCameraDetector(VulnerabilityPlugin):
     async def scan_vulnerabilities(self, target_ip: str, target_port: int,
                                 banner: Optional[str] = None) -> List:
         return await analyze_vulnerabilities(self, target_ip, target_port, banner)
+
+    def _analyze_server_header(self, header: str) -> list:
+        """Analyzes the Server header for known camera signatures."""
+        indicators = []
+        header_lower = header.lower()
+
+        server_patterns = self.detection_database.get('server_keywords', {})
+
+        # --- THIS IS THE FIX ---
+        # We track if a specific brand was found.
+        found_specific_brand = False
+        for brand, patterns in server_patterns.items():
+            for pattern in patterns:
+                if pattern in header_lower:
+                    if brand != 'generic':
+                        indicators.append(CameraIndicator(
+                            indicator_type="SERVER_HEADER",
+                            value=pattern,
+                            brand=brand,
+                            confidence=0.9
+                        ))
+                        found_specific_brand = True
+
+        # If no specific brand matched, create a generic indicator from the header.
+        if not found_specific_brand:
+            generic_value = header_lower.split('server:')[-1].strip()
+            if generic_value:
+                indicators.append(CameraIndicator(
+                    indicator_type="SERVER_HEADER",
+                    value=generic_value,
+                    brand="generic", # Explicitly label as generic
+                    confidence=0.5
+                ))
+        # --- END OF FIX ---
+
+        return indicators
+
+    def _analyze_content_keywords(self, content: str) -> list:
+        """Analyzes HTML content for camera-specific keywords."""
+        indicators = []
+        content_lower = content.lower()
+
+        keyword_patterns = self.detection_database.get('content_keywords', {})
+
+        for category, patterns in keyword_patterns.items():
+            for pattern in patterns:
+                if pattern in content_lower:
+                    indicators.append(CameraIndicator(
+                        indicator_type="CONTENT_KEYWORD",
+                        value=f"{category}: {pattern}",
+                        brand="generic", # Keywords are usually generic
+                        confidence=0.6 if category == 'device_type' else 0.75
+                    ))
+        return indicators
 
     def _load_detection_database(self) -> Dict:
         """Load comprehensive camera detection patterns"""

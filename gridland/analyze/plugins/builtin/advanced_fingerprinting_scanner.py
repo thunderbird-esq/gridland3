@@ -20,10 +20,43 @@ logger = get_logger(__name__)
 import aiohttp
 from typing import Optional
 
+HIKVISION_DEVICE_INFO_XML = """
+<DeviceInfo version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+  <deviceName>HIKVISION-CAMERA</deviceName>
+  <deviceID>abcdef-123456-fedcba</deviceID>
+  <deviceType>IPCamera</deviceType>
+  <model>DS-2CD2143G0-I</model>
+  <firmwareVersion>V5.5.82</firmwareVersion>
+  <firmwareReleasedDate>build 190120</firmwareReleasedDate>
+</DeviceInfo>
+"""
+
 class AdvancedFingerprintingScanner(BasePlugin):
     def __init__(self, scheduler, memory_pool):
         super().__init__(scheduler, memory_pool)
         self.plugin_name = "Advanced Fingerprinting Scanner"
+
+    def _parse_hikvision_xml(self, content: str, fingerprint: DeviceFingerprint):
+        """Parses Hikvision ISAPI XML for device information."""
+        try:
+            # Remove the XML namespace for easier parsing
+            content = content.replace('xmlns="http://www.hikvision.com/ver20/XMLSchema"', '')
+            root = ET.fromstring(content)
+
+            model_node = root.find('model')
+            if model_node is not None:
+                fingerprint.model = model_node.text.strip()
+
+            firmware_node = root.find('firmwareVersion')
+            if firmware_node is not None:
+                fingerprint.firmware_version = firmware_node.text.strip()
+
+            device_type_node = root.find('deviceType')
+            if device_type_node is not None:
+                fingerprint.device_type = device_type_node.text.strip()
+
+        except ET.ParseError as e:
+            logger.debug(f"Failed to parse Hikvision XML: {e}")
 
         # --- THIS IS THE FIX ---
         # Instead of loading the file here, we get the already-loaded
