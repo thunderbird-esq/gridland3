@@ -118,71 +118,51 @@ class EnhancedCameraDetector(VulnerabilityPlugin):
             ]
         }
 
-    async def scan_vulnerabilities(self, target_ip: str, target_port: int,
-                                    service: str, banner: str) -> List[VulnerabilityResult]:
-        """Enhanced camera detection with multi-method analysis"""
+async def analyze_vulnerabilities(self, target_ip: str, target_port: int,
+                                banner: Optional[str] = None) -> List:
+    if target_port not in [80, 443, 8080, 8443, 8000, 8001, 8008, 8081, 8888, 9999]:
+        return []
 
-        # Only analyze web ports that could host camera interfaces
-        if target_port not in [80, 443, 8080, 8443, 8000, 8001, 8008, 8081, 8888, 9999]:
-            return []
+    indicators = []
+    protocol = "https" if target_port in [443, 8443] else "http"
+    base_url = f"{protocol}://{target_ip}:{target_port}"
 
-        indicators = []
-        protocol = "https" if target_port in [443, 8443] else "http"
-        base_url = f"{protocol}://{target_ip}:{target_port}"
+    # Method 1: Server header analysis from initial banner
+    if banner:
+        indicators.extend(self._analyze_server_header(banner))
 
-        # Method 1: Server header analysis
-        if banner:
-            server_indicators = self._analyze_server_header(banner)
-            indicators.extend(server_indicators)
+    # Methods 2-6: Deep HTTP response analysis
+    try:
+        connector = aiohttp.TCPConnector(ssl=False)
+        timeout = aiohttp.ClientTimeout(total=10)
+        async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
+            async with session.get(base_url) as response:
+                content_type = response.headers.get('Content-Type', '')
+                server_header = response.headers.get('Server', '')
 
-        if not self.optimizer.should_continue_detection(indicators):
-            return self._generate_detection_results(indicators, target_ip, target_port)
+                # Method 2: Content-Type analysis
+                indicators.extend(self._analyze_content_type(content_type))
 
-        # Method 2-6: HTTP response analysis
-        try:
-            async with aiohttp.ClientSession(
-                connector=aiohttp.TCPConnector(ssl=False),
-                timeout=aiohttp.ClientTimeout(total=10)
-            ) as session:
+                # Method 3: Server header analysis (from live response)
+                if server_header and not banner:
+                    indicators.extend(self._analyze_server_header(server_header))
 
-                # Get main page response
-                async with session.get(base_url) as response:
-                    content_type = response.headers.get('Content-Type', '')
-                    server_header = response.headers.get('Server', '')
+                if response.status == 200:
+                    content = await response.text()
+                    # Method 4: Content keyword analysis
+                    indicators.extend(self._analyze_content_keywords(content))
+                    # Method 5: Page title analysis
+                    indicators.extend(self._analyze_page_title(content))
+                    # Method 6: Form field analysis
+                    indicators.extend(self._analyze_form_fields(content))
 
-                    # Method 2: Content-Type analysis
-                    ct_indicators = self._analyze_content_type(content_type)
-                    indicators.extend(ct_indicators)
+            # Method 7: Endpoint probing
+            indicators.extend(await self._analyze_camera_endpoints(session, base_url))
 
-                    # Method 3: Server header analysis (from HTTP response)
-                    if server_header and not banner:
-                        sh_indicators = self._analyze_server_header(server_header)
-                        indicators.extend(sh_indicators)
+    except Exception as e:
+        logger.debug(f"HTTP analysis failed for {base_url}: {e}")
 
-                    if response.status == 200:
-                        content = await response.text()
-
-                        # Method 4: Content keyword analysis
-                        keyword_indicators = self._analyze_content_keywords(content)
-                        indicators.extend(keyword_indicators)
-
-                        # Method 5: Page title analysis
-                        title_indicators = self._analyze_page_title(content)
-                        indicators.extend(title_indicators)
-
-                        # Method 6: Form field analysis
-                        form_indicators = self._analyze_form_fields(content)
-                        indicators.extend(form_indicators)
-
-                # Method 7: Endpoint probing
-                endpoint_indicators = await self._analyze_camera_endpoints(session, base_url)
-                indicators.extend(endpoint_indicators)
-
-        except Exception as e:
-            logger.debug(f"HTTP analysis failed for {base_url}: {e}")
-
-        # Calculate overall camera confidence and generate results
-        return self._generate_detection_results(indicators, target_ip, target_port)
+    return self._generate_detection_results(indicators, target_ip, target_port)
 
     def _analyze_server_header(self, server_header: str) -> List[CameraIndicator]:
         """Analyze server header for camera brand indicators"""
