@@ -110,3 +110,22 @@ class EnhancedCameraDetector(BasePlugin):
                     brand="generic"
                 ))
         return indicators
+    
+    def _analyze_content_keywords(self, content: str, category: str) -> List[CameraIndicator]:
+        """Analyze content for camera-related keywords"""
+        indicators = []
+        content_lower = content.lower()
+        keywords_db = self.fingerprinting_database.get('content_keywords', {})
+        
+        if category in keywords_db:
+            keywords = keywords_db[category]
+            for keyword in keywords:
+                if keyword in content_lower:
+                    indicators.append(CameraIndicator(
+                        indicator_type="CONTENT_KEYWORD",
+                        value=keyword,
+                        confidence=0.7,
+                        brand="generic"
+                    ))
+        
+        return indicators

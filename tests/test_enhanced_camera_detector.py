@@ -44,12 +44,18 @@ def test_analyze_server_header_generic(detector):
     assert len(indicators) > 0
     assert all(ind.brand == "generic" for ind in indicators)
 
-# These tests will be skipped for now, as the methods they test are not yet
-# implemented in the simplified fix above.
-@pytest.mark.skip(reason="Content keyword analysis not implemented in this fix")
 def test_analyze_content_keywords_device_types(detector):
-    pass
+    """Test content keyword analysis for device type detection"""
+    content = "This is an IP Camera interface"
+    indicators = detector._analyze_content_keywords(content, "device_type")
+    assert len(indicators) > 0
+    assert any(ind.value == "ip camera" for ind in indicators)
+    assert all(ind.indicator_type == "CONTENT_KEYWORD" for ind in indicators)
 
-@pytest.mark.skip(reason="Content keyword analysis not implemented in this fix")
 def test_analyze_content_keywords_functionality(detector):
-    pass
+    """Test content keyword analysis for functionality detection"""
+    content = "Welcome to live video streaming service"
+    indicators = detector._analyze_content_keywords(content, "functionality")
+    assert len(indicators) > 0
+    assert any(ind.value == "live video" for ind in indicators)
+    assert all(ind.indicator_type == "CONTENT_KEYWORD" for ind in indicators)

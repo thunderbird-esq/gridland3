@@ -1,6 +1,7 @@
 # In tests/test_enhanced_stream_scanner.py
 
 import pytest
+import aiohttp
 from unittest.mock import MagicMock, AsyncMock
 from gridland.analyze.plugins.builtin.enhanced_stream_scanner import EnhancedStreamScanner
 from gridland.core.models import StreamEndpoint
@@ -49,7 +50,7 @@ async def test_test_rtsp_streams(scanner_instance):
     Tests if the _test_rtsp_streams method correctly identifies RTSP streams.
     """
     scanner_instance._test_rtsp_endpoint = AsyncMock(return_value=(True, False, {}))
-    streams = await scanner_instance._test_rtsp_streams("127.0.0.1", 554, "hikvision")
+    streams = await scanner_instance._test_rtsp_streams("127.0.0.1", 554, "hikvision", "rtsp")
     assert len(streams) > 0
     assert streams[0].protocol == "rtsp"
 
@@ -58,29 +59,30 @@ async def test_test_http_streams(scanner_instance):
     """
     Tests if the _test_http_streams method correctly identifies HTTP streams.
     """
-    # ... (mock response setup is correct) ...
+    # Mock response with proper async context manager
+    class MockResponse:
+        def __init__(self):
+            self.status = 200
+            self.headers = {"content-type": "image/jpeg"}
+        
+        async def __aenter__(self):
+            return self
+        
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
 
+    # Mock memory pool to return a proper stream result
+    from gridland.analyze.memory.pool import StreamResult
+    mock_stream_result = StreamResult()
+    scanner_instance.memory_pool.acquire_stream_result = MagicMock(return_value=mock_stream_result)
+    
+    # Set up timeout
+    scanner_instance.timeout = aiohttp.ClientTimeout(total=5)
+    
+    # Mock session
     mock_session = MagicMock()
-    mock_session.get = AsyncMock(return_value=mock_get()) # Use AsyncMock for async methods
+    mock_session.get = MagicMock(return_value=MockResponse())
 
-    # --- THIS IS THE FIX ---
-    # The following line had an extra indent, causing the SyntaxError.
-    # It has been corrected to align with the 'mock_session' line.
-    scanner_instance._validate_http_stream = AsyncMock(return_value=StreamEndpoint(
-        url="http://127.0.0.1:80/snapshot.jpg",
-        protocol="http",
-        brand="generic",
-        content_type="image/jpeg",
-        response_size=1024,
-        authentication_required=False,
-        confidence=0.9,
-        response_time=100,
-        quality_score=0.8,
-        metadata={}
-    ))
-    # --- END OF FIX ---
-
-    # We now pass the mock session into the method
     streams = await scanner_instance._test_http_streams(mock_session, "127.0.0.1", 80, "generic")
 
     assert len(streams) > 0
