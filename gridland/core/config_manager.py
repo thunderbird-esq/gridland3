@@ -1,3 +1,5 @@
+import os
+import re
 import yaml
 from pathlib import Path
 from threading import Lock
@@ -26,15 +28,35 @@ class ConfigManager:
                 # Default path is in the project root
                 config_path = Path(__file__).parent.parent.parent / 'config.yaml'
 
-            try:
-                with open(config_path, 'r') as f:
-                    self._config = yaml.safe_load(f)
-                logger.info(f"Configuration loaded successfully from {config_path}")
-            except (FileNotFoundError, yaml.YAMLError) as e:
-                logger.error(f"Failed to load configuration from {config_path}: {e}")
-                self._config = {} # Default to empty config on error
+            self._load_config_file(config_path)
 
             self._initialized = True
+
+    def _load_config_file(self, config_path: Path):
+        """Loads YAML and processes environment variable placeholders."""
+        try:
+            with open(config_path, 'r') as f:
+                # First, read the raw text
+                raw_config = f.read()
+
+                # Regex to find all ${VAR_NAME} placeholders
+                placeholder_pattern = re.compile(r'\$\{(.*?)\}')
+
+                # Custom resolver function
+                def resolve_env_var(match):
+                    var_name = match.group(1)
+                    # Get the value from environment, or return empty string if not found
+                    return os.environ.get(var_name, '')
+
+                # Replace all placeholders with their environment variable values
+                resolved_config = placeholder_pattern.sub(resolve_env_var, raw_config)
+
+                # Now, safely load the resolved YAML string
+                self._config = yaml.safe_load(resolved_config)
+            logger.info(f"Configuration loaded successfully from {config_path}")
+        except (FileNotFoundError, yaml.YAMLError) as e:
+            logger.error(f"Failed to load configuration from {config_path}: {e}")
+            self._config = {}
 
     def get(self, *keys, default=None):
         """

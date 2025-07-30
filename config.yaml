@@ -14,3 +14,10 @@ network:
 scheduler:
   # Number of concurrent worker threads for scanning tasks
   max_workers: 50
+
+# External API Integrations
+# Store sensitive API keys in environment variables for security.
+# Example: export SHODAN_API_KEY="your_key_here"
+api_keys:
+  shodan: "${SHODAN_API_KEY}"
+  virustotal: "${VIRUSTOTAL_API_KEY}"
