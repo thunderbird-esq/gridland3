@@ -304,57 +304,34 @@ class AdvancedFingerprintingScanner(VulnerabilityPlugin):
 
         return None
 
-    async def _fingerprint_hikvision(self, target_ip: str, target_port: int) -> Optional[DeviceFingerprint]:
-        """Hikvision-specific fingerprinting using ISAPI"""
+async def _fingerprint_hikvision(self, target_ip: str, target_port: int) -> Optional[DeviceFingerprint]:
+    """Hikvision-specific fingerprinting using ISAPI"""
+    protocol = "https" if target_port in [443, 8443] else "http"
+    base_url = f"{protocol}://{target_ip}:{target_port}"
+    fingerprint = DeviceFingerprint(brand="hikvision", capabilities=[], api_endpoints=[])
 
-        protocol = "https" if target_port in [443, 8443] else "http"
-        base_url = f"{protocol}://{target_ip}:{target_port}"
+    try:
+        connector = aiohttp.TCPConnector(ssl=False)
+        timeout = aiohttp.ClientTimeout(total=10)
+        async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
+            hik_db = self.fingerprinting_database['hikvision']
+            for endpoint in hik_db['endpoints']:
+                try:
+                    url = f"{base_url}{endpoint}"
+                    async with session.get(url) as response:
+                        if response.status == 200:
+                            fingerprint.api_endpoints.append(endpoint)
+                            content = await response.text()
+                            if "deviceInfo" in endpoint or "configurationFile" in endpoint:
+                                await self._parse_hikvision_xml(content, fingerprint)
+                            if "configurationFile" in endpoint:
+                                fingerprint.configuration_access = True
+                except Exception:
+                    continue
+    except Exception as e:
+        logger.debug(f"Hikvision fingerprinting failed: {e}")
 
-        fingerprint = DeviceFingerprint(brand="hikvision", capabilities=[], api_endpoints=[])
-
-        try:
-            connector = aiohttp.TCPConnector(ssl=False)
-            timeout = aiohttp.ClientTimeout(total=10)
-
-            async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
-
-                # Test authentication first
-                credentials = await self._test_credentials(session, base_url, 'hikvision')
-
-                hik_db = self.fingerprinting_database['hikvision']
-
-                for endpoint in hik_db['endpoints']:
-                    try:
-                        url = f"{base_url}{endpoint}"
-
-                        # Try with credentials if available
-                        auth = None
-                        if credentials:
-                            auth = aiohttp.BasicAuth(credentials[0], credentials[1])
-
-                        async with session.get(url, auth=auth) as response:
-                            if response.status == 200:
-                                fingerprint.api_endpoints.append(endpoint)
-                                content = await response.text()
-
-                                # Parse XML responses for device info
-                                if endpoint in ['/ISAPI/System/deviceInfo', '/System/configurationFile']:
-                                    await self._parse_hikvision_xml(content, fingerprint)
-
-                                # Check for configuration access
-                                if 'configurationFile' in endpoint:
-                                    fingerprint.configuration_access = True
-
-                            elif response.status == 401:
-                                fingerprint.api_endpoints.append(f"{endpoint} (auth required)")
-
-                    except Exception as e:
-                        logger.debug(f"Hikvision endpoint test failed for {endpoint}: {e}")
-
-        except Exception as e:
-            logger.debug(f"Hikvision fingerprinting failed: {e}")
-
-        return fingerprint if fingerprint.api_endpoints else None
+    return fingerprint if fingerprint.api_endpoints else None
 
     async def _parse_hikvision_xml(self, content: str, fingerprint: DeviceFingerprint):
         """Parse Hikvision ISAPI XML responses"""
@@ -472,85 +449,59 @@ class AdvancedFingerprintingScanner(VulnerabilityPlugin):
 
         return None
 
-    async def _fingerprint_dahua(self, target_ip: str, target_port: int) -> Optional[DeviceFingerprint]:
-        """Dahua-specific fingerprinting using magicBox.cgi"""
+async def _fingerprint_dahua(self, target_ip: str, target_port: int) -> Optional[DeviceFingerprint]:
+    """Dahua-specific fingerprinting using magicBox.cgi"""
+    protocol = "https" if target_port in [443, 8443] else "http"
+    base_url = f"{protocol}://{target_ip}:{target_port}"
+    fingerprint = DeviceFingerprint(brand="dahua", capabilities=[], api_endpoints=[])
 
-        protocol = "https" if target_port in [443, 8443] else "http"
-        base_url = f"{protocol}://{target_ip}:{target_port}"
+    try:
+        connector = aiohttp.TCPConnector(ssl=False)
+        timeout = aiohttp.ClientTimeout(total=10)
+        async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
+            dahua_db = self.fingerprinting_database['dahua']
+            for endpoint in dahua_db['endpoints']:
+                try:
+                    url = f"{base_url}{endpoint}"
+                    async with session.get(url) as response:
+                        if response.status == 200:
+                            fingerprint.api_endpoints.append(endpoint)
+                            content = await response.text()
+                            if 'magicBox.cgi' in endpoint:
+                                await self._parse_dahua_response(content, fingerprint)
+                except Exception:
+                    continue
+    except Exception as e:
+        logger.debug(f"Dahua fingerprinting failed: {e}")
 
-        fingerprint = DeviceFingerprint(brand="dahua", capabilities=[], api_endpoints=[])
+    return fingerprint if fingerprint.api_endpoints else None
 
-        try:
-            connector = aiohttp.TCPConnector(ssl=False)
-            timeout = aiohttp.ClientTimeout(total=10)
+async def _fingerprint_axis(self, target_ip: str, target_port: int) -> Optional[DeviceFingerprint]:
+    """Axis-specific fingerprinting using VAPIX API"""
+    protocol = "https" if target_port in [443, 8443] else "http"
+    base_url = f"{protocol}://{target_ip}:{target_port}"
+    fingerprint = DeviceFingerprint(brand="axis", capabilities=[], api_endpoints=[])
 
-            async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
+    try:
+        connector = aiohttp.TCPConnector(ssl=False)
+        timeout = aiohttp.ClientTimeout(total=10)
+        async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
+            axis_db = self.fingerprinting_database['axis']
+            for endpoint in axis_db['endpoints']:
+                try:
+                    url = f"{base_url}{endpoint}"
+                    async with session.get(url) as response:
+                        if response.status == 200:
+                            fingerprint.api_endpoints.append(endpoint)
+                            content = await response.text()
+                            if 'param.cgi' in endpoint:
+                                await self._parse_axis_parameters(content, fingerprint)
+                except Exception:
+                    continue
+    except Exception as e:
+        logger.debug(f"Axis fingerprinting failed: {e}")
 
-                dahua_db = self.fingerprinting_database['dahua']
-
-                for endpoint in dahua_db['endpoints']:
-                    try:
-                        url = f"{base_url}{endpoint}"
-
-                        async with session.get(url) as response:
-                            if response.status == 200:
-                                fingerprint.api_endpoints.append(endpoint)
-                                content = await response.text()
-
-                                # Parse Dahua response format
-                                if 'magicBox.cgi' in endpoint:
-                                    await self._parse_dahua_response(content, fingerprint)
-
-                            elif response.status == 401:
-                                fingerprint.api_endpoints.append(f"{endpoint} (auth required)")
-
-                    except aiohttp.ClientError as e:
-                        logger.debug(f"Dahua endpoint test failed for {endpoint}: {e}")
-
-        except Exception as e:
-            logger.debug(f"Dahua fingerprinting failed: {e}")
-
-        return fingerprint if fingerprint.api_endpoints else None
-
-    async def _fingerprint_axis(self, target_ip: str, target_port: int) -> Optional[DeviceFingerprint]:
-        """Axis-specific fingerprinting using VAPIX API"""
-
-        protocol = "https" if target_port in [443, 8443] else "http"
-        base_url = f"{protocol}://{target_ip}:{target_port}"
-
-        fingerprint = DeviceFingerprint(brand="axis", capabilities=[], api_endpoints=[])
-
-        try:
-            connector = aiohttp.TCPConnector(ssl=False)
-            timeout = aiohttp.ClientTimeout(total=10)
-
-            async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
-
-                axis_db = self.fingerprinting_database['axis']
-
-                for endpoint in axis_db['endpoints']:
-                    try:
-                        url = f"{base_url}{endpoint}"
-
-                        async with session.get(url) as response:
-                            if response.status == 200:
-                                fingerprint.api_endpoints.append(endpoint)
-                                content = await response.text()
-
-                                # Parse VAPIX parameter format
-                                if 'param.cgi' in endpoint:
-                                    await self._parse_axis_parameters(content, fingerprint)
-
-                            elif response.status == 401:
-                                fingerprint.api_endpoints.append(f"{endpoint} (auth required)")
-
-                    except Exception as e:
-                        logger.debug(f"Axis endpoint test failed for {endpoint}: {e}")
-
-        except Exception as e:
-            logger.debug(f"Axis fingerprinting failed: {e}")
-
-        return fingerprint if fingerprint.api_endpoints else None
+    return fingerprint if fingerprint.api_endpoints else None
 
     async def _fingerprint_cp_plus(self, target_ip: str, target_port: int) -> Optional[DeviceFingerprint]:
         """CP Plus-specific fingerprinting"""
