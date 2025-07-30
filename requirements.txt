@@ -9,3 +9,4 @@ tabulate
 colorama
 python-vlc
 PyYAML
+pytest

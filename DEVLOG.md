@@ -2374,3 +2374,201 @@ This implementation represents the evolution from traditional signature-based se
 
 **Production Excellence**: 
 All revolutionary enhancements maintain seamless integration with existing architecture, ensuring enterprise-grade performance with research-level innovation. GRIDLAND is now ready for deployment in advanced security operations requiring the highest levels of intelligence and automation.
+
+---
+
+## Phase 5: Final Integration and Testing (IN PROGRESS)
+
+**Date**: July 29, 2025 (Current Session)
+**Objective**: Complete the final phase of integration by implementing the `AdvancedFingerprintingScanner` and resolving all remaining issues to achieve a fully operational and validated build.
+
+### Accomplishments
+
+I have successfully implemented the following:
+
+*   **Advanced Fingerprinting Scanner**: I have implemented the `AdvancedFingerprintingScanner` plugin, which provides deep, brand-specific intelligence for Hikvision, Dahua, and Axis devices. This scanner is capable of extracting model numbers, firmware versions, and serial numbers from these devices.
+
+    ```python
+    # In gridland/analyze/plugins/builtin/advanced_fingerprinting_scanner.py
+
+    async def _fingerprint_hikvision(self, target_ip: str, target_port: int) -> Optional[DeviceFingerprint]:
+        """Hikvision-specific fingerprinting using ISAPI"""
+        protocol = "https" if target_port in [443, 8443] else "http"
+        base_url = f"{protocol}://{target_ip}:{target_port}"
+        fingerprint = DeviceFingerprint(brand="hikvision", capabilities=[], api_endpoints=[])
+
+        try:
+            request_timeout = config_manager.get('network', 'timeout', default=10)
+
+            connector = aiohttp.TCPConnector(ssl=False)
+            timeout = aiohttp.ClientTimeout(total=request_timeout)
+            async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
+                hik_db = self.fingerprinting_database['hikvision']
+                for endpoint in hik_db['endpoints']:
+                    try:
+                        url = f"{base_url}{endpoint}"
+                        async with session.get(url) as response:
+                            if response.status == 200:
+                                fingerprint.api_endpoints.append(endpoint)
+                                content = await response.text()
+                                if "deviceInfo" in endpoint or "configurationFile" in endpoint:
+                                    await self._parse_hikvision_xml(content, fingerprint)
+                                if "configurationFile" in endpoint:
+                                    fingerprint.configuration_access = True
+                    except Exception:
+                        continue
+        except Exception as e:
+            logger.debug(f"Hikvision fingerprinting failed: {e}")
+
+        return fingerprint if fingerprint.api_endpoints else None
+    ```
+
+*   **Centralized Database Manager**: I have created a `DatabaseManager` to handle loading all JSON data into memory at startup. This prevents plugins from repeatedly reading the same files from disk and improves performance.
+
+    ```python
+    # In gridland/core/database_manager.py
+
+    class DatabaseManager:
+        _instance = None
+        _lock = Lock()
+        _initialized = False
+
+        def __new__(cls, *args, **kwargs):
+            if not cls._instance:
+                with cls._lock:
+                    if not cls._instance:
+                        cls._instance = super(DatabaseManager, cls).__new__(cls)
+            return cls._instance
+
+        def __init__(self, data_directory: Path = None):
+            if self._initialized:
+                return
+            with self._lock:
+                if self._initialized:
+                    return
+
+                self._databases = {}
+                if data_directory is None:
+                    # Default path relative to this file's location
+                    data_directory = Path(__file__).parent.parent / 'data'
+
+                self._load_all_databases(data_directory)
+                self._initialized = True
+                logger.info("DatabaseManager initialized and all data loaded into memory.")
+    ```
+
+*   **Centralized Configuration Manager**: I have created a `ConfigManager` to centralize all configurable parameters into a single `config.yaml` file. This makes it easy for users to find and edit settings.
+
+    ```python
+    # In gridland/core/config_manager.py
+
+    class ConfigManager:
+        _instance = None
+        _lock = Lock()
+        _initialized = False
+
+        def __new__(cls, *args, **kwargs):
+            if not cls._instance:
+                with cls._lock:
+                    if not cls._instance:
+                        cls._instance = super(ConfigManager, cls).__new__(cls)
+            return cls._instance
+
+        def __init__(self, config_path: Path = None):
+            if self._initialized:
+                return
+            with self._lock:
+                if self._initialized:
+                    return
+
+                if config_path is None:
+                    # Default path is in the project root
+                    config_path = Path(__file__).parent.parent.parent / 'config.yaml'
+
+                try:
+                    with open(config_path, 'r') as f:
+                        self._config = yaml.safe_load(f)
+                    logger.info(f"Configuration loaded successfully from {config_path}")
+                except (FileNotFoundError, yaml.YAMLError) as e:
+                    logger.error(f"Failed to load configuration from {config_path}: {e}")
+                    self._config = {} # Default to empty config on error
+
+                self._initialized = True
+    ```
+
+*   **Testing Framework**: I have set up a testing framework using `pytest`. I have created a `tests` directory and added a unit test for the `AdvancedFingerprintingScanner`.
+
+    ```python
+    # In tests/test_fingerprinting_parsers.py
+
+    import pytest
+    from unittest.mock import MagicMock
+    from gridland.analyze.plugins.builtin.advanced_fingerprinting_scanner import AdvancedFingerprintingScanner
+    from gridland.analyze.plugins.builtin.advanced_fingerprinting_scanner import DeviceFingerprint
+
+    # This is a sample XML response from a Hikvision camera's ISAPI endpoint
+    HIKVISION_DEVICE_INFO_XML = """
+    <DeviceInfo version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+      <deviceName>HIKVISION-CAMERA</deviceName>
+      <deviceID>abcdef-123456-fedcba</deviceID>
+      <deviceType>IPCamera</deviceType>
+      <model>DS-2CD2143G0-I</model>
+      <firmwareVersion>V5.5.82</firmwareVersion>
+      <firmwareReleasedDate>build 190120</firmwareReleasedDate>
+    </DeviceInfo>
+    """
+
+    @pytest.fixture
+    def scanner_instance():
+        """Creates a mock instance of the scanner for testing."""
+        # We use MagicMock to avoid initializing the real scheduler and memory pool
+        scanner = AdvancedFingerprintingScanner()
+        return scanner
+
+    def test_parse_hikvision_xml(scanner_instance):
+        """
+        Tests if the _parse_hikvision_xml method correctly extracts the
+        model and firmware from a sample XML string.
+        """
+        # Arrange: Create an empty fingerprint object to be filled
+        fingerprint = DeviceFingerprint(brand="hikvision")
+
+        # Act: Call the method we want to test
+        scanner_instance._parse_hikvision_xml(HIKVISION_DEVICE_INFO_XML, fingerprint)
+
+        # Assert: Check if the fields were populated correctly
+        assert fingerprint.model == "DS-2CD2143G0-I"
+        assert fingerprint.firmware_version == "V5.5.82"
+        assert "IPCamera" in fingerprint.device_type
+    ```
+
+### Where I Am Stuck
+
+I am currently stuck on running the tests for the testing framework. I have been encountering a series of `ModuleNotFoundError` and `ImportError` exceptions. I have tried several different approaches to resolve these issues, including:
+
+*   Installing missing dependencies (`colorama`, `numpy`, `scikit-learn`)
+*   Creating a virtual environment to isolate dependencies
+*   Setting the `PYTHONPATH` environment variable
+*   Modifying the import statements in the source code
+*   Moving the `tests` directory
+*   Creating a `pytest.ini` file
+
+Despite these efforts, I am still unable to get the tests to run successfully. The most recent error I am seeing is:
+
+```
+ImportError while importing test module '/app/gridland/tests/test_fingerprinting_parsers.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/jules/.pyenv/versions/3.12.11/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+gridland/tests/test_fingerprinting_parsers.py:3: in <module>
+    from gridland.analyze.plugins.builtin.advanced_fingerprinting_scanner import AdvancedFingerprintingScanner
+gridland/analyze/plugins/builtin/__init__.py:15: in <module>
+    from .advanced_fingerprinting_scanner import AdvancedFingerprintingScanner
+gridland/analyze/plugins/builtin/advanced_fingerprinting_scanner.py:18: in <module>
+    from gridland.core.database_manager import db_manager
+E   ModuleNotFoundError: No module named 'gridland.core.database_manager'
+```
+
+I believe the root cause of this issue is related to the Python path and how the test environment is configured. I am having trouble getting the tests to recognize the `gridland` package as a module that can be imported. I will continue to investigate this issue, but I would appreciate any assistance or guidance you can provide.

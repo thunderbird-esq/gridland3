@@ -199,15 +199,9 @@ class OperationLogger:
 # Global logger instances
 _loggers = {}
 
-def get_logger(name: str = "gridland", level: Optional[int] = None) -> SecurityLogger:
+def get_logger(name: str = "gridland", level: int = logging.INFO) -> SecurityLogger:
     """Get or create a logger instance."""
     if name not in _loggers:
-        if level is None:
-            # Import here to avoid circular imports
-            from .config import get_config
-            config = get_config()
-            level = logging.DEBUG if config.verbose else logging.INFO
-        
         _loggers[name] = SecurityLogger(name, level)
     
     return _loggers[name]

@@ -15,8 +15,8 @@ import json
 from gridland.analyze.memory.pool import get_memory_pool, VulnerabilityResult
 from gridland.analyze.plugins.manager import VulnerabilityPlugin, PluginMetadata
 from gridland.core.logger import get_logger
-from ...core.database_manager import db_manager
-from ...core.config_manager import config_manager
+from gridland.core.database_manager import db_manager
+from gridland.core.config_manager import config_manager
 
 logger = get_logger(__name__)
 
