@@ -15,6 +15,7 @@ import json
 from gridland.analyze.memory.pool import get_memory_pool, VulnerabilityResult
 from gridland.analyze.plugins.manager import VulnerabilityPlugin, PluginMetadata
 from gridland.core.logger import get_logger
+from ...core.database_manager import db_manager
 
 logger = get_logger(__name__)
 
@@ -53,95 +54,10 @@ class AdvancedFingerprintingScanner(VulnerabilityPlugin):
 
     def __init__(self):
         super().__init__()
-        self.fingerprinting_database = self._load_fingerprinting_database()
+        self.fingerprinting_database = db_manager.get_db('fingerprinting_database')
         self.memory_pool = get_memory_pool()
-
-    def _load_fingerprinting_database(self) -> Dict:
-        """Load brand-specific fingerprinting patterns and endpoints"""
-        return {
-            "hikvision": {
-                "endpoints": [
-                    "/ISAPI/System/deviceInfo",
-                    "/ISAPI/System/capabilities",
-                    "/System/configurationFile",
-                    "/ISAPI/Security/users",
-                    "/ISAPI/Streaming/channels"
-                ],
-                "xml_paths": {
-                    "model": [".//model", ".//deviceModel", ".//ModelName"],
-                    "firmware": [".//firmwareVersion", ".//FirmwareVersion", ".//version"],
-                    "hardware": [".//hardwareVersion", ".//HardwareVersion"],
-                    "serial": [".//serialNumber", ".//SerialNumber", ".//deviceID"]
-                },
-                "auth_methods": ["basic", "digest", "form"],
-                "default_credentials": [
-                    ("admin", "12345"),
-                    ("admin", "admin"),
-                    ("admin", "hikadmin")
-                ]
-            },
-            "dahua": {
-                "endpoints": [
-                    "/cgi-bin/magicBox.cgi?action=getSystemInfo",
-                    "/cgi-bin/magicBox.cgi?action=getDeviceInfo",
-                    "/cgi-bin/magicBox.cgi?action=getProductDefinition",
-                    "/cgi-bin/configManager.cgi?action=getConfig&name=General",
-                    "/RPC2"
-                ],
-                "response_patterns": {
-                    "model": [r"deviceType=([^\\r\\n]+)", r"model=([^\\r\\n]+)"],
-                    "firmware": [r"version=([^\\r\\n]+)", r"buildDate=([^\\r\\n]+)"],
-                    "serial": [r"serialNumber=([^\\r\\n]+)", r"machineID=([^\\r\\n]+)"]
-                },
-                "auth_methods": ["basic", "rpc2_challenge"],
-                "default_credentials": [
-                    ("admin", "admin"),
-                    ("admin", "dahua123"),
-                    ("admin", "")
-                ]
-            },
-            "axis": {
-                "endpoints": [
-                    "/axis-cgi/admin/param.cgi?action=list",
-                    "/axis-cgi/admin/param.cgi?action=list&group=Brand",
-                    "/axis-cgi/admin/param.cgi?action=list&group=Properties",
-                    "/axis-cgi/vapix/services",
-                    "/axis-cgi/basicdeviceinfo.cgi"
-                ],
-                "parameter_patterns": {
-                    "model": ["root.Brand.ProdFullName", "root.Properties.ProductFullName"],
-                    "firmware": ["root.Properties.Firmware.Version", "root.Brand.Version"],
-                    "hardware": ["root.Properties.Hardware.Architecture"],
-                    "serial": ["root.Properties.System.SerialNumber"]
-                },
-                "auth_methods": ["basic", "digest"],
-                "default_credentials": [
-                    ("admin", "admin"),
-                    ("root", "pass"),
-                    ("admin", "")
-                ]
-            },
-            "cp_plus": {
-                "endpoints": [
-                    "/cgi-bin/snapshot.cgi",
-                    "/cgi-bin/webproc",
-                    "/api/system/deviceinfo",
-                    "/config",
-                    "/"
-                ],
-                "content_patterns": {
-                    "model": [r"model[\"']?\s*[:=]\s*[\"']?([^\"',\\s]+)", r"uvr-?([0-9a-z]+)"],
-                    "firmware": [r"version[\"']?\s*[:=]\s*[\"']?([^\"',\\s]+)"],
-                    "device_type": ["dvr", "nvr", "camera"]
-                },
-                "auth_methods": ["basic", "form"],
-                "default_credentials": [
-                    ("admin", "admin"),
-                    ("admin", "cpplus"),
-                    ("admin", "guardian")
-                ]
-            }
-        }
+        if not self.fingerprinting_database:
+            logger.error("Could not load fingerprinting database. Disabling plugin.")
 
     async def scan_vulnerabilities(self, target_ip: str, target_port: int,
                                     service: str, banner: str) -> List[VulnerabilityResult]:
