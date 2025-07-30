@@ -435,19 +435,22 @@ class AdvancedFingerprintingScanner(VulnerabilityPlugin):
         for field, patterns in cp_db['content_patterns'].items():
             for pattern in patterns:
                 try:
-                    if isinstance(pattern, str) and pattern in content_lower:
-                        if field == 'device_type':
+                    if field == 'device_type':
+                        if pattern in content_lower:
                             fingerprint.device_type = pattern.upper()
+                            break
                     else:
                         # Regex pattern
                         match = re.search(pattern, content, re.IGNORECASE)
-                        if match:
+                        if match and len(match.groups()) > 0:
                             value = match.group(1).strip()
                             if field == 'model':
                                 fingerprint.model = value
                             elif field == 'firmware':
                                 fingerprint.firmware_version = value
                             break
+                except re.error as e:
+                    logger.debug(f"Regex error for pattern '{pattern}': {e}")
                 except Exception as e:
                     logger.debug(f"Firmware pattern extraction error: {e}")
 
@@ -501,7 +504,7 @@ class AdvancedFingerprintingScanner(VulnerabilityPlugin):
                             elif response.status == 401:
                                 fingerprint.api_endpoints.append(f"{endpoint} (auth required)")
 
-                    except Exception as e:
+                    except aiohttp.ClientError as e:
                         logger.debug(f"Dahua endpoint test failed for {endpoint}: {e}")
 
         except Exception as e:
