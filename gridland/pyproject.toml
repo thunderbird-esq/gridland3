@@ -40,8 +40,8 @@ Repository = "https://github.com/gridland/gridland.git"
 "Bug Reports" = "https://github.com/gridland/gridland/issues"
 
 [project.scripts]
-gl-discover = "gridland.cli.discover_cli:discover"
-gl-analyze = "gridland.cli.analyze_cli:analyze"
+# This single line creates the 'gridland' command in the user's PATH
+# and points it to your new main CLI router.
 gridland = "gridland.cli.main:main"
 
 [tool.setuptools]

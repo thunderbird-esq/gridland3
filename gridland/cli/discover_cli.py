@@ -72,60 +72,17 @@ class ProgressIndicator:
         self.last_update = current_time
 
 
-@click.command()
-@click.option('--engine', 
-              type=click.Choice(['masscan', 'shodanspider', 'censys', 'auto']), 
-              default='auto',
-              help='Discovery engine to use (default: auto)')
-@click.option('--range', '-r',
-              help='IP range to scan (CIDR notation, range, or single IP)')
-@click.option('--query', '-q',
-              help='Search query for ShodanSpider engine')
-@click.option('--ports', '-p',
-              help='Comma-separated port list (default: comprehensive camera ports)')
-@click.option('--scan-mode',
-              type=click.Choice(['FAST', 'BALANCED', 'COMPREHENSIVE']),
-              default='BALANCED',
-              help='Scan intensity: FAST (20 ports), BALANCED (100 ports), COMPREHENSIVE (500+ ports)')
-@click.option('--port-categories',
-              multiple=True,
-              type=click.Choice(['standard_web', 'rtsp_ecosystem', 'custom_camera', 'onvif_discovery', 'streaming_protocols', 'common_alternatives', 'additional_common', 'enterprise_ranges', 'enterprise_high', 'enterprise_custom']),
-              help='Specific port categories to scan (overrides scan-mode)')
-@click.option('--rate', 
-              type=int,
-              help='Masscan scan rate in packets/second (default: from config)')
-@click.option('--limit', '-l',
-              type=int, 
-              default=1000,
-              help='Maximum results to return (default: 1000)')
-@click.option('--country',
-              help='Filter by country code (e.g., US, CN) - ShodanSpider only')
-@click.option('--cve',
-              help='Search for devices vulnerable to specific CVE')
-@click.option('--brands',
-              help='Comma-separated list of camera brands to search for')
-@click.option('--cameras-only',
-              is_flag=True,
-              help='Filter results to likely camera candidates only')
-@click.option('--output', '-o',
-              help='Output file path (JSON format)')
-@click.option('--output-format',
-              type=click.Choice(['table', 'json', 'csv', 'xml']),
-              default='table',
-              help='Output format (default: table)')
-@click.option('--input-file', '-f',
-              help='Input file with targets (one per line)')
-@click.option('--verbose', '-v',
-              is_flag=True,
-              help='Enable verbose logging')
-@click.option('--dry-run',
-              is_flag=True,
-              help='Show what would be done without executing')
-@click.option('--show-port-preview',
-              is_flag=True,
-              help='Display ports that will be scanned and exit')
-def discover(engine, range, query, ports, scan_mode, port_categories, rate, limit, country, cve, brands, 
-            cameras_only, output, output_format, input_file, verbose, dry_run, show_port_preview):
+def configure_discover_parser(parser):
+    """Adds 'discover' command arguments to the parser."""
+    parser.add_argument("--engine", choices=['masscan', 'shodanspider', 'censys', 'auto'], default='auto', help='Discovery engine to use (default: auto)')
+    parser.add_argument("-r", "--range", help='IP range to scan (CIDR notation, range, or single IP)')
+    parser.add_argument("-q", "--query", help='Search query for ShodanSpider engine')
+    # ... add other arguments ...
+
+def handle_discover_command(args):
+    """The logic that runs when 'discover' is called."""
+    print(f"Starting discovery with engine: {args.engine}")
+    # ... your original discovery logic goes here ...
     """
     Discover camera targets using various engines.
     

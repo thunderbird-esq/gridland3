@@ -92,58 +92,18 @@ class ProgressIndicator:
         self.last_update = current_time
 
 
-@click.command()
-@click.option('--targets', '-t',
-              help='Comma-separated IP:port pairs (e.g., 192.168.1.1:80,192.168.1.2:443)')
-@click.option('--input-file', '-f',
-              help='Input file with targets (JSON from discovery or one IP:port per line)')
-@click.option('--discovery-results',
-              help='JSON file with discovery results from gl-discover')
-@click.option('--performance-mode', 
-              type=click.Choice(['FAST', 'BALANCED', 'THOROUGH']),
-              default='BALANCED',
-              help='Analysis performance mode (default: BALANCED)')
-@click.option('--max-concurrent',
-              type=int,
-              help='Maximum concurrent analysis targets (default: auto)')
-@click.option('--timeout',
-              type=float,
-              default=30.0,
-              help='Timeout per target in seconds (default: 30.0)')
-@click.option('--confidence-threshold',
-              type=float,
-              default=0.7,
-              help='Minimum confidence threshold for vulnerabilities (default: 0.7)')
-@click.option('--disable-vulnerabilities',
-              is_flag=True,
-              help='Disable vulnerability scanning')
-@click.option('--disable-streams',
-              is_flag=True,
-              help='Disable stream analysis')
-@click.option('--disable-plugins',
-              is_flag=True,
-              help='Disable plugin-based scanning')
-@click.option('--enrich',
-              is_flag=True,
-              help='Enable enrichment plugins (e.g., IP context)')
-@click.option('--output', '-o',
-              help='Output file path (JSON format)')
-@click.option('--output-format',
-              type=click.Choice(['table', 'json', 'csv', 'summary']),
-              default='table',
-              help='Output format (default: table)')
-@click.option('--show-statistics',
-              is_flag=True,
-              help='Show detailed performance statistics')
-@click.option('--verbose', '-v',
-              is_flag=True,
-              help='Enable verbose logging')
-@click.option('--dry-run',
-              is_flag=True,
-              help='Show what would be analyzed without executing')
-def analyze(targets, input_file, discovery_results, performance_mode, max_concurrent,
-           timeout, confidence_threshold, disable_vulnerabilities, disable_streams,
-           disable_plugins, enrich, output, output_format, show_statistics, verbose, dry_run):
+def configure_analyze_parser(parser):
+    """Adds 'analyze' command arguments to the parser."""
+    parser.add_argument("-t", "--target", required=True, help="Target IP, range, or CIDR.")
+    # ... add other arguments from your original main() ...
+
+def handle_analyze_command(args):
+    """The logic that runs when 'analyze' is called."""
+    print(f"Starting analysis on target: {args.target}")
+    # ... your original analysis engine setup and execution logic goes here ...
+
+# The old main() function in this file can now be removed or commented out.
+# def main(): ...
     """
     Analyze targets for vulnerabilities and streams using the revolutionary Phase 3 engine.
     
