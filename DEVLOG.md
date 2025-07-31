@@ -1269,6 +1269,120 @@ async def test_successful_login(scanner, aiohttp_server):
 **Production Impact**: The GRIDLAND toolkit is now more coherent and robust. The risk of architectural fragmentation has been eliminated, and all future development can be focused on the extensible plugin system.
 ---
 
+---
+## Phase 8: Advanced Evidence Collection Plugins (COMPLETE)
+**Date**: July 30, 2025 (Current Session)
+**Objective**: Enhance GRIDLAND's analysis capabilities by adding plugins that automatically collect visual and actionable evidence from discovered targets.
+
+### Strategic Analysis
+**Problem**: While GRIDLAND could identify vulnerabilities and open streams, it lacked the ability to provide immediate, tangible evidence of the findings. A security analyst would need to manually navigate to a web page or connect to a stream to verify the results. This created a manual step in the workflow and made reporting more time-consuming.
+
+**Solution**: Implement a new suite of "evidence collection" plugins that automatically perform actions based on the findings of other scanners. This required a shift in the plugin design, as the analysis engine did not initially support inter-plugin communication. The solution was to integrate the evidence collection logic directly into the relevant discovery plugins.
+
+### Technical Implementation and Enhancements
+
+#### 1. Screenshot Functionality
+**Plugin**: `generic_camera_scanner.py` (Enhanced)
+**Enhancement**: The `_discover_and_report_login_pages` method was enhanced to not only report the discovery of a login page but also to automatically capture a screenshot of it.
+**Technical Details**:
+- **Dependency**: The `pyppeteer` library was added to provide headless browser capabilities.
+- **Configuration**: A new `output` section was added to `config.yaml` to allow users to specify a directory for screenshots. The `GridlandConfig` dataclass was updated to support this.
+- **Implementation**: A new `get_screenshot` method was added to the `GenericCameraScanner`. This method uses `pyppeteer` to launch a headless Chromium instance, navigate to the given URL, and save a PNG of the rendered page.
+- **Error Handling**: The `get_screenshot` method includes robust error handling for common `pyppeteer` exceptions like `PageError` and `TimeoutError`.
+- **Testing**: A new test file, `tests/test_generic_camera_scanner.py`, was created. The final, successful test mocks `pyppeteer.launch` and verifies that the `get_screenshot` method is called with the correct parameters and returns the expected file path. The debugging process for this test was extensive and is documented in `TEST-FAILURE-073025-PM.md`.
+
+**Code Snippet (`generic_camera_scanner.py`)**:
+```python
+    async def get_screenshot(self, url: str, output_dir: str, target_ip: str, target_port: int) -> str | None:
+        """
+        Takes a screenshot of a given URL using pyppeteer and saves it to a specified directory.
+        """
+        import pyppeteer
+        from pyppeteer.errors import PageError, TimeoutError
+        # ... implementation ...
+        try:
+            browser = await pyppeteer.launch(...)
+            page = await browser.newPage()
+            await page.goto(url, ...)
+            await page.screenshot({'path': file_path})
+            await browser.close()
+            return file_path
+        except (PageError, TimeoutError, IOError) as e:
+            # ... error handling ...
+            return None
+```
+**Benefit**: Analysts now receive immediate visual confirmation of discovered web interfaces, which is invaluable for reports and situational awareness.
+
+#### 2. Video Capture Functionality
+**Plugin**: `rtsp_stream_scanner.py` (Enhanced)
+**Enhancement**: The methods for testing RTSP streams (`_test_unauthenticated_streams` and `_test_authenticated_streams`) were enhanced to automatically record a short video clip upon discovering an accessible stream.
+**Technical Details**:
+- **Dependency**: The `ffmpeg-python` library was added as a wrapper for the `ffmpeg` command-line tool. The `ffmpeg` tool itself was also added to the environment's dependencies.
+- **Configuration**: The `config.yaml` file was updated with a `recordings` output directory.
+- **Implementation**: A new `_capture_stream_clip` method was added to the `RTSPStreamScanner`. This method constructs and executes an `ffmpeg` command to connect to the RTSP stream and save a 10-second clip to a file without re-encoding (`-vcodec copy`).
+- **Error Handling**: The method includes a `try...except ffmpeg.Error` block to gracefully handle common `ffmpeg` issues, such as connection timeouts or invalid stream data, by parsing the `stderr` output from the subprocess.
+- **Testing**: A new test file, `tests/test_rtsp_stream_scanner.py`, was created. The final, successful test mocks `ffmpeg.input` to prevent actual network connections and subprocess calls, allowing for isolated testing of the plugin's logic. The debugging process for this test is documented in `rtsp-stream-scanner-fail.md`.
+
+**Code Snippet (`rtsp_stream_scanner.py`)**:
+```python
+    async def _capture_stream_clip(self, stream_url: str, target_ip: str, target_port: int) -> Optional[str]:
+        """
+        Records a short clip from an RTSP stream using ffmpeg.
+        """
+        import ffmpeg
+        # ... implementation ...
+        try:
+            (
+                ffmpeg
+                .input(stream_url, rtsp_transport='tcp', timeout=5000000)
+                .output(output_path, vcodec='copy', acodec='copy', t=10)
+                .overwrite_output()
+                .run(capture_stdout=True, capture_stderr=True)
+            )
+            return output_path
+        except ffmpeg.Error as e:
+            logger.error(f"Failed to record stream from {stream_url}: {e.stderr.decode()}")
+            return None
+```
+**Benefit**: Provides undeniable proof of an open and accessible video stream, and captures a sample of the content for intelligence purposes.
+
+#### 3. Metasploit RC Script Generation
+**Plugin**: `metasploit_plugin.py` (New)
+**Implementation**: A new plugin was created to bridge the gap between vulnerability discovery and exploitation.
+**Technical Details**:
+- **CVE-to-Module Mapping**: The plugin contains a simple dictionary that maps known, high-confidence CVEs to their corresponding Metasploit Framework exploit modules.
+- **`.rc` File Generation**: The core logic is a `generate_rc_script` method that takes a `VulnerabilityResult` and produces the text for a Metasploit resource script (`.rc` file). This script contains the `use`, `set RHOSTS`, `set RPORT`, and `run` commands.
+- **Security**: The plugin explicitly does *not* execute Metasploit. It only generates the script, leaving the decision to run the exploit in the hands of the user.
+- **Testing**: A new test file, `tests/test_metasploit_plugin.py`, was created with unit tests that verify the `generate_rc_script` method produces the correct content for both known and unknown CVEs.
+
+**Code Snippet (`metasploit_plugin.py`)**:
+```python
+    def generate_rc_script(self, vulnerability: VulnerabilityResult) -> Optional[str]:
+        """
+        Generates the content for a Metasploit .rc file.
+        """
+        module = self.cve_to_module_map.get(vulnerability.vulnerability_id)
+        if not module:
+            return None
+
+        rhost = vulnerability.ip
+        rport = vulnerability.port
+
+        script_content = f"use {module}\n"
+        script_content += f"set RHOSTS {rhost}\n"
+        if rport:
+            script_content += f"set RPORT {rport}\n"
+        script_content += "run\n"
+
+        return script_content
+```
+**Benefit**: Dramatically speeds up the exploitation workflow for security professionals by automating the creation of Metasploit scripts, reducing manual effort and potential for error.
+
+### Final Status: COMPLETE
+**Technical Achievement**: The GRIDLAND toolkit has been significantly enhanced with automated evidence collection capabilities. The implementation of these features required overcoming architectural limitations and involved extensive, persistent debugging of the test suite.
+**Production Impact**: GRIDLAND is now a more powerful and user-friendly tool, providing not just analysis but also actionable, tangible evidence that can be used for reporting, verification, and further exploitation.
+---
+
 ## Phase 3.5: Heuristic Knowledge Integration (COMPLETE)
 
 **Date**: July 26, 2025 (Current Session)
