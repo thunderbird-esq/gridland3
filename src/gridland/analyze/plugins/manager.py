@@ -278,33 +278,10 @@ class PluginManager:
         
         loaded_count = 0
         
-        # Handle __init__.py for builtin plugins
-        init_file = directory / "__init__.py"
-        if init_file.exists():
-            try:
-                module_name = f"gridland_plugin_{directory.stem}_{uuid4().hex[:8]}"
-                spec = importlib.util.spec_from_file_location(module_name, init_file)
-                if spec and spec.loader:
-                    module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(module)
-                    if hasattr(module, 'get_builtin_plugins'):
-                        plugin_classes = module.get_builtin_plugins()
-                        for plugin_class in plugin_classes:
-                            try:
-                                plugin_instance = plugin_class()
-                                if plugin_instance.initialize():
-                                    if self.registry.register_plugin(plugin_instance):
-                                        loaded_count += 1
-                            except Exception as e:
-                                logger.error(f"Failed to instantiate plugin {plugin_class.__name__}: {e}")
-                        return loaded_count
-            except Exception as e:
-                logger.error(f"Failed to load plugins from {init_file}: {e}")
-
         # Look for Python files
         for plugin_file in directory.glob("*.py"):
-            if plugin_file.name.startswith("_"):
-                continue  # Skip private files
+            if plugin_file.name.startswith("_") or plugin_file.name == "__init__.py":
+                continue  # Skip private files and __init__.py
             
             try:
                 if self.load_plugin_from_file(plugin_file):
@@ -338,7 +315,6 @@ class PluginManager:
                     plugin_classes.append(obj)
             
             if not plugin_classes:
-                logger.warning(f"No plugin classes found in {plugin_file}")
                 return False
             
             # Instantiate and register plugins
