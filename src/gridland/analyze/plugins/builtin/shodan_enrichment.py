@@ -20,13 +20,7 @@ class ShodanEnrichment(VulnerabilityPlugin):
 
     def __init__(self):
         super().__init__()
-        self.memory_pool = get_memory_pool()
-        self.config = get_config()
-        self.session = None
-
-    def get_metadata(self) -> PluginMetadata:
-        """Return plugin metadata."""
-        return PluginMetadata(
+        self.metadata = PluginMetadata(
             name="Shodan Enrichment",
             version="1.0.0",
             author="GRIDLAND Security Team",
@@ -35,6 +29,9 @@ class ShodanEnrichment(VulnerabilityPlugin):
             supported_ports=[],
             description="Enriches analysis results with contextual data from the Shodan API."
         )
+        self.memory_pool = get_memory_pool()
+        self.config = get_config()
+        self.session = None
 
     async def _init_session(self):
         if not self.session:

@@ -28,6 +28,15 @@ class DahuaScanner(VulnerabilityPlugin):
     
     def __init__(self):
         super().__init__()
+        self.metadata = PluginMetadata(
+            name="Dahua Scanner",
+            version="1.0.0",
+            author="GRIDLAND Security Team",
+            plugin_type="vulnerability",
+            supported_ports=[80, 443, 8080, 8000, 8443, 37777],
+            supported_services=["http", "https"],
+            description="Comprehensive Dahua camera vulnerability scanner"
+        )
         self.memory_pool = get_memory_pool()
         self.session = None
         
@@ -82,18 +91,6 @@ class DahuaScanner(VulnerabilityPlugin):
         # Dahua session management
         self.session_id = None
         self.auth_token = None
-    
-    def get_metadata(self) -> PluginMetadata:
-        """Return plugin metadata."""
-        return PluginMetadata(
-            name="Dahua Scanner",
-            version="1.0.0",
-            author="GRIDLAND Security Team",
-            plugin_type="vulnerability",
-            supported_ports=[80, 443, 8080, 8000, 8443, 37777],
-            supported_services=["http", "https"],
-            description="Comprehensive Dahua camera vulnerability scanner"
-        )
     
     async def _init_session(self):
         """Initialize HTTP session if not already done."""

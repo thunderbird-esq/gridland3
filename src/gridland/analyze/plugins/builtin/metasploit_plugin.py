@@ -15,15 +15,7 @@ class MetasploitPlugin(VulnerabilityPlugin):
 
     def __init__(self):
         super().__init__()
-        self.cve_to_module_map = {
-            "CVE-2017-7921": "exploit/multi/http/hikvision_auth_bypass",
-            "CVE-2021-36260": "exploit/linux/http/hikvision_cmd_injection",
-            # Add more mappings here
-        }
-
-    def get_metadata(self) -> PluginMetadata:
-        """Return plugin metadata."""
-        return PluginMetadata(
+        self.metadata = PluginMetadata(
             name="Metasploit RC Script Generator",
             version="1.0.0",
             author="GRIDLAND Security Team",
@@ -32,6 +24,12 @@ class MetasploitPlugin(VulnerabilityPlugin):
             supported_ports=[],
             description="Generates Metasploit .rc scripts for known exploitable CVEs."
         )
+        self.cve_to_module_map = {
+            "CVE-2017-7921": "exploit/multi/http/hikvision_auth_bypass",
+            "CVE-2021-36260": "exploit/linux/http/hikvision_cmd_injection",
+            # Add more mappings here
+        }
+
 
     def generate_rc_script(self, vulnerability: VulnerabilityResult) -> Optional[str]:
         """

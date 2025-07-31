@@ -42,6 +42,15 @@ class BannerGrabber(VulnerabilityPlugin):
     
     def __init__(self):
         super().__init__()
+        self.metadata = PluginMetadata(
+            name="Enhanced Banner Grabber",
+            version="1.0.0",
+            author="GRIDLAND Security Team",
+            plugin_type="vulnerability",
+            supported_ports=list(range(1, 65536)),  # All ports
+            supported_services=["*"],  # All services
+            description="Enhanced service detection and banner analysis"
+        )
         self.memory_pool = get_memory_pool()
         self.session = None
         
@@ -134,18 +143,6 @@ class BannerGrabber(VulnerabilityPlugin):
             'referrer-policy',
             'permissions-policy'
         ]
-    
-    def get_metadata(self) -> PluginMetadata:
-        """Return plugin metadata."""
-        return PluginMetadata(
-            name="Enhanced Banner Grabber",
-            version="1.0.0",
-            author="GRIDLAND Security Team",
-            plugin_type="vulnerability",
-            supported_ports=list(range(1, 65536)),  # All ports
-            supported_services=["*"],  # All services
-            description="Enhanced service detection and banner analysis"
-        )
     
     async def _init_session(self):
         """Initialize HTTP session if not already done."""

@@ -35,11 +35,7 @@ class CPPlusScanner(VulnerabilityPlugin):
 
     def __init__(self):
         super().__init__()
-        self.cp_plus_database = self._load_cp_plus_database()
-        self.memory_pool = get_memory_pool()
-
-    def get_metadata(self) -> PluginMetadata:
-        return PluginMetadata(
+        self.metadata = PluginMetadata(
             name="CP Plus Scanner",
             version="1.0.0",
             author="GRIDLAND Security Team",
@@ -48,6 +44,8 @@ class CPPlusScanner(VulnerabilityPlugin):
             supported_ports=[80, 443, 8080, 8443, 8000, 8001],
             description="Specialized vulnerability scanner for CP Plus cameras and DVR systems"
         )
+        self.cp_plus_database = self._load_cp_plus_database()
+        self.memory_pool = get_memory_pool()
 
     def _load_cp_plus_database(self) -> Dict:
         """Load CP Plus device database with models and vulnerabilities"""
@@ -469,5 +467,3 @@ class CPPlusScanner(VulnerabilityPlugin):
         content_lower = content.lower()
         return any(indicator in content_lower for indicator in csrf_indicators)
 
-    def get_metadata(self) -> PluginMetadata:
-        return self.metadata
