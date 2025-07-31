@@ -358,8 +358,8 @@ def test_cli_integration():
     import subprocess
     
     tests = [
-        ("gl-discover command", ["gl-discover", "--help"]),
-        ("gl-analyze command", ["gl-analyze", "--help"]),
+        ("gl-discover command", ["gridland", "discover", "--help"]),
+        ("gl-analyze command", ["gridland", "analyze", "--help"]),
     ]
     
     passed = 0

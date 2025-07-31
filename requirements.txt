@@ -9,3 +9,4 @@ aiohttp>=3.8.0
 PyYAML>=6.0
 pyppeteer>=2.0.0
 ffmpeg-python>=0.2.0
+python-vlc>=3.0.20123

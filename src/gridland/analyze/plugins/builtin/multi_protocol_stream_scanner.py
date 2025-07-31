@@ -8,10 +8,11 @@ import aiohttp
 import socket
 import struct
 from typing import Dict, List, Optional, Tuple, Set
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from enum import Enum
 import json
 import re
+import os
 
 from gridland.analyze.memory.pool import get_memory_pool, StreamResult
 from gridland.analyze.plugins.manager import StreamPlugin, PluginMetadata
@@ -35,28 +36,26 @@ class StreamDetails:
     """Comprehensive stream information"""
     url: str
     protocol: StreamProtocol
-    content_type: Optional[str]
-    content_length: Optional[int]
-    resolution: Optional[str]
-    frame_rate: Optional[str]
-    codec: Optional[str]
-    bitrate: Optional[str]
-    authentication_required: bool
-    stream_active: bool
-    response_headers: Dict[str, str]
-    confidence: float
-    validation_method: str
+    content_type: Optional[str] = None
+    content_length: Optional[int] = None
+    resolution: Optional[str] = None
+    frame_rate: Optional[str] = None
+    codec: Optional[str] = None
+    bitrate: Optional[str] = None
+    authentication_required: bool = False
+    stream_active: bool = False
+    response_headers: Dict[str, str] = None
+    confidence: float = 0.0
+    validation_method: str = "unknown"
 
 class MultiProtocolStreamScanner(StreamPlugin):
     """
     Comprehensive multi-protocol stream detection and validation.
-
-    Implements advanced stream detection using multiple protocols and
-    validation methods with detailed stream intelligence collection.
     """
 
-    def get_metadata(self) -> PluginMetadata:
-        return PluginMetadata(
+    def __init__(self):
+        super().__init__()
+        self.metadata = PluginMetadata(
             name="Multi-Protocol Stream Scanner",
             version="2.0.0",
             author="GRIDLAND Security Team",
@@ -65,524 +64,203 @@ class MultiProtocolStreamScanner(StreamPlugin):
             supported_ports=[80, 443, 554, 1935, 1755, 3702, 8080, 8443, 8554, 10554],
             description="Comprehensive multi-protocol stream detection with detailed validation"
         )
-
-    def __init__(self):
-        super().__init__()
         self.protocol_config = self._load_protocol_config()
         self.memory_pool = get_memory_pool()
 
     def _load_protocol_config(self) -> Dict:
-        """Load protocol-specific configuration and patterns"""
+        """Load protocol-specific configuration"""
         return {
             "protocols": {
-                StreamProtocol.RTSP: {
-                    "default_ports": [554, 8554, 10554, 1554, 2554, 3554, 4554, 5554],
-                    "content_types": ["video/h264", "video/mpeg", "application/sdp"],
-                    "validation_method": "rtsp_options",
-                    "stream_indicators": ["rtsp://", "describe", "play", "teardown"]
-                },
-                StreamProtocol.RTMP: {
-                    "default_ports": [1935, 1936, 1937, 1938],
-                    "content_types": ["video/x-flv", "application/x-fcs"],
-                    "validation_method": "rtmp_handshake",
-                    "stream_indicators": ["rtmp://", "live", "stream"]
-                },
-                StreamProtocol.HTTP: {
-                    "default_ports": [80, 8080, 8000, 8001, 8088, 8888],
-                    "content_types": [
-                        "video/mp4", "video/mpeg", "video/quicktime", "video/x-msvideo",
-                        "image/jpeg", "multipart/x-mixed-replace", "application/x-mpegURL"
-                    ],
-                    "validation_method": "http_stream",
-                    "stream_indicators": ["mjpeg", "mpeg", "h264", "stream"]
-                },
-                StreamProtocol.HTTPS: {
-                    "default_ports": [443, 8443, 8444],
-                    "content_types": [
-                        "video/mp4", "video/mpeg", "image/jpeg", "multipart/x-mixed-replace"
-                    ],
-                    "validation_method": "https_stream",
-                    "stream_indicators": ["mjpeg", "mpeg", "h264", "stream"]
-                },
-                StreamProtocol.MMS: {
-                    "default_ports": [1755, 1756],
-                    "content_types": ["application/x-mms-framed", "video/x-ms-asf"],
-                    "validation_method": "mms_connect",
-                    "stream_indicators": ["mms://", "asf", "wmv"]
-                },
-                StreamProtocol.ONVIF: {
-                    "default_ports": [3702, 80, 443],
-                    "content_types": ["application/soap+xml", "text/xml"],
-                    "validation_method": "onvif_probe",
-                    "stream_indicators": ["onvif", "streaming", "profile"]
-                },
-                StreamProtocol.HLS: {
-                    "default_ports": [80, 443, 8080],
-                    "content_types": ["application/x-mpegURL", "application/vnd.apple.mpegurl"],
-                    "validation_method": "hls_playlist",
-                    "stream_indicators": ["m3u8", "hls", "playlist"]
-                }
-            },
-            "stream_validation": {
-                "min_content_length": 1024,  # Minimum bytes for valid stream
-                "max_validation_time": 5,    # Seconds to validate stream
-                "required_headers": ["content-type"],
-                "optional_headers": ["content-length", "server", "cache-control"]
+                StreamProtocol.RTSP: {"default_ports": [554, 8554]},
+                StreamProtocol.RTMP: {"default_ports": [1935]},
+                StreamProtocol.HTTP: {"default_ports": [80, 8080, 8000]},
+                StreamProtocol.HTTPS: {"default_ports": [443, 8443]},
+                StreamProtocol.MMS: {"default_ports": [1755]},
+                StreamProtocol.ONVIF: {"default_ports": [3702]},
+                StreamProtocol.HLS: {"default_ports": [80, 443, 8080]},
             }
         }
 
     async def analyze_streams(self, target_ip: str, target_port: int,
                             service: str, banner: Optional[str] = None) -> List[StreamResult]:
         """Comprehensive multi-protocol stream analysis"""
-
-        detected_streams = []
-
-        # Determine which protocols to test based on port
         protocols_to_test = self._get_protocols_for_port(target_port)
-
         if not protocols_to_test:
             return []
 
         logger.info(f"Testing {len(protocols_to_test)} protocols on {target_ip}:{target_port}")
+        tasks = [self._test_protocol_streams(target_ip, target_port, p) for p in protocols_to_test]
 
-        # Test each protocol concurrently
-        tasks = []
-        for protocol in protocols_to_test:
-            task = self._test_protocol_streams(target_ip, target_port, protocol)
-            tasks.append(task)
-
-        # Collect results from all protocol tests
-        protocol_results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        for result in protocol_results:
+        detected_streams = []
+        for result in await asyncio.gather(*tasks, return_exceptions=True):
             if isinstance(result, list):
                 detected_streams.extend(result)
             elif isinstance(result, Exception):
                 logger.debug(f"Protocol test failed: {result}")
 
-        # Convert to memory pool objects
-        stream_results = []
-        for stream in detected_streams:
-            stream_result = self.memory_pool.acquire_stream_result()
-            stream_result.stream_url = stream.url
-            stream_result.protocol = stream.protocol.value
-            stream_result.accessible = stream.stream_active
-            stream_result.authenticated = stream.authentication_required
-            stream_results.append(stream_result)
-
-        return stream_results
+        return self._create_stream_results(detected_streams)
 
     def _get_protocols_for_port(self, port: int) -> List[StreamProtocol]:
-        """Determine which protocols to test for given port"""
-
-        protocols = []
-
-        for protocol, config in self.protocol_config["protocols"].items():
-            if port in config["default_ports"]:
-                protocols.append(protocol)
-
-        # Always test HTTP/HTTPS on common web ports
-        if port in [80, 8080, 8000, 8001] and StreamProtocol.HTTP not in protocols:
+        """Determine which protocols to test for a given port"""
+        protocols = [p for p, c in self.protocol_config["protocols"].items() if port in c["default_ports"]]
+        if port in [80, 8080] and StreamProtocol.HTTP not in protocols:
             protocols.append(StreamProtocol.HTTP)
         if port in [443, 8443] and StreamProtocol.HTTPS not in protocols:
             protocols.append(StreamProtocol.HTTPS)
-
         return protocols
 
-    async def _test_protocol_streams(self, target_ip: str, target_port: int,
-                                   protocol: StreamProtocol) -> List[StreamDetails]:
-        """Test streams for specific protocol"""
+    def _create_stream_results(self, streams: List[StreamDetails]) -> List[StreamResult]:
+        """Convert StreamDetails into StreamResult objects from the memory pool"""
+        results = []
+        for stream in streams:
+            res = self.memory_pool.acquire_stream_result()
+            res.stream_url = stream.url
+            res.protocol = stream.protocol.value
+            res.accessible = stream.stream_active
+            res.authenticated = stream.authentication_required
+            res.confidence = stream.confidence
+            res.details = {k: v for k, v in asdict(stream).items() if k not in ['url', 'protocol', 'stream_active', 'authentication_required', 'confidence']}
+            results.append(res)
+        if results:
+            logger.info(f"Detected {len(results)} potential streams.")
+        return results
 
-        if protocol == StreamProtocol.RTSP:
-            return await self._test_rtsp_streams(target_ip, target_port)
-        elif protocol == StreamProtocol.RTMP:
-            return await self._test_rtmp_streams(target_ip, target_port)
-        elif protocol in [StreamProtocol.HTTP, StreamProtocol.HTTPS]:
-            return await self._test_http_streams(target_ip, target_port, protocol)
-        elif protocol == StreamProtocol.MMS:
-            return await self._test_mms_streams(target_ip, target_port)
-        elif protocol == StreamProtocol.ONVIF:
-            return await self._test_onvif_streams(target_ip, target_port)
-        elif protocol == StreamProtocol.HLS:
-            return await self._test_hls_streams(target_ip, target_port)
-
+    async def _test_protocol_streams(self, ip: str, port: int, proto: StreamProtocol) -> List[StreamDetails]:
+        """Dispatcher for protocol-specific test functions"""
+        if proto == StreamProtocol.RTSP: return await self._test_rtsp_streams(ip, port)
+        if proto == StreamProtocol.RTMP: return await self._test_rtmp_streams(ip, port)
+        if proto in [StreamProtocol.HTTP, StreamProtocol.HTTPS]: return await self._test_http_streams(ip, port, proto)
+        if proto == StreamProtocol.HLS: return await self._test_hls_streams(ip, port)
+        # MMS and ONVIF are complex and not implemented in this pass.
         return []
 
-    async def _test_rtsp_streams(self, target_ip: str, target_port: int) -> List[StreamDetails]:
-        """Test RTSP streams using raw socket communication"""
-
+    async def _test_rtsp_streams(self, ip: str, port: int) -> List[StreamDetails]:
+        """Test for common RTSP stream paths"""
+        paths = ["/live.sdp", "/stream1", "/axis-media/media.amp"]
         streams = []
-
-        # Common RTSP stream paths
-        rtsp_paths = [
-            "/live.sdp", "/h264.sdp", "/stream1", "/stream2", "/main", "/sub",
-            "/video", "/cam/realmonitor", "/Streaming/Channels/1",
-            "/onvif/streaming/channels/1", "/axis-media/media.amp"
-        ]
-
-        for path in rtsp_paths:
+        for path in paths:
+            url = f"rtsp://{ip}:{port}{path}"
             try:
-                stream_url = f"rtsp://{target_ip}:{target_port}{path}"
-
-                # Test RTSP OPTIONS request
-                rtsp_response = await self._send_rtsp_options(target_ip, target_port, path)
-
-                if rtsp_response:
-                    stream_details = StreamDetails(
-                        url=stream_url,
-                        protocol=StreamProtocol.RTSP,
-                        content_type="video/h264",  # Default for RTSP
-                        content_length=None,
-                        resolution=None,
-                        frame_rate=None,
-                        codec="H.264",
-                        bitrate=None,
-                        authentication_required="401" in rtsp_response,
-                        stream_active="200 OK" in rtsp_response,
-                        response_headers=self._parse_rtsp_headers(rtsp_response),
-                        confidence=0.90 if "200 OK" in rtsp_response else 0.70,
-                        validation_method="rtsp_options"
-                    )
-                    streams.append(stream_details)
-
+                resp = await self._send_rtsp_options(ip, port, path)
+                if resp:
+                    streams.append(StreamDetails(
+                        url=url, protocol=StreamProtocol.RTSP, stream_active="200 OK" in resp,
+                        authentication_required="401" in resp, confidence=0.85,
+                        response_headers=self._parse_rtsp_headers(resp), validation_method="rtsp_options"
+                    ))
             except Exception as e:
-                logger.debug(f"RTSP test failed for {path}: {e}")
-
+                logger.debug(f"RTSP test for {url} failed: {e}")
         return streams
 
-    def _extract_hls_resolution(self, playlist_content: str) -> Optional[str]:
-        """Extract resolution from HLS playlist"""
-
-        resolution_match = re.search(r'RESOLUTION=(\d+x\d+)', playlist_content)
-        return resolution_match.group(1) if resolution_match else None
-
-    def _extract_hls_bitrate(self, playlist_content: str) -> Optional[str]:
-        """Extract bitrate from HLS playlist"""
-
-        bitrate_match = re.search(r'BANDWIDTH=(\d+)', playlist_content)
-        if bitrate_match:
-            bitrate = int(bitrate_match.group(1))
-            return f"{bitrate // 1000} kbps"
-        return None
-
-    async def _validate_http_stream(self, session: aiohttp.ClientSession, url: str,
-                                  protocol: StreamProtocol, headers: Dict) -> Optional[StreamDetails]:
-        """Validate HTTP stream with detailed analysis"""
-
-        try:
-            # Method 2: GET request with streaming for content validation
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=3)) as response:
-                if response.status == 200:
-                    content_type = response.headers.get('Content-Type', '').lower()
-                    content_length = response.headers.get('Content-Length')
-
-                    # Read small sample of content for validation
-                    sample_size = min(1024, int(content_length) if content_length and content_length.isdigit() else 1024)
-                    content_sample = await response.content.read(sample_size)
-
-                    # Analyze content for stream characteristics
-                    is_valid_stream, stream_info = self._analyze_stream_content(
-                        content_sample, content_type
-                    )
-
-                    if is_valid_stream:
-                        return StreamDetails(
-                            url=url,
-                            protocol=protocol,
-                            content_type=content_type,
-                            content_length=int(content_length) if content_length and content_length.isdigit() else None,
-                            resolution=stream_info.get('resolution'),
-                            frame_rate=stream_info.get('frame_rate'),
-                            codec=stream_info.get('codec'),
-                            bitrate=stream_info.get('bitrate'),
-                            authentication_required=False,
-                            stream_active=True,
-                            response_headers=dict(response.headers),
-                            confidence=0.95,
-                            validation_method="http_content_analysis"
-                        )
-
-        except Exception as e:
-            logger.debug(f"HTTP stream validation failed: {e}")
-
-        return None
-
-    def _is_stream_content_type(self, content_type: str) -> bool:
-        """Check if content type indicates video/image stream"""
-
-        stream_indicators = [
-            'video/', 'image/', 'multipart/x-mixed-replace',
-            'application/x-mpegurl', 'application/octet-stream',
-            'application/vnd.apple.mpegurl'
-        ]
-
-        return any(indicator in content_type for indicator in stream_indicators)
-
-    def _analyze_stream_content(self, content: bytes, content_type: str) -> Tuple[bool, Dict]:
-        """Analyze stream content for validation and metadata extraction"""
-
-        stream_info = {}
-
-        # JPEG/MJPEG detection
-        if content.startswith(b'\xff\xd8\xff'):
-            stream_info['codec'] = 'MJPEG'
-            return True, stream_info
-
-        # MP4 detection
-        if b'ftyp' in content[:20]:
-            stream_info['codec'] = 'H.264'
-            return True, stream_info
-
-        # M3U8 playlist detection
-        if b'#EXTM3U' in content[:100]:
-            stream_info['codec'] = 'HLS'
-            return True, stream_info
-
-        # MPEG-TS detection
-        if content.startswith(b'\x47'):
-            stream_info['codec'] = 'MPEG-TS'
-            return True, stream_info
-
-        # Content-type based validation
-        if any(indicator in content_type for indicator in ['video', 'image', 'stream']):
-            return True, stream_info
-
-        return False, stream_info
-
-    async def _send_rtsp_options(self, target_ip: str, target_port: int, path: str) -> Optional[str]:
+    async def _send_rtsp_options(self, ip: str, port: int, path: str) -> Optional[str]:
         """Send RTSP OPTIONS request using raw socket"""
-
+        req = f"OPTIONS rtsp://{ip}:{port}{path} RTSP/1.0\r\nCSeq: 1\r\nUser-Agent: GRIDLAND\r\n\r\n".encode()
         try:
-            # Create RTSP OPTIONS request
-            rtsp_request = (
-                f"OPTIONS rtsp://{target_ip}:{target_port}{path} RTSP/1.0\r\n"
-                f"CSeq: 1\r\n"
-                f"User-Agent: GRIDLAND-StreamScanner/2.0\r\n"
-                f"\r\n"
-            )
-
-            # Connect and send request
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(3)
-            await asyncio.get_event_loop().run_in_executor(None, sock.connect, (target_ip, target_port))
-            await asyncio.get_event_loop().run_in_executor(None, sock.send, rtsp_request.encode())
-
-            # Read response
-            response = await asyncio.get_event_loop().run_in_executor(None, sock.recv, 1024)
-            sock.close()
-
+            reader, writer = await asyncio.wait_for(asyncio.open_connection(ip, port), timeout=3)
+            writer.write(req)
+            await writer.drain()
+            response = await reader.read(1024)
+            writer.close()
+            await writer.wait_closed()
             return response.decode('utf-8', errors='ignore')
-
-        except Exception as e:
-            logger.debug(f"RTSP OPTIONS failed: {e}")
+        except (asyncio.TimeoutError, ConnectionRefusedError, socket.gaierror) as e:
+            logger.debug(f"RTSP connect to {ip}:{port} failed: {e}")
             return None
 
-    def _parse_rtsp_headers(self, rtsp_response: str) -> Dict[str, str]:
-        """Parse RTSP response headers"""
-
-        headers = {}
-        lines = rtsp_response.split('\r\n')
-
-        for line in lines[1:]:  # Skip status line
-            if ':' in line:
-                key, value = line.split(':', 1)
-                headers[key.strip().lower()] = value.strip()
-
-        return headers
-
-    async def _test_http_streams(self, target_ip: str, target_port: int,
-                               protocol: StreamProtocol) -> List[StreamDetails]:
-        """Test HTTP/HTTPS streams with detailed validation"""
-
-        streams = []
-        protocol_name = "https" if protocol == StreamProtocol.HTTPS else "http"
-        base_url = f"{protocol_name}://{target_ip}:{target_port}"
-
-        # HTTP stream paths
-        http_paths = [
-            "/video", "/stream", "/mjpg/video.mjpg", "/cgi-bin/mjpg/video.cgi",
-            "/snapshot.jpg", "/img/snapshot.cgi", "/axis-cgi/mjpg/video.cgi",
-            "/api/video", "/api/stream", "/api/live", "/live.m3u8"
-        ]
-
+    def _parse_rtsp_headers(self, resp: str) -> Dict[str, str]:
+        """Parse headers from raw RTSP response"""
         try:
-            connector = aiohttp.TCPConnector(ssl=False)
-            timeout = aiohttp.ClientTimeout(total=5)
-
-            async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
-
-                for path in http_paths:
-                    try:
-                        url = f"{base_url}{path}"
-
-                        # Method 1: HEAD request for metadata
-                        async with session.head(url) as response:
-                            if response.status == 200:
-                                content_type = response.headers.get('Content-Type', '').lower()
-
-                                if self._is_stream_content_type(content_type):
-                                    stream_details = await self._validate_http_stream(
-                                        session, url, protocol, response.headers
-                                    )
-                                    if stream_details:
-                                        streams.append(stream_details)
-
-                            elif response.status == 401:
-                                # Stream exists but requires authentication
-                                stream_details = StreamDetails(
-                                    url=url,
-                                    protocol=protocol,
-                                    content_type=None,
-                                    content_length=None,
-                                    resolution=None,
-                                    frame_rate=None,
-                                    codec=None,
-                                    bitrate=None,
-                                    authentication_required=True,
-                                    stream_active=True,
-                                    response_headers=dict(response.headers),
-                                    confidence=0.75,
-                                    validation_method="http_head_auth"
-                                )
-                                streams.append(stream_details)
-
-                    except Exception as e:
-                        logger.debug(f"HTTP stream test failed for {path}: {e}")
-
-        except Exception as e:
-            logger.debug(f"HTTP stream testing failed: {e}")
-
-        return streams
-
-    async def _test_rtmp_streams(self, target_ip: str, target_port: int) -> List[StreamDetails]:
-        """Test RTMP streams with handshake validation"""
-
-        streams = []
-
-        # RTMP stream paths
-        rtmp_paths = ["/live", "/stream", "/hls", "/live/stream1", "/live/main"]
-
-        for path in rtmp_paths:
-            try:
-                stream_url = f"rtmp://{target_ip}:{target_port}{path}"
-
-                # Attempt RTMP handshake
-                rtmp_accessible = await self._test_rtmp_handshake(target_ip, target_port)
-
-                if rtmp_accessible:
-                    stream_details = StreamDetails(
-                        url=stream_url,
-                        protocol=StreamProtocol.RTMP,
-                        content_type="video/x-flv",
-                        content_length=None,
-                        resolution=None,
-                        frame_rate=None,
-                        codec="FLV",
-                        bitrate=None,
-                        authentication_required=False,
-                        stream_active=True,
-                        response_headers={},
-                        confidence=0.80,
-                        validation_method="rtmp_handshake"
-                    )
-                    streams.append(stream_details)
-                    break  # Stop after finding one working RTMP stream
-
-            except Exception as e:
-                logger.debug(f"RTMP test failed for {path}: {e}")
-
-        return streams
-
-    async def _test_rtmp_handshake(self, target_ip: str, target_port: int) -> bool:
-        """Test RTMP handshake to validate stream availability"""
-
-        try:
-            # Simplified RTMP handshake (C0 + C1)
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(3)
-
-            await asyncio.get_event_loop().run_in_executor(None, sock.connect, (target_ip, target_port))
-
-            # Send C0 (RTMP version)
-            c0 = struct.pack('B', 3)  # RTMP version 3
-            await asyncio.get_event_loop().run_in_executor(None, sock.send, c0)
-
-            # Send C1 (timestamp + zeros)
-            c1 = struct.pack('>I', 0) + b'\x00' * 1532  # 4 bytes timestamp + 1532 bytes
-            await asyncio.get_event_loop().run_in_executor(None, sock.send, c1)
-
-            # Read S0 + S1 response
-            response = await asyncio.get_event_loop().run_in_executor(None, sock.recv, 1537)
-            sock.close()
-
-            # Valid RTMP response should be 1537 bytes (S0 + S1)
-            return len(response) == 1537 and response[0:1] == b'\x03'
-
+            lines = resp.splitlines()
+            headers = {}
+            for line in lines[1:]:
+                if ':' in line:
+                    key, value = line.split(':', 1)
+                    headers[key.strip().lower()] = value.strip()
+            return headers
         except Exception:
+            return {}
+
+    async def _test_http_streams(self, ip: str, port: int, proto: StreamProtocol) -> List[StreamDetails]:
+        """Test for common HTTP/HTTPS stream paths"""
+        paths = ["/video", "/stream.mjpg", "/mjpg/video.mjpg", "/snapshot.jpg"]
+        streams = []
+        proto_name = "https" if proto == StreamProtocol.HTTPS else "http"
+        base_url = f"{proto_name}://{ip}:{port}"
+
+        conn = aiohttp.TCPConnector(ssl=False)
+        timeout = aiohttp.ClientTimeout(total=5)
+        async with aiohttp.ClientSession(connector=conn, timeout=timeout) as session:
+            for path in paths:
+                url = f"{base_url}{path}"
+                try:
+                    async with session.head(url, allow_redirects=True) as resp:
+                        if resp.status == 200 and self._is_stream_content_type(resp.headers.get('Content-Type', '')):
+                            streams.append(StreamDetails(
+                                url=url, protocol=proto, stream_active=True, confidence=0.8,
+                                content_type=resp.headers.get('Content-Type'),
+                                content_length=int(resp.headers.get('Content-Length', 0)),
+                                response_headers=dict(resp.headers), validation_method="http_head"
+                            ))
+                except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                    logger.debug(f"HTTP HEAD for {url} failed: {e}")
+        return streams
+
+    def _is_stream_content_type(self, ctype: str) -> bool:
+        """Check if a Content-Type header suggests a video or image stream"""
+        return any(indicator in ctype.lower() for indicator in ['video/', 'image/', 'multipart/x-mixed-replace'])
+
+    async def _test_rtmp_streams(self, ip: str, port: int) -> List[StreamDetails]:
+        """Test for RTMP streams by attempting a handshake"""
+        try:
+            accessible = await self._test_rtmp_handshake(ip, port)
+            if accessible:
+                return [StreamDetails(
+                    url=f"rtmp://{ip}:{port}/live", protocol=StreamProtocol.RTMP,
+                    stream_active=True, confidence=0.75, validation_method="rtmp_handshake"
+                )]
+        except Exception as e:
+            logger.debug(f"RTMP handshake for {ip}:{port} failed: {e}")
+        return []
+
+    async def _test_rtmp_handshake(self, ip: str, port: int) -> bool:
+        """Perform a simplified RTMP handshake"""
+        try:
+            reader, writer = await asyncio.wait_for(asyncio.open_connection(ip, port), timeout=2)
+            c0 = b'\x03'
+            c1 = os.urandom(1536)
+            writer.write(c0 + c1)
+            await writer.drain()
+            s0 = await reader.readexactly(1)
+            s1 = await reader.readexactly(1536)
+            writer.close()
+            await writer.wait_closed()
+            return s0 == c0
+        except (asyncio.TimeoutError, ConnectionRefusedError, asyncio.IncompleteReadError) as e:
+            logger.debug(f"RTMP handshake to {ip}:{port} failed: {e}")
             return False
 
-    async def _test_mms_streams(self, target_ip: str, target_port: int) -> List[StreamDetails]:
-        """Test MMS streams"""
-
-        # MMS testing would require more complex protocol implementation
-        # For now, return empty list - placeholder for future implementation
-        return []
-
-    async def _test_onvif_streams(self, target_ip: str, target_port: int) -> List[StreamDetails]:
-        """Test ONVIF streams"""
-
-        # ONVIF testing would require SOAP protocol implementation
-        # For now, return empty list - placeholder for future implementation
-        return []
-
-    async def _test_hls_streams(self, target_ip: str, target_port: int) -> List[StreamDetails]:
-        """Test HLS streams"""
-
+    async def _test_hls_streams(self, ip: str, port: int) -> List[StreamDetails]:
+        """Test for HLS streams by looking for .m3u8 playlists"""
+        paths = ["/live.m3u8", "/stream.m3u8", "/playlist.m3u8"]
         streams = []
-        protocol = StreamProtocol.HTTPS if target_port in [443, 8443] else StreamProtocol.HTTP
-        protocol_name = "https" if protocol == StreamProtocol.HTTPS else "http"
-        base_url = f"{protocol_name}://{target_ip}:{target_port}"
+        proto_name = "https" if port == 443 else "http"
+        base_url = f"{proto_name}://{ip}:{port}"
 
-        # HLS playlist paths
-        hls_paths = ["/live.m3u8", "/stream.m3u8", "/playlist.m3u8", "/hls/stream.m3u8"]
-
-        try:
-            connector = aiohttp.TCPConnector(ssl=False)
-            timeout = aiohttp.ClientTimeout(total=5)
-
-            async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
-
-                for path in hls_paths:
-                    try:
-                        url = f"{base_url}{path}"
-
-                        async with session.get(url) as response:
-                            if response.status == 200:
-                                content = await response.text()
-
-                                # Validate HLS playlist
-                                if content.startswith('#EXTM3U'):
-                                    stream_details = StreamDetails(
-                                        url=url,
-                                        protocol=StreamProtocol.HLS,
-                                        content_type="application/x-mpegURL",
-                                        content_length=len(content),
-                                        resolution=self._extract_hls_resolution(content),
-                                        frame_rate=None,
-                                        codec="HLS",
-                                        bitrate=self._extract_hls_bitrate(content),
-                                        authentication_required=False,
-                                        stream_active=True,
-                                        response_headers=dict(response.headers),
-                                        confidence=0.95,
-                                        validation_method="hls_playlist"
-                                    )
-                                    streams.append(stream_details)
-
-                    except Exception as e:
-                        logger.debug(f"HLS test failed for {path}: {e}")
-
-        except Exception as e:
-            logger.debug(f"HLS stream testing failed: {e}")
-
+        conn = aiohttp.TCPConnector(ssl=False)
+        timeout = aiohttp.ClientTimeout(total=5)
+        async with aiohttp.ClientSession(connector=conn, timeout=timeout) as session:
+            for path in paths:
+                url = f"{base_url}{path}"
+                try:
+                    async with session.get(url, allow_redirects=True) as resp:
+                        if resp.status == 200:
+                            content = await resp.text()
+                            if content.startswith("#EXTM3U"):
+                                streams.append(StreamDetails(
+                                    url=url, protocol=StreamProtocol.HLS, stream_active=True,
+                                    confidence=0.9, content_type=resp.headers.get('Content-Type'),
+                                    response_headers=dict(resp.headers), validation_method="hls_playlist"
+                                ))
+                except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                    logger.debug(f"HLS GET for {url} failed: {e}")
         return streams
