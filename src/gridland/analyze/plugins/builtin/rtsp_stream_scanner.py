@@ -21,6 +21,9 @@ from urllib.parse import urlparse, quote
 from gridland.analyze.plugins.manager import StreamPlugin, PluginMetadata
 from gridland.analyze.memory import get_memory_pool
 from gridland.core.logger import get_logger
+from gridland.core.config import get_config
+import os
+import time
 
 logger = get_logger(__name__)
 
@@ -533,6 +536,113 @@ class RTSPStreamScanner(StreamPlugin):
         
         return None
 
+
+    async def _capture_stream_clip(self, stream_url: str, target_ip: str, target_port: int) -> Optional[str]:
+        """
+        Records a short clip from an RTSP stream using ffmpeg.
+        """
+        import ffmpeg
+
+        config = get_config()
+        recordings_dir = config.output.get('recordings', 'recordings')
+        os.makedirs(recordings_dir, exist_ok=True)
+
+        filename = f"{target_ip.replace('.', '_')}_{target_port}_{int(time.time())}.mp4"
+        output_path = os.path.join(recordings_dir, filename)
+
+        try:
+            logger.info(f"Attempting to record stream from {stream_url}")
+            (
+                ffmpeg
+                .input(stream_url, rtsp_transport='tcp', timeout=5000000)
+                .output(output_path, vcodec='copy', acodec='copy', t=10)
+                .overwrite_output()
+                .run(capture_stdout=True, capture_stderr=True)
+            )
+            logger.info(f"Successfully recorded stream to {output_path}")
+            return output_path
+        except ffmpeg.Error as e:
+            logger.error(f"Failed to record stream from {stream_url}: {e.stderr.decode()}")
+            return None
+        except Exception as e:
+            logger.error(f"An unexpected error occurred during stream recording: {e}")
+            return None
+
+    async def _test_unauthenticated_streams(self, target_ip: str, target_port: int) -> List[Any]:
+        """Test for unauthenticated RTSP streams."""
+        results = []
+
+        for path in self.stream_paths:
+            try:
+                stream_url = f"rtsp://{target_ip}:{target_port}{path}"
+
+                # Test RTSP connection without authentication
+                accessible, stream_info = await self._test_rtsp_connection(stream_url)
+                if accessible:
+                    stream = self.memory_pool.acquire_stream_result()
+                    stream.ip = target_ip
+                    stream.port = target_port
+                    stream.protocol = "RTSP"
+                    stream.stream_url = stream_url
+                    stream.accessible = True
+                    stream.authenticated = False
+
+                    # Extract stream information
+                    if stream_info:
+                        stream.codec = stream_info.get('codec', '')
+                        stream.resolution = stream_info.get('resolution', '')
+                        stream.fps = stream_info.get('fps', 0)
+
+                    # Capture a clip
+                    video_path = await self._capture_stream_clip(stream_url, target_ip, target_port)
+                    stream.metadata = {'video_capture_path': video_path}
+
+                    results.append(stream)
+
+            except Exception as e:
+                logger.debug(f"Unauthenticated RTSP test error for {path}: {e}")
+                continue
+
+        return results
+
+    async def _test_authenticated_streams(self, target_ip: str, target_port: int) -> List[Any]:
+        """Test RTSP streams with default credentials."""
+        results = []
+
+        for username, password in self.default_credentials:
+            for path in self.stream_paths:
+                try:
+                    stream_url = f"rtsp://{username}:{password}@{target_ip}:{target_port}{path}"
+
+                    # Test RTSP connection with authentication
+                    accessible, stream_info = await self._test_rtsp_connection(stream_url)
+                    if accessible:
+                        stream = self.memory_pool.acquire_stream_result()
+                        stream.ip = target_ip
+                        stream.port = target_port
+                        stream.protocol = "RTSP"
+                        stream.stream_url = stream_url
+                        stream.accessible = True
+                        stream.authenticated = True
+
+                        # Extract stream information
+                        if stream_info:
+                            stream.codec = stream_info.get('codec', '')
+                            stream.resolution = stream_info.get('resolution', '')
+                            stream.fps = stream_info.get('fps', 0)
+
+                        # Capture a clip
+                        video_path = await self._capture_stream_clip(stream_url, target_ip, target_port)
+                        stream.metadata = {'video_capture_path': video_path}
+
+                        results.append(stream)
+                        return results  # Found working credentials, stop testing
+
+                except Exception as e:
+                    logger.debug(f"Authenticated RTSP test error for {username}:{password}@{path}: {e}")
+                    continue
+
+        return results
 
 # Plugin instance for automatic discovery
 rtsp_stream_scanner = RTSPStreamScanner()

@@ -593,18 +593,48 @@ class GenericCameraScanner(VulnerabilityPlugin):
         return results
 
 
-    async def _discover_and_report_login_pages(self, base_url: str, target_ip: str, target_port: int) -> List[Any]:
-        """Discover potential login endpoints, report them, and take a screenshot."""
-        results = []
-        # Import necessary libraries here to keep them local to this function
+    async def get_screenshot(self, url: str, output_dir: str, target_ip: str, target_port: int) -> str | None:
+        """
+        Takes a screenshot of a given URL using pyppeteer and saves it to a specified directory.
+        """
         import pyppeteer
+        from pyppeteer.errors import PageError, TimeoutError
         import os
         import time
 
+        browser = None
+        try:
+            # Ensure the output directory exists
+            os.makedirs(output_dir, exist_ok=True)
+
+            filename = f"{target_ip.replace('.', '_')}_{target_port}_{int(time.time())}.png"
+            file_path = os.path.join(output_dir, filename)
+
+            browser = await pyppeteer.launch(
+                headless=True,
+                args=['--no-sandbox', '--disable-setuid-sandbox']
+            )
+            page = await browser.newPage()
+
+            await page.goto(url, {'waitUntil': 'networkidle0', 'timeout': 10000})
+            await page.screenshot({'path': file_path})
+
+            await browser.close()
+
+            logger.info(f"Screenshot saved to {file_path}")
+            return file_path
+
+        except (PageError, TimeoutError, IOError) as e:
+            logger.error(f"Could not take screenshot of {url}. Reason: {e}")
+            if browser and browser.process is not None:
+                await browser.close()
+            return None
+
+    async def _discover_and_report_login_pages(self, base_url: str, target_ip: str, target_port: int) -> List[Any]:
+        """Discover potential login endpoints and report them as INFO vulnerabilities."""
+        results = []
         config = get_config()
-        # Correctly reference the output configuration
         screenshot_dir = config.output.get('screenshots', 'screenshots')
-        os.makedirs(screenshot_dir, exist_ok=True)
 
         # Test common login paths
         for path in self.common_paths['login']:
@@ -627,18 +657,7 @@ class GenericCameraScanner(VulnerabilityPlugin):
                             vuln.exploit_available = False
 
                             # Take screenshot
-                            screenshot_path = None
-                            try:
-                                browser = await pyppeteer.launch(headless=True, args=['--no-sandbox'])
-                                page = await browser.newPage()
-                                await page.goto(test_url, {'waitUntil': 'networkidle0'})
-                                filename = f"{target_ip.replace('.', '_')}_{target_port}_{int(time.time())}.png"
-                                screenshot_path = os.path.join(screenshot_dir, filename)
-                                await page.screenshot({'path': screenshot_path})
-                                await browser.close()
-                                logger.info(f"Screenshot saved to {screenshot_path}")
-                            except Exception as e:
-                                logger.error(f"Failed to take screenshot for {test_url}: {e}")
+                            screenshot_path = await self.get_screenshot(test_url, screenshot_dir, target_ip, target_port)
 
                             # Add metadata for the screenshot plugin
                             vuln.metadata = {'login_url': test_url, 'screenshot_path': screenshot_path}
