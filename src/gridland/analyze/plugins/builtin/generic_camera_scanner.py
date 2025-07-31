@@ -21,6 +21,7 @@ from urllib.parse import urljoin
 from gridland.analyze.plugins.manager import VulnerabilityPlugin, PluginMetadata
 from gridland.analyze.memory import get_memory_pool
 from gridland.core.logger import get_logger
+from gridland.core.config import get_config
 
 logger = get_logger(__name__)
 
@@ -177,6 +178,10 @@ class GenericCameraScanner(VulnerabilityPlugin):
             if not is_camera:
                 return results
             
+            # Discover and report login pages
+            login_page_vulns = await self._discover_and_report_login_pages(base_url, target_ip, target_port)
+            results.extend(login_page_vulns)
+
             # Test for default credentials
             cred_vulns = await self._test_default_credentials(base_url, target_ip, target_port)
             results.extend(cred_vulns)
@@ -585,6 +590,62 @@ class GenericCameraScanner(VulnerabilityPlugin):
                 logger.debug(f"Unprotected path test error for {path}: {e}")
                 continue
         
+        return results
+
+
+    async def _discover_and_report_login_pages(self, base_url: str, target_ip: str, target_port: int) -> List[Any]:
+        """Discover potential login endpoints, report them, and take a screenshot."""
+        results = []
+        # Import necessary libraries here to keep them local to this function
+        import pyppeteer
+        import os
+        import time
+
+        config = get_config()
+        # Correctly reference the output configuration
+        screenshot_dir = config.output.get('screenshots', 'screenshots')
+        os.makedirs(screenshot_dir, exist_ok=True)
+
+        # Test common login paths
+        for path in self.common_paths['login']:
+            try:
+                test_url = urljoin(base_url, path)
+                async with self.session.get(test_url) as response:
+                    if response.status == 200:
+                        content = await response.text()
+                        # Check if it looks like a login page
+                        login_indicators = ['login', 'password', 'username', 'admin', 'signin']
+                        if any(indicator in content.lower() for indicator in login_indicators):
+                            vuln = self.memory_pool.acquire_vulnerability_result()
+                            vuln.ip = target_ip
+                            vuln.port = target_port
+                            vuln.service = "http"
+                            vuln.vulnerability_id = "LOGIN-PAGE-DISCOVERED"
+                            vuln.severity = "INFO"
+                            vuln.confidence = 0.80
+                            vuln.description = f"Web login page discovered at: {test_url}"
+                            vuln.exploit_available = False
+
+                            # Take screenshot
+                            screenshot_path = None
+                            try:
+                                browser = await pyppeteer.launch(headless=True, args=['--no-sandbox'])
+                                page = await browser.newPage()
+                                await page.goto(test_url, {'waitUntil': 'networkidle0'})
+                                filename = f"{target_ip.replace('.', '_')}_{target_port}_{int(time.time())}.png"
+                                screenshot_path = os.path.join(screenshot_dir, filename)
+                                await page.screenshot({'path': screenshot_path})
+                                await browser.close()
+                                logger.info(f"Screenshot saved to {screenshot_path}")
+                            except Exception as e:
+                                logger.error(f"Failed to take screenshot for {test_url}: {e}")
+
+                            # Add metadata for the screenshot plugin
+                            vuln.metadata = {'login_url': test_url, 'screenshot_path': screenshot_path}
+                            results.append(vuln)
+            except Exception as e:
+                logger.debug(f"Login page discovery error for {path}: {e}")
+                continue
         return results
 
 

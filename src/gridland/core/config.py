@@ -45,7 +45,8 @@ class GridlandConfig:
     config_dir: Path = field(default_factory=lambda: Path.home() / '.gridland')
     data_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent / 'data')
     temp_dir: Path = field(default_factory=lambda: Path('/tmp/gridland'))
-    
+    output: Dict[str, Any] = field(default_factory=dict)
+
     def __post_init__(self):
         """Validate configuration after initialization."""
         self._validate_config()

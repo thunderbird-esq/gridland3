@@ -21,3 +21,12 @@ scheduler:
 api_keys:
   shodan: "${SHODAN_API_KEY}"
   virustotal: "${VIRUSTOTAL_API_KEY}"
+
+# Output directories for generated files
+output:
+  # Directory to save screenshots
+  screenshots: "screenshots"
+  # Directory to save recorded video clips
+  recordings: "recordings"
+  # Directory to save Metasploit resource scripts
+  metasploit_scripts: "metasploit"
