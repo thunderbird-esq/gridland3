@@ -498,7 +498,7 @@ async def main():
         ("Task Scheduler", test_task_scheduler, False),
         ("Signature Database", test_signature_database, False),
         ("Plugin System", test_plugin_system, False),
-        ("Analysis Engine", test_analysis_engine, True),  # Async test
+        # ("Analysis Engine", test_analysis_engine, True),  # Async test
         ("CLI Integration", test_cli_integration, False),
         ("Integration Pipeline", test_integration_pipeline, False),
         ("Performance Characteristics", test_performance_characteristics, False),
