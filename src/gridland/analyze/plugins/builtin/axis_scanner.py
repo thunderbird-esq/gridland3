@@ -27,6 +27,15 @@ class AxisScanner(VulnerabilityPlugin):
     
     def __init__(self):
         super().__init__()
+        self.metadata = PluginMetadata(
+            name="Axis Scanner",
+            version="1.0.0",
+            author="GRIDLAND Security Team",
+            plugin_type="vulnerability",
+            supported_ports=[80, 443, 8080, 8443],
+            supported_services=["http", "https"],
+            description="Comprehensive Axis camera vulnerability scanner"
+        )
         self.memory_pool = get_memory_pool()
         self.session = None
         
@@ -95,15 +104,7 @@ class AxisScanner(VulnerabilityPlugin):
     
     def get_metadata(self) -> PluginMetadata:
         """Return plugin metadata."""
-        return PluginMetadata(
-            name="Axis Scanner",
-            version="1.0.0",
-            author="GRIDLAND Security Team",
-            plugin_type="vulnerability",
-            supported_ports=[80, 443, 8080, 8443],
-            supported_services=["http", "https"],
-            description="Comprehensive Axis camera vulnerability scanner"
-        )
+        return self.metadata
     
     async def _init_session(self):
         """Initialize HTTP session if not already done."""

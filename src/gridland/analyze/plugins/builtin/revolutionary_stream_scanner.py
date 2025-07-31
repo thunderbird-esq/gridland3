@@ -41,6 +41,15 @@ class RevolutionaryStreamScanner(VulnerabilityPlugin):
     
     def __init__(self):
         super().__init__()
+        self.metadata = PluginMetadata(
+            name="Revolutionary Stream Scanner",
+            version="2.0.0",
+            author="GRIDLAND Advanced Research Team",
+            plugin_type="vulnerability",
+            supported_ports=[80, 443, 554, 8554, 8080, 8443, 37777, 37778, 37779, 1935, 3702],
+            supported_services=["http", "https", "rtsp", "rtmp", "onvif"],
+            description="Next-generation stream discovery with ML-powered capabilities and vulnerability correlation"
+        )
         self.memory_pool = get_memory_pool()
         
         # Initialize revolutionary stream intelligence engine
@@ -127,15 +136,7 @@ class RevolutionaryStreamScanner(VulnerabilityPlugin):
     
     def get_metadata(self) -> PluginMetadata:
         """Return plugin metadata."""
-        return PluginMetadata(
-            name="Revolutionary Stream Scanner",
-            version="2.0.0",
-            author="GRIDLAND Advanced Research Team",
-            plugin_type="vulnerability",
-            supported_ports=[80, 443, 554, 8554, 8080, 8443, 37777, 37778, 37779, 1935, 3702],
-            supported_services=["http", "https", "rtsp", "rtmp", "onvif"],
-            description="Next-generation stream discovery with ML-powered capabilities and vulnerability correlation"
-        )
+        return self.metadata
     
     async def scan_vulnerabilities(self, target_ip: str, target_port: int,
                                   service: str, banner: str) -> List[Any]:

@@ -13,6 +13,3 @@ class MyTestPlugin(AnalysisPlugin):
 
     async def analyze(self, target_ip: str, target_port: int, service: str = "", banner: str = ""):
         return []
-
-    def get_metadata(self) -> PluginMetadata:
-        return self.metadata

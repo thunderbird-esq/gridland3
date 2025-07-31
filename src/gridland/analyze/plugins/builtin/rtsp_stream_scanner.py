@@ -33,6 +33,15 @@ class RTSPStreamScanner(StreamPlugin):
     
     def __init__(self):
         super().__init__()
+        self.metadata = PluginMetadata(
+            name="RTSP Stream Scanner",
+            version="1.0.1",
+            author="GRIDLAND Security Team",
+            plugin_type="stream",
+            supported_ports=[554, 8554, 1935, 80, 443, 8080],
+            supported_services=["rtsp", "rtsps", "http", "https"],
+            description="Comprehensive RTSP stream vulnerability scanner"
+        )
         self.memory_pool = get_memory_pool()
         
         # Common RTSP default credentials
@@ -120,15 +129,7 @@ class RTSPStreamScanner(StreamPlugin):
     
     def get_metadata(self) -> PluginMetadata:
         """Return plugin metadata."""
-        return PluginMetadata(
-            name="RTSP Stream Scanner",
-            version="1.0.1",
-            author="GRIDLAND Security Team",
-            plugin_type="stream",
-            supported_ports=[554, 8554, 1935, 80, 443, 8080],
-            supported_services=["rtsp", "rtsps", "http", "https"],
-            description="Comprehensive RTSP stream vulnerability scanner"
-        )
+        return self.metadata
     
     async def analyze_streams(self, target_ip: str, target_port: int, 
                              service: str, banner: str) -> List[Any]:

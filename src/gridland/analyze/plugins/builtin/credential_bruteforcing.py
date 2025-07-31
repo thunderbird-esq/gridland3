@@ -20,6 +20,15 @@ class CredentialBruteforcingScanner(VulnerabilityPlugin):
         from gridland.analyze.memory import get_memory_pool
         from gridland.core.logger import get_logger
         super().__init__()
+        self.metadata = PluginMetadata(
+            name="Credential Bruteforcing Scanner",
+            version="1.1.0",
+            author="GRIDLAND Security Team",
+            plugin_type="vulnerability",
+            supported_services=["http", "https"],
+            supported_ports=[80, 443, 8080, 8000, 8443, 8888, 9000],
+            description="Tests for weak or default credentials using HTTP Basic Auth and form submission."
+        )
         self.memory_pool = get_memory_pool()
         self.logger = get_logger(__name__)
         self.default_credentials = self._load_default_credentials()
@@ -34,15 +43,7 @@ class CredentialBruteforcingScanner(VulnerabilityPlugin):
 
     def get_metadata(self) -> PluginMetadata:
         """Return plugin metadata."""
-        return PluginMetadata(
-            name="Credential Bruteforcing Scanner",
-            version="1.1.0",
-            author="GRIDLAND Security Team",
-            plugin_type="vulnerability",
-            supported_services=["http", "https"],
-            supported_ports=[80, 443, 8080, 8000, 8443, 8888, 9000],
-            description="Tests for weak or default credentials using HTTP Basic Auth and form submission."
-        )
+        return self.metadata
 
     def _load_default_credentials(self) -> List[Tuple[str, str]]:
         """Load default credentials from the centralized JSON file."""
