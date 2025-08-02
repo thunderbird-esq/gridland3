@@ -1,65 +1,47 @@
-from flask import Flask, render_template, request, Response
-from gridland_clean import GridlandScanner
+from flask import Flask, render_template, request, jsonify
 import threading
-import json
-from queue import Queue
+from lib.jobs import create_job, get_job
+from lib.orchestrator import run_scan
 
 app = Flask(__name__)
 
-# Global variable to hold the current scanner instance
-current_scanner = None
-
 @app.route('/')
 def index():
+    """Serves the main HTML page."""
     return render_template('index.html')
 
-@app.route('/scan', methods=['POST'])
-def scan():
-    global current_scanner
-    target = request.form.get('target')
-    if not target:
-        return Response("Error: Target is required.", status=400)
+@app.route('/api/jobs', methods=['POST'])
+def submit_job():
+    """
+    Submits a new scan job.
+    Expects a JSON payload with a 'target' key.
+    """
+    data = request.get_json()
+    if not data or 'target' not in data:
+        return jsonify({"error": "Target is required"}), 400
 
-    def generate_scan_output():
-        global current_scanner
-        log_queue = Queue()
+    target = data['target']
+    job = create_job(target)
 
-        def scanner_callback(message):
-            log_queue.put(message)
+    # Run the scan in a background thread
+    scan_thread = threading.Thread(
+        target=run_scan,
+        args=(job.id, target, True, 100) # aggressive=True, threads=100 for now
+    )
+    scan_thread.start()
 
-        def run_scan():
-            global current_scanner
-            current_scanner = GridlandScanner(progress_callback=scanner_callback)
-            if '/' in target:
-                current_scanner.scan_network(target)
-            else:
-                current_scanner.scan_target(target)
-            log_queue.put(None) # Signal that the scan is complete
-            current_scanner = None # Clear the scanner instance
+    return jsonify({"job_id": job.id}), 202
 
-        # Run the scanner in a background thread
-        scan_thread = threading.Thread(target=run_scan)
-        scan_thread.start()
+@app.route('/api/jobs/<job_id>', methods=['GET'])
+def get_job_status(job_id: str):
+    """
+    Retrieves the status, logs, and results for a given job.
+    """
+    job = get_job(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
 
-        # Yield messages from the queue
-        while True:
-            message = log_queue.get()
-            if message is None:
-                break
-            yield f"data: {json.dumps({'message': message})}\n\n"
-
-        yield f"data: {json.dumps({'message': '[SCAN COMPLETE]'})}\n\n"
-
-    return Response(generate_scan_output(), mimetype='text/event-stream')
-
-@app.route('/stop_scan', methods=['POST'])
-def stop_scan():
-    global current_scanner
-    if current_scanner:
-        current_scanner.stop()
-        return Response("Scan stop signal sent.", status=200)
-    return Response("No active scan to stop.", status=404)
-
+    return jsonify(job.__dict__)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
