@@ -62,6 +62,8 @@ class Job:
     id: str
     target: str
     status: str = "pending"  # pending, running, completed, failed
+    progress: int = 0
+    progress_message: str = ""
     logs: List[str] = None
     results: List[ScanTarget] = None
     
@@ -83,6 +85,8 @@ class Job:
             'id': self.id,
             'target': self.target,
             'status': self.status,
+            'progress': self.progress,
+            'progress_message': self.progress_message,
             'logs': self.logs,
             'results': [r.to_dict() for r in self.results]
         }

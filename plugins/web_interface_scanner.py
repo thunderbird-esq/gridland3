@@ -106,7 +106,7 @@ class WebInterfaceScannerPlugin(ScannerPlugin):
         "admin panel", "administrator", "configuration", "settings"
     ]
 
-    def scan(self, target: ScanTarget) -> List[Finding]:
+    def scan(self, target: ScanTarget, progress_callback=None) -> List[Finding]:
         """Perform web interface and admin panel discovery"""
         findings = []
         

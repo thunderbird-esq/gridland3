@@ -93,6 +93,26 @@ def set_job_results(job_id: str, results: list) -> bool:
     return False
 
 
+def update_job_progress(job_id: str, progress: int, message: str) -> bool:
+    """
+    Update job progress
+
+    Args:
+        job_id: Job identifier
+        progress: Progress percentage (0-100)
+        message: Progress message
+
+    Returns:
+        bool: True if job was found and updated
+    """
+    job = _jobs.get(job_id)
+    if job:
+        job.progress = int(progress)
+        job.progress_message = message
+        return True
+    return False
+
+
 def list_jobs() -> Dict[str, Job]:
     """
     Get all jobs

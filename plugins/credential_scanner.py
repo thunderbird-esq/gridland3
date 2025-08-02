@@ -118,45 +118,35 @@ class CredentialScannerPlugin(ScannerPlugin):
         ]
     }
 
-    def scan(self, target: ScanTarget) -> List[Finding]:
+    def scan(self, target: ScanTarget, progress_callback=None) -> List[Finding]:
         findings = []
-        for port_result in target.open_ports:
-            if port_result.port not in [80, 443, 8080, 8443]:
-                continue
 
-            protocol = "https" if port_result.port in [443, 8443] else "http"
+        web_ports = [p.port for p in target.open_ports if p.port in [80, 443, 8080, 8443]]
+        if not web_ports:
+            return []
 
-            # Comprehensive endpoint list based on real camera interfaces
+        # Calculate total number of checks for progress reporting
+        total_creds = sum(len(p) for p in self.DEFAULT_CREDENTIALS.values())
+        # Estimate endpoints per port. This is not perfect but good for progress.
+        # A better approach might be to generate all endpoints first.
+        estimated_endpoints_per_port = 21
+        total_checks = total_creds * estimated_endpoints_per_port * len(web_ports)
+        checks_done = 0
+
+        for port in web_ports:
+            protocol = "https" if port in [443, 8443] else "http"
             endpoints = [
-                f"{protocol}://{target.ip}:{port_result.port}/",
-                f"{protocol}://{target.ip}:{port_result.port}/login",
-                f"{protocol}://{target.ip}:{port_result.port}/admin",
-                f"{protocol}://{target.ip}:{port_result.port}/cgi-bin/",
-                
-                # Common camera management paths
-                f"{protocol}://{target.ip}:{port_result.port}/home.html",
-                f"{protocol}://{target.ip}:{port_result.port}/admin.html",
-                f"{protocol}://{target.ip}:{port_result.port}/index.html",
-                f"{protocol}://{target.ip}:{port_result.port}/main.html",
-                
-                # DVR/NVR interfaces
-                f"{protocol}://{target.ip}:{port_result.port}/dvr/",
-                f"{protocol}://{target.ip}:{port_result.port}/nvr/",
-                f"{protocol}://{target.ip}:{port_result.port}/recorder/",
-                
-                # Brand-specific paths
-                f"{protocol}://{target.ip}:{port_result.port}/ISAPI/",           # Hikvision
-                f"{protocol}://{target.ip}:{port_result.port}/dms/",             # Dahua
-                f"{protocol}://{target.ip}:{port_result.port}/axis-cgi/",        # Axis
-                f"{protocol}://{target.ip}:{port_result.port}/sony/",            # Sony
-                f"{protocol}://{target.ip}:{port_result.port}/panasonic/",       # Panasonic
-                
-                # Generic CGI paths
-                f"{protocol}://{target.ip}:{port_result.port}/cgi/",
-                f"{protocol}://{target.ip}:{port_result.port}/web/",
-                f"{protocol}://{target.ip}:{port_result.port}/api/",
-                f"{protocol}://{target.ip}:{port_result.port}/config/",
-                f"{protocol}://{target.ip}:{port_result.port}/setup/"
+                f"{protocol}://{target.ip}:{port}/", f"{protocol}://{target.ip}:{port}/login",
+                f"{protocol}://{target.ip}:{port}/admin", f"{protocol}://{target.ip}:{port}/cgi-bin/",
+                f"{protocol}://{target.ip}:{port}/home.html", f"{protocol}://{target.ip}:{port}/admin.html",
+                f"{protocol}://{target.ip}:{port}/index.html", f"{protocol}://{target.ip}:{port}/main.html",
+                f"{protocol}://{target.ip}:{port}/dvr/", f"{protocol}://{target.ip}:{port}/nvr/",
+                f"{protocol}://{target.ip}:{port}/recorder/", f"{protocol}://{target.ip}:{port}/ISAPI/",
+                f"{protocol}://{target.ip}:{port}/dms/", f"{protocol}://{target.ip}:{port}/axis-cgi/",
+                f"{protocol}://{target.ip}:{port}/sony/", f"{protocol}://{target.ip}:{port}/panasonic/",
+                f"{protocol}://{target.ip}:{port}/cgi/", f"{protocol}://{target.ip}:{port}/web/",
+                f"{protocol}://{target.ip}:{port}/api/", f"{protocol}://{target.ip}:{port}/config/",
+                f"{protocol}://{target.ip}:{port}/setup/"
             ]
 
             for endpoint in endpoints:
@@ -165,32 +155,29 @@ class CredentialScannerPlugin(ScannerPlugin):
                     if found_creds_for_endpoint:
                         break
                     for password in passwords:
+                        checks_done += 1
+                        if progress_callback:
+                            progress = (checks_done / total_checks) * 100
+                            progress_callback(self.name, progress, f"Testing {username}:{password} on {endpoint}")
+
                         try:
                             response = requests.get(endpoint, auth=(username, password),
                                                   headers={'User-Agent': 'Mozilla/5.0 Security Scanner'},
                                                   timeout=3, verify=False)
                             
-                            # Check for successful authentication
                             if response.status_code == 200:
                                 content = response.text.lower()
-                                
-                                # Check for failed authentication indicators
                                 failed_indicators = [
                                     'login', 'username', 'password', 'not logged in',
                                     'authentication failed', 'invalid credentials',
                                     'please provide', 'unauthorized', 'access denied',
                                     'sign in', 'log in', 'enter password'
                                 ]
-                                
-                                # If we find failure indicators, this is a false positive
                                 if any(indicator in content for indicator in failed_indicators):
                                     continue
-                                
-                                # Additional check: successful auth usually doesn't have login forms
                                 if '<form' in content and ('login' in content or 'password' in content):
                                     continue
                                 
-                                # If we get here, it's likely a real success
                                 creds = f"{username}:{password}"
                                 finding = Finding(
                                     category="credential",
@@ -200,9 +187,8 @@ class CredentialScannerPlugin(ScannerPlugin):
                                     data={"username": username, "password": password}
                                 )
                                 findings.append(finding)
-                                # Found creds for this endpoint, no need to test more
                                 found_creds_for_endpoint = True
-                                break # Stop testing passwords for this user/endpoint
+                                break
                         except requests.RequestException:
                             continue
         return findings

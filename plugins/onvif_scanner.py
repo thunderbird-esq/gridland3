@@ -83,7 +83,7 @@ class ONVIFScannerPlugin(ScannerPlugin):
         "/axis-cgi/onvif/device_service"
     ]
 
-    def scan(self, target: ScanTarget) -> List[Finding]:
+    def scan(self, target: ScanTarget, progress_callback=None) -> List[Finding]:
         """Perform ONVIF protocol scanning"""
         findings = []
         

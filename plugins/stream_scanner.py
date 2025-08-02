@@ -37,7 +37,7 @@ class StreamScannerPlugin(ScannerPlugin):
         except requests.RequestException:
             return False
 
-    def scan(self, target: ScanTarget) -> List[Finding]:
+    def scan(self, target: ScanTarget, progress_callback=None) -> List[Finding]:
         findings = []
         for port_result in target.open_ports:
             # Check RTSP streams

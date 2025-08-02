@@ -133,7 +133,7 @@ class ConfigScannerPlugin(ScannerPlugin):
         ]
     }
 
-    def scan(self, target: ScanTarget) -> List[Finding]:
+    def scan(self, target: ScanTarget, progress_callback=None) -> List[Finding]:
         """Perform configuration and backup file scanning"""
         findings = []
         

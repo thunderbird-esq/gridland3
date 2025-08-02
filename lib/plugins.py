@@ -43,12 +43,13 @@ class ScannerPlugin(ABC):
         pass
 
     @abstractmethod
-    def scan(self, target: ScanTarget) -> List[Finding]:
+    def scan(self, target: ScanTarget, progress_callback=None) -> List[Finding]:
         """
         Perform the scan and return findings
         
         Args:
             target: ScanTarget to scan
+            progress_callback: Optional callback for progress reporting
             
         Returns:
             List[Finding]: List of security findings
