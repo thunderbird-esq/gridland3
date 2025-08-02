@@ -33,19 +33,6 @@ class DeviceFingerprint:
     configuration_access: bool = False
     vulnerability_indicators: List[str] = field(default_factory=list)
 
-@dataclass
-class PluginMetadata:
-    """Metadata for analysis plugins."""
-    name: str
-    version: str
-    author: str
-    description: str
-    plugin_type: str  # 'vulnerability', 'stream', 'banner', 'custom'
-    supported_services: List[str]
-    supported_ports: List[int]
-    requires_auth: bool = False
-    performance_impact: str = "LOW"  # LOW, MEDIUM, HIGH
-    priority: int = 100  # Lower numbers = higher priority
 
 @dataclass
 class VulnerabilityResult:

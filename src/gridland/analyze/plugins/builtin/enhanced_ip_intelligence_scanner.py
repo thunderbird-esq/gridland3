@@ -42,16 +42,19 @@ class IPIntelligence:
 class EnhancedIPIntelligenceScanner(VulnerabilityPlugin):
     """Enhanced IP intelligence scanner with comprehensive geographic analysis."""
 
+    @property
+    def metadata(self) -> dict:
+        return {
+            "name": "Enhanced IP Intelligence Scanner",
+            "version": "2.0.0",
+            "author": "GRIDLAND Security Team",
+            "description": "Comprehensive IP intelligence with geographic and network analysis",
+            "plugin_type": "enrichment",
+            "priority": 190
+        }
+
     def __init__(self):
         super().__init__()
-        self.metadata = PluginMetadata(
-            name="Enhanced IP Intelligence Scanner",
-            version="2.0.0",
-            author="GRIDLAND Security Team",
-            description="Comprehensive IP intelligence with geographic and network analysis",
-            plugin_type="enrichment",
-            priority=190
-        )
         self.memory_pool = get_memory_pool()
         self.intelligence_config = self._load_intelligence_config()
 

@@ -40,17 +40,20 @@ class BannerGrabber(VulnerabilityPlugin):
     and comprehensive vulnerability correlation.
     """
     
+    @property
+    def metadata(self) -> dict:
+        return {
+            "name": "Enhanced Banner Grabber",
+            "version": "1.0.0",
+            "author": "GRIDLAND Security Team",
+            "plugin_type": "vulnerability",
+            "supported_ports": list(range(1, 65536)),  # All ports
+            "supported_services": ["*"],  # All services
+            "description": "Enhanced service detection and banner analysis"
+        }
+
     def __init__(self):
         super().__init__()
-        self.metadata = PluginMetadata(
-            name="Enhanced Banner Grabber",
-            version="1.0.0",
-            author="GRIDLAND Security Team",
-            plugin_type="vulnerability",
-            supported_ports=list(range(1, 65536)),  # All ports
-            supported_services=["*"],  # All services
-            description="Enhanced service detection and banner analysis"
-        )
         self.memory_pool = get_memory_pool()
         self.session = None
         

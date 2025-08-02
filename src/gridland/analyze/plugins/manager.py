@@ -22,21 +22,6 @@ from ..memory import VulnerabilityResult, StreamResult, AnalysisResult
 logger = get_logger(__name__)
 
 
-@dataclass
-class PluginMetadata:
-    """Metadata for analysis plugins."""
-    name: str
-    version: str
-    author: str
-    description: str
-    plugin_type: str  # 'vulnerability', 'stream', 'banner', 'custom'
-    supported_services: List[str]
-    supported_ports: List[int]
-    requires_auth: bool = False
-    performance_impact: str = "LOW"  # LOW, MEDIUM, HIGH
-    priority: int = 100  # Lower numbers = higher priority
-
-
 class AnalysisPlugin(ABC):
     """Base class for analysis plugins."""
     
@@ -44,8 +29,9 @@ class AnalysisPlugin(ABC):
         self.plugin_id = str(uuid4())
         self.enabled = True
     
+    @property
     @abstractmethod
-    def get_metadata(self) -> PluginMetadata:
+    def metadata(self) -> dict:
         """Return plugin metadata."""
         pass
     
@@ -132,38 +118,39 @@ class PluginRegistry:
     def register_plugin(self, plugin: AnalysisPlugin) -> bool:
         """Register a plugin in the registry."""
         try:
-            metadata = plugin.get_metadata()
+            metadata = plugin.metadata
             with self._lock:
                 # Add to main registry
                 self.plugins[plugin.plugin_id] = plugin
                 
                 # Add to type index
-                plugin_type = metadata.plugin_type.lower()
+                plugin_type = metadata.get("plugin_type", "custom").lower()
                 if plugin_type not in self.plugins_by_type:
                     self.plugins_by_type[plugin_type] = []
                 self.plugins_by_type[plugin_type].append(plugin)
                 
                 # Add to port index
-                for port in metadata.supported_ports:
+                for port in metadata.get("supported_ports", []):
                     if port not in self.plugins_by_port:
                         self.plugins_by_port[port] = []
                     self.plugins_by_port[port].append(plugin)
                 
                 # Add to service index
-                for service in metadata.supported_services:
+                for service in metadata.get("supported_services", []):
                     service_key = service.lower()
                     if service_key not in self.plugins_by_service:
                         self.plugins_by_service[service_key] = []
                     self.plugins_by_service[service_key].append(plugin)
             
-            logger.info(f"Registered plugin: {metadata.name} v{metadata.version}")
+            logger.info(f"Registered plugin: {metadata.get('name', 'Unknown')} v{metadata.get('version', '0.0.0')}")
             return True
             
         except Exception as e:
+            plugin_name = "Unknown Plugin"
             try:
-                plugin_name = plugin.get_metadata().name
-            except:
-                plugin_name = "Unknown Plugin"
+                plugin_name = plugin.metadata.get("name", "Unknown")
+            except Exception:
+                pass
             logger.error(f"Failed to register plugin {plugin_name}: {e}")
             return False
     
@@ -175,10 +162,10 @@ class PluginRegistry:
                     return False
                 
                 plugin = self.plugins[plugin_id]
-                metadata = plugin.get_metadata()
+                metadata = plugin.metadata
                 
                 # Remove from type index
-                plugin_type = metadata.plugin_type.lower()
+                plugin_type = metadata.get("plugin_type", "custom").lower()
                 if plugin_type in self.plugins_by_type:
                     self.plugins_by_type[plugin_type] = [
                         p for p in self.plugins_by_type[plugin_type] 
@@ -186,7 +173,7 @@ class PluginRegistry:
                     ]
                 
                 # Remove from port index
-                for port in metadata.supported_ports:
+                for port in metadata.get("supported_ports", []):
                     if port in self.plugins_by_port:
                         self.plugins_by_port[port] = [
                             p for p in self.plugins_by_port[port]
@@ -194,7 +181,7 @@ class PluginRegistry:
                         ]
                 
                 # Remove from service index
-                for service in metadata.supported_services:
+                for service in metadata.get("supported_services", []):
                     service_key = service.lower()
                     if service_key in self.plugins_by_service:
                         self.plugins_by_service[service_key] = [
@@ -208,7 +195,7 @@ class PluginRegistry:
                 # Remove from main registry
                 del self.plugins[plugin_id]
             
-            logger.info(f"Unregistered plugin: {metadata.name}")
+            logger.info(f"Unregistered plugin: {metadata.get('name', 'Unknown')}")
             return True
             
         except Exception as e:
@@ -232,7 +219,7 @@ class PluginRegistry:
             
             # Filter enabled plugins and sort by priority
             enabled_plugins = [p for p in applicable_plugins if p.enabled]
-            return sorted(enabled_plugins, key=lambda p: p.get_metadata().priority)
+            return sorted(enabled_plugins, key=lambda p: p.metadata.get("priority", 100))
     
     def get_plugins_by_type(self, plugin_type: str) -> List[AnalysisPlugin]:
         """Get plugins by type."""
@@ -425,11 +412,11 @@ class PluginManager:
             'plugin_details': [
                 {
                     'id': plugin.plugin_id,
-                    'name': plugin.get_metadata().name,
-                    'version': plugin.get_metadata().version,
-                    'type': plugin.get_metadata().plugin_type,
+                    'name': plugin.metadata.get("name", "Unknown"),
+                    'version': plugin.metadata.get("version", "0.0.0"),
+                    'type': plugin.metadata.get("plugin_type", "custom"),
                     'enabled': plugin.enabled,
-                    'priority': plugin.get_metadata().priority
+                    'priority': plugin.metadata.get("priority", 100)
                 }
                 for plugin in all_plugins
             ]

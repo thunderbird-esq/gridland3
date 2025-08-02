@@ -53,17 +53,20 @@ class MultiProtocolStreamScanner(StreamPlugin):
     Comprehensive multi-protocol stream detection and validation.
     """
 
+    @property
+    def metadata(self) -> dict:
+        return {
+            "name": "Multi-Protocol Stream Scanner",
+            "version": "2.0.0",
+            "author": "GRIDLAND Security Team",
+            "plugin_type": "stream",
+            "supported_services": ["http", "https", "rtsp", "rtmp", "mms", "onvif"],
+            "supported_ports": [80, 443, 554, 1935, 1755, 3702, 8080, 8443, 8554, 10554],
+            "description": "Comprehensive multi-protocol stream detection with detailed validation"
+        }
+
     def __init__(self):
         super().__init__()
-        self.metadata = PluginMetadata(
-            name="Multi-Protocol Stream Scanner",
-            version="2.0.0",
-            author="GRIDLAND Security Team",
-            plugin_type="stream",
-            supported_services=["http", "https", "rtsp", "rtmp", "mms", "onvif"],
-            supported_ports=[80, 443, 554, 1935, 1755, 3702, 8080, 8443, 8554, 10554],
-            description="Comprehensive multi-protocol stream detection with detailed validation"
-        )
         self.protocol_config = self._load_protocol_config()
         self.memory_pool = get_memory_pool()
 

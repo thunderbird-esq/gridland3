@@ -41,7 +41,6 @@ from .plugins import (
     AnalysisPlugin,
     VulnerabilityPlugin,
     StreamPlugin,
-    PluginMetadata,
     get_plugin_manager,
     initialize_plugin_manager
 )
@@ -82,7 +81,6 @@ __all__ = [
     'AnalysisPlugin',
     'VulnerabilityPlugin',
     'StreamPlugin',
-    'PluginMetadata',
     'get_plugin_manager',
     'initialize_plugin_manager',
     

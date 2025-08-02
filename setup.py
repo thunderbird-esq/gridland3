@@ -20,7 +20,7 @@ setup(
     # --- END OF FIX ---
     include_package_data=True,
     install_requires=get_requirements(),
-    entry_points={'console_scripts': ['gridland=gridland.cli.main:main']},
+    entry_points={'console_scripts': ['gridland=main:main']},
     python_requires='>=3.8',
     # ... other metadata ...
 )

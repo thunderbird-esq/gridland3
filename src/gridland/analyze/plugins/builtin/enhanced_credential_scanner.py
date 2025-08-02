@@ -35,17 +35,20 @@ class EnhancedCredentialScanner(VulnerabilityPlugin):
     early termination, and intelligent pattern recognition.
     """
 
+    @property
+    def metadata(self) -> dict:
+        return {
+            "name": "Enhanced Credential Scanner",
+            "version": "2.0.0",
+            "author": "GRIDLAND Security Team",
+            "plugin_type": "vulnerability",
+            "supported_services": ["http", "https"],
+            "supported_ports": [80, 443, 8080, 8443, 8000, 8001, 8008, 8081],
+            "description": "Intelligent credential testing with brand optimization and pattern recognition"
+        }
+
     def __init__(self):
         super().__init__()
-        self.metadata = PluginMetadata(
-            name="Enhanced Credential Scanner",
-            version="2.0.0",
-            author="GRIDLAND Security Team",
-            plugin_type="vulnerability",
-            supported_services=["http", "https"],
-            supported_ports=[80, 443, 8080, 8443, 8000, 8001, 8008, 8081],
-            description="Intelligent credential testing with brand optimization and pattern recognition"
-        )
         self.credential_database = self._load_credential_database()
         self.memory_pool = get_memory_pool()
         self.tested_credentials = set()

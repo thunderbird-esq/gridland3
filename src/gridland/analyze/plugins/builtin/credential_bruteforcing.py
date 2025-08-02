@@ -16,19 +16,22 @@ from gridland.analyze.plugins.manager import VulnerabilityPlugin, PluginMetadata
 class CredentialBruteforcingScanner(VulnerabilityPlugin):
     """Tests for weak or default credentials."""
 
+    @property
+    def metadata(self) -> dict:
+        return {
+            "name": "Credential Bruteforcing Scanner",
+            "version": "1.1.0",
+            "author": "GRIDLAND Security Team",
+            "plugin_type": "vulnerability",
+            "supported_services": ["http", "https"],
+            "supported_ports": [80, 443, 8080, 8000, 8443, 8888, 9000],
+            "description": "Tests for weak or default credentials using HTTP Basic Auth and form submission."
+        }
+
     def __init__(self):
         from gridland.analyze.memory import get_memory_pool
         from gridland.core.logger import get_logger
         super().__init__()
-        self.metadata = PluginMetadata(
-            name="Credential Bruteforcing Scanner",
-            version="1.1.0",
-            author="GRIDLAND Security Team",
-            plugin_type="vulnerability",
-            supported_services=["http", "https"],
-            supported_ports=[80, 443, 8080, 8000, 8443, 8888, 9000],
-            description="Tests for weak or default credentials using HTTP Basic Auth and form submission."
-        )
         self.memory_pool = get_memory_pool()
         self.logger = get_logger(__name__)
         self.default_credentials = self._load_default_credentials()
@@ -40,10 +43,6 @@ class CredentialBruteforcingScanner(VulnerabilityPlugin):
             ('user_id', 'user_pass'),
         ]
         self.login_endpoints = ['/login', '/admin', '/login.html', '/admin/login', '/']
-
-    def get_metadata(self) -> PluginMetadata:
-        """Return plugin metadata."""
-        return self.metadata
 
     def _load_default_credentials(self) -> List[Tuple[str, str]]:
         """Load default credentials from the centralized JSON file."""

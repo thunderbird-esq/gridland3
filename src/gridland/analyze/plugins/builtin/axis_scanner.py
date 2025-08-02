@@ -15,7 +15,7 @@ import base64
 from typing import List, Dict, Any, Optional
 from urllib.parse import urljoin, quote
 
-from gridland.analyze.plugins.manager import VulnerabilityPlugin, PluginMetadata
+from gridland.analyze.plugins.manager import VulnerabilityPlugin
 from gridland.analyze.memory import get_memory_pool
 from gridland.core.logger import get_logger
 
@@ -25,17 +25,20 @@ logger = get_logger(__name__)
 class AxisScanner(VulnerabilityPlugin):
     """Professional Axis camera vulnerability scanner."""
     
+    @property
+    def metadata(self) -> dict:
+        return {
+            "name": "Axis Scanner",
+            "version": "1.0.0",
+            "author": "GRIDLAND Security Team",
+            "plugin_type": "vulnerability",
+            "supported_ports": [80, 443, 8080, 8443],
+            "supported_services": ["http", "https"],
+            "description": "Comprehensive Axis camera vulnerability scanner"
+        }
+
     def __init__(self):
         super().__init__()
-        self.metadata = PluginMetadata(
-            name="Axis Scanner",
-            version="1.0.0",
-            author="GRIDLAND Security Team",
-            plugin_type="vulnerability",
-            supported_ports=[80, 443, 8080, 8443],
-            supported_services=["http", "https"],
-            description="Comprehensive Axis camera vulnerability scanner"
-        )
         self.memory_pool = get_memory_pool()
         self.session = None
         
@@ -101,10 +104,6 @@ class AxisScanner(VulnerabilityPlugin):
             'root.Image',
             'root.Motion'
         ]
-    
-    def get_metadata(self) -> PluginMetadata:
-        """Return plugin metadata."""
-        return self.metadata
     
     async def _init_session(self):
         """Initialize HTTP session if not already done."""

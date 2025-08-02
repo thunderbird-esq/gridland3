@@ -1,7 +1,7 @@
 import click
 
-from .analyze_cli import analyze
-from .discover_cli import discover
+from src.gridland.cli.analyze_cli import analyze
+from src.gridland.cli.discover_cli import discover
 
 @click.group()
 def main():

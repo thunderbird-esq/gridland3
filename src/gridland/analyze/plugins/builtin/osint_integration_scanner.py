@@ -31,16 +31,19 @@ class OSINTResult:
 class OSINTIntegrationScanner(VulnerabilityPlugin):
     """Comprehensive OSINT integration scanner with automated intelligence gathering."""
 
+    @property
+    def metadata(self) -> dict:
+        return {
+            "name": "OSINT Integration Scanner",
+            "version": "2.0.0",
+            "author": "GRIDLAND Security Team",
+            "description": "Automated OSINT platform integration and intelligence correlation",
+            "plugin_type": "enrichment",
+            "priority": 200
+        }
+
     def __init__(self):
         super().__init__()
-        self.metadata = PluginMetadata(
-            name="OSINT Integration Scanner",
-            version="2.0.0",
-            author="GRIDLAND Security Team",
-            description="Automated OSINT platform integration and intelligence correlation",
-            plugin_type="enrichment",
-            priority=200
-        )
         self.osint_config = self._load_osint_config()
         self.memory_pool = get_memory_pool()
 
