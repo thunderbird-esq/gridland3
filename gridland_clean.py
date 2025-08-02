@@ -12,6 +12,9 @@ import time
 import json
 import warnings
 import click
+import logging
+import os
+from datetime import datetime
 from typing import List, Dict, Set, Optional, Tuple
 from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -24,45 +27,64 @@ try:
 except:
     pass
 
-@dataclass
-class ScanTarget:
-    ip: str
-    open_ports: List[int] = None
-    device_type: Optional[str] = None
-    brand: Optional[str] = None
-    credentials: Dict[str, str] = None
-    streams: List[str] = None
-    
-    def __post_init__(self):
-        if self.open_ports is None:
-            self.open_ports = []
-        if self.credentials is None:
-            self.credentials = {}
-        if self.streams is None:
-            self.streams = []
-
-# This file will now primarily be for the CLI implementation and orchestrating
-# the calls to the new modular library functions.
-
-import ipaddress
-import time
-import json
-import warnings
-import click
-from typing import List, Dict, Optional, Tuple
-
 # New modular imports
 from lib.core import ScanTarget
 from lib.network import scan_ports
 from lib.identify import identify_device
 
-# Suppress SSL warnings for embedded devices
-warnings.filterwarnings("ignore", message="Unverified HTTPS request")
-try:
-    import requests
-    requests.packages.urllib3.disable_warnings()
-except:
-    pass
+# Configure comprehensive logging
+def setup_logging(target_name: str = None) -> logging.Logger:
+    """Setup detailed logging for scan operations"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if target_name:
+        # Replace dots and slashes for safe filename
+        safe_target = target_name.replace(".", "_").replace("/", "_")
+        log_filename = f"gridland_scan_{safe_target}_{timestamp}.log"
+    else:
+        log_filename = f"gridland_scan_{timestamp}.log"
+    
+    # Create logs directory if it doesn't exist
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
+    
+    log_path = os.path.join('logs', log_filename)
+    
+    # Configure logger
+    logger = logging.getLogger('gridland')
+    logger.setLevel(logging.DEBUG)
+    
+    # Remove existing handlers
+    logger.handlers.clear()
+    
+    # File handler for detailed logs
+    file_handler = logging.FileHandler(log_path)
+    file_handler.setLevel(logging.DEBUG)
+    
+    # Console handler for user feedback
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    
+    # Detailed formatter for file
+    file_formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
+    )
+    file_handler.setFormatter(file_formatter)
+    
+    # Simple formatter for console
+    console_formatter = logging.Formatter('%(message)s')
+    console_handler.setFormatter(console_formatter)
+    
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    
+    logger.info(f"=== GRIDLAND SCAN SESSION STARTED ===")
+    logger.info(f"Target: {target_name}")
+    logger.info(f"Timestamp: {timestamp}")
+    logger.info(f"Log file: {log_path}")
+    logger.info(f"=" * 50)
+    
+    return logger
+
 
 # TODO: The credential testing and stream discovery logic still needs to be
 # deconstructed and moved into plugins. For now, we will keep the old
@@ -84,37 +106,92 @@ CAMERA_PORTS = [
 
 from lib.plugin_manager import PluginManager
 
-def run_single_target_scan(ip: str, aggressive: bool, threads: int) -> Optional[ScanTarget]:
+def run_single_target_scan(ip: str, aggressive: bool, threads: int, logger: logging.Logger = None) -> Optional[ScanTarget]:
     """Orchestrates a scan against a single target IP."""
-    print(f"\n[🎯] Scanning {ip}")
+    if not logger:
+        logger = logging.getLogger('gridland')
+    
+    logger.info(f"\n[🎯] Scanning {ip}")
+    logger.debug(f"Parameters: aggressive={aggressive}, threads={threads}")
     target = ScanTarget(ip=ip)
 
     # Step 1: Port scan
-    print(f"[🔍] Scanning {ip} for open ports...")
-    target.open_ports = scan_ports(ip, CAMERA_PORTS, max_threads=threads)
-    if not target.open_ports:
-        print("[❌] No open ports found")
+    logger.info(f"[🔍] Scanning {ip} for open ports...")
+    logger.debug(f"Scanning {len(CAMERA_PORTS)} camera-specific ports")
+    
+    try:
+        target.open_ports = scan_ports(ip, CAMERA_PORTS, max_threads=threads)
+        logger.debug(f"Port scan completed. Found {len(target.open_ports)} open ports")
+        
+        if not target.open_ports:
+            logger.info("[❌] No open ports found")
+            logger.debug("Scan terminated - no open ports detected")
+            return None
+
+        logger.info(f"[✅] Found {len(target.open_ports)} open ports: {[p.port for p in target.open_ports]}")
+
+    except Exception as e:
+        logger.error(f"Port scan failed: {str(e)}")
+        logger.debug(f"Port scan exception details", exc_info=True)
         return None
 
     # Step 2: Device identification
-    print(f"[📷] Identifying device at {ip}...")
-    target.device_type, target.brand = identify_device(ip, target.open_ports)
+    logger.info(f"[📷] Identifying device at {ip}...")
+    
+    try:
+        target.device_type, target.brand = identify_device(ip, target.open_ports)
+        logger.debug(f"Device identification result: type={target.device_type}, brand={target.brand}")
+        
+        if target.device_type:
+            logger.info(f"[✅] Device identified: {target.device_type} ({target.brand})")
+        else:
+            logger.info(f"[⚠️] Could not identify specific device type")
+            
+    except Exception as e:
+        logger.error(f"Device identification failed: {str(e)}")
+        logger.debug(f"Device identification exception details", exc_info=True)
 
     if aggressive:
         # Step 3: Run scanner plugins
-        print(f"[🔌] Running scanner plugins on {ip}...")
-        manager = PluginManager()
-        findings = manager.run_all_plugins(target)
+        logger.info(f"[🔌] Running aggressive scanner plugins on {ip}...")
+        logger.debug(f"Aggressive mode enabled - running all available plugins")
+        
+        try:
+            manager = PluginManager()
+            logger.debug(f"Plugin manager initialized")
+            
+            findings = manager.run_all_plugins(target)
+            logger.debug(f"Plugin execution completed. Found {len(findings)} findings")
 
-        # For now, we'll just print the findings.
-        # In the future, these will be added to the ScanTarget object.
-        for finding in findings:
-            print(f"   [+] {finding.category}: {finding.description}")
+            # Process findings and add to target
+            for finding in findings:
+                logger.info(f"   [+] {finding.category}: {finding.description}")
+                logger.debug(f"Finding details: {finding.__dict__}")
+                
+                if finding.category == "credential":
+                    # Extract credentials from finding
+                    if finding.data and "username" in finding.data and "password" in finding.data:
+                        creds_key = f"{finding.data['username']}:{finding.data['password']}"
+                        target.credentials[creds_key] = finding.url or f"{ip}:{finding.port}"
+                        logger.debug(f"Added credential: {creds_key}")
+                
+                elif finding.category == "stream":
+                    # Add discovered streams
+                    if finding.url:
+                        target.streams.append(finding.url)
+                        logger.debug(f"Added stream: {finding.url}")
+                
+                else:
+                    # Add other findings as vulnerabilities
+                    target.vulnerabilities.append(finding.description)
+                    logger.debug(f"Added vulnerability: {finding.description}")
+                    
+        except Exception as e:
+            logger.error(f"Plugin execution failed: {str(e)}")
+            logger.debug(f"Plugin execution exception details", exc_info=True)
 
-        # TODO: The stream discovery logic will also be moved to a plugin.
-        # target.streams = discover_streams(ip, [p.port for p in target.open_ports])
-
-    print(f"[✅] Scan complete for {ip}")
+    logger.info(f"[✅] Scan complete for {ip}")
+    logger.debug(f"Final scan results: {len(target.open_ports)} ports, {len(target.credentials)} credentials, {len(target.streams)} streams, {len(target.vulnerabilities)} vulnerabilities")
     return target
 
 # CLI Implementation
@@ -130,36 +207,38 @@ def gridland():
 @click.option('--output', '-o', help='Output JSON file')
 def scan(target, aggressive, threads, output):
     """Scan single IP or network range"""
+    logger = setup_logging(target)
     results = []
     try:
         if '/' in target:
             network = ipaddress.ip_network(target, strict=False)
-            print(f"\n[🌐] Scanning network: {target}")
+            logger.info(f"\n[🌐] Scanning network: {target}")
+            logger.debug(f"Network contains {network.num_addresses} addresses")
             for ip_obj in network.hosts():
                 ip = str(ip_obj)
-                result = run_single_target_scan(ip, aggressive, threads)
+                result = run_single_target_scan(ip, aggressive, threads, logger)
                 if result:
                     results.append(result)
-            print(f"\n[📊] Found {len(results)} devices with open ports")
+            logger.info(f"\n[📊] Found {len(results)} devices with open ports")
         else:
-            result = run_single_target_scan(target, aggressive, threads)
+            result = run_single_target_scan(target, aggressive, threads, logger)
             if result:
                 results.append(result)
         
         # Display results
         for result in results:
-            print(f"\n🎯 {result.ip}")
-            print(f"   📡 Open Ports: {', '.join(map(str, [p.port for p in result.open_ports]))}")
+            logger.info(f"\n🎯 {result.ip}")
+            logger.info(f"   📡 Open Ports: {', '.join(map(str, [p.port for p in result.open_ports]))}")
             if result.device_type:
-                print(f"   📷 Device: {result.device_type} ({result.brand})")
+                logger.info(f"   📷 Device: {result.device_type} ({result.brand})")
             if result.credentials:
-                print(f"   🔑 CREDENTIALS FOUND:")
+                logger.info(f"   🔑 CREDENTIALS FOUND:")
                 for k, v in result.credentials.items():
-                    print(f"      🔥 {v}")
+                    logger.info(f"      🔥 {v}")
             if result.streams:
-                print(f"   🎥 STREAMS FOUND:")
+                logger.info(f"   🎥 STREAMS FOUND:")
                 for stream in result.streams:
-                    print(f"      📺 {stream}")
+                    logger.info(f"      📺 {stream}")
         
         # Save to file if requested
         if output and results:
@@ -167,25 +246,30 @@ def scan(target, aggressive, threads, output):
             data = [r.__dict__ for r in results]
             with open(output, 'w') as f:
                 json.dump(data, f, indent=2, default=lambda o: o.__dict__)
-            print(f"\n[📄] Results saved to {output}")
+            logger.info(f"\n[📄] Results saved to {output}")
+            logger.debug(f"Saved {len(results)} results to {output}")
     
     except KeyboardInterrupt:
-        print("\n[⏹️] Scan stopped by user")
+        logger.info("\n[⏹️] Scan stopped by user")
+        logger.debug("Scan interrupted by user with KeyboardInterrupt")
 
 @gridland.command()
 @click.argument('target')
 def quick(target):
     """Quick aggressive scan"""
-    result = run_single_target_scan(target, aggressive=True, threads=100)
+    logger = setup_logging(target)
+    result = run_single_target_scan(target, True, 100, logger)
     
     if result:
-        print(f"\n🎯 {result.ip} - {len(result.open_ports)} open ports")
+        logger.info(f"\n🎯 {result.ip} - {len(result.open_ports)} open ports")
+        if result.device_type:
+            logger.info(f"📷 Device: {result.device_type} ({result.brand})")
         if result.credentials:
-            print(f"🔥 CREDENTIALS: {list(result.credentials.values())}")
+            logger.info(f"🔥 CREDENTIALS: {list(result.credentials.values())}")
         if result.streams:
-            print(f"📺 STREAMS: {len(result.streams)} found")
+            logger.info(f"📺 STREAMS: {len(result.streams)} found")
     else:
-        print(f"❌ No open ports on {target}")
+        logger.info(f"❌ No open ports on {target}")
 
 if __name__ == '__main__':
     gridland()

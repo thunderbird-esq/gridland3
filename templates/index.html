@@ -33,6 +33,7 @@
                 <th>Brand</th>
                 <th>Credentials</th>
                 <th>Streams</th>
+                <th>Vulnerabilities</th>
             </tr>
         </thead>
         <tbody>
@@ -47,7 +48,7 @@
         const outputEl = document.getElementById('scan-output');
         const resultsTableBody = document.querySelector('#results-table tbody');
 
-        scanBtn.addEventListener('click', () => {
+        scanBtn.addEventListener('click', async () => {
             const target = targetInput.value;
             if (!target) {
                 alert('Please enter a target.');
@@ -59,66 +60,103 @@
             resultsTableBody.innerHTML = '';
             scanBtn.disabled = true;
 
-            const formData = new FormData();
-            formData.append('target', target);
+            try {
+                // Submit the job
+                const response = await fetch('/api/jobs', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ target: target })
+                });
 
-            fetch('/scan', {
-                method: 'POST',
-                body: new URLSearchParams(formData)
-            }).then(response => {
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-
-                function processChunk(chunk) {
-                    const lines = chunk.split('\\n\\n');
-                    lines.forEach(line => {
-                        if (line.startsWith('data:')) {
-                            const jsonData = line.substring(5).trim();
-                            try {
-                                const data = JSON.parse(jsonData);
-                                const message = data.message;
-
-                                if (message.startsWith('result:')) {
-                                    const resultJson = message.substring(7);
-                                    const result = JSON.parse(resultJson);
-                                    addResultToTable(result);
-                                } else {
-                                    outputEl.textContent += message + '\\n';
-                                }
-                                outputEl.scrollTop = outputEl.scrollHeight;
-                            } catch (e) {
-                                // Ignore json parse errors on partial data
-                            }
-                        }
-                    });
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                function push() {
-                    reader.read().then(({ done, value }) => {
-                        if (done) {
-                            outputEl.textContent += '\n[SCAN COMPLETE]\nConnection closed.';
-                            scanBtn.disabled = false;
-                            return;
-                        }
-                        processChunk(decoder.decode(value, {stream: true}));
-                        push();
-                    });
-                }
-                push();
-            });
+                const jobData = await response.json();
+                const jobId = jobData.job_id;
+                
+                outputEl.textContent += `Job created: ${jobId}\n`;
+                outputEl.textContent += `Polling for results...\n`;
+
+                // Poll for job status
+                pollJobStatus(jobId);
+
+            } catch (error) {
+                outputEl.textContent += `Error: ${error.message}\n`;
+                scanBtn.disabled = false;
+            }
         });
+
+        async function pollJobStatus(jobId) {
+            let lastLogLength = 0;
+            const pollInterval = 1000; // 1 second
+
+            const poll = async () => {
+                try {
+                    const response = await fetch(`/api/jobs/${jobId}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const job = await response.json();
+                    
+                    // Update logs (only show new ones)
+                    if (job.logs && job.logs.length > lastLogLength) {
+                        const newLogs = job.logs.slice(lastLogLength);
+                        newLogs.forEach(log => {
+                            outputEl.textContent += log + '\n';
+                        });
+                        lastLogLength = job.logs.length;
+                        outputEl.scrollTop = outputEl.scrollHeight;
+                    }
+
+                    // Update results table
+                    if (job.results && job.results.length > 0) {
+                        resultsTableBody.innerHTML = ''; // Clear existing
+                        job.results.forEach(result => {
+                            addResultToTable(result);
+                        });
+                    }
+
+                    // Check if job is complete
+                    if (job.status === 'completed' || job.status === 'failed') {
+                        outputEl.textContent += `\n[SCAN ${job.status.toUpperCase()}]\n`;
+                        scanBtn.disabled = false;
+                        return;
+                    }
+
+                    // Continue polling
+                    setTimeout(poll, pollInterval);
+
+                } catch (error) {
+                    outputEl.textContent += `Polling error: ${error.message}\n`;
+                    scanBtn.disabled = false;
+                }
+            };
+
+            poll();
+        }
 
         function addResultToTable(result) {
             const row = resultsTableBody.insertRow();
             row.insertCell(0).textContent = result.ip;
-            row.insertCell(1).textContent = result.open_ports.join(', ');
+            
+            // Handle port display - extract port numbers from PortResult objects
+            const ports = result.open_ports.map(p => p.port || p).join(', ');
+            row.insertCell(1).textContent = ports;
+            
             row.insertCell(2).textContent = result.brand || 'N/A';
 
-            const creds = Object.values(result.credentials).join(', ');
+            const creds = result.credentials ? Object.keys(result.credentials).join(', ') : '';
             row.insertCell(3).textContent = creds || 'None';
 
-            const streams = result.streams.join(', ');
+            const streams = result.streams ? result.streams.join(', ') : '';
             row.insertCell(4).textContent = streams || 'None';
+
+            const vulns = result.vulnerabilities ? result.vulnerabilities.join(', ') : '';
+            row.insertCell(5).textContent = vulns || 'None';
         }
     </script>
 </body>

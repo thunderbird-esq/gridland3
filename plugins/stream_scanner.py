@@ -8,9 +8,11 @@ class StreamScannerPlugin(ScannerPlugin):
     """
     A plugin that discovers common RTSP and HTTP video streams.
     """
-    @property
-    def name(self) -> str:
-        return "stream_scanner"
+    
+    def can_scan(self, target) -> bool:
+        """Check if target has streaming ports"""
+        stream_ports = [554, 8554, 80, 443, 8080, 8443, 5001]
+        return any(p.port in stream_ports for p in target.open_ports)
 
     RTSP_PATHS = ['/live.sdp', '/h264.sdp', '/stream1', '/stream2', '/main', '/sub']
     HTTP_PATHS = ['/video', '/stream', '/mjpg/video.mjpg', '/snapshot.jpg']
@@ -45,10 +47,11 @@ class StreamScannerPlugin(ScannerPlugin):
                         url = f"rtsp://{target.ip}:{port_result.port}{path}"
                         # For RTSP, we assume any path on an open port is a potential stream
                         finding = Finding(
-                            category="Live Stream",
+                            category="stream",
                             description=f"Potential RTSP stream found at {url}",
-                            confidence=0.7,
-                            raw_evidence=url
+                            severity="medium",
+                            url=url,
+                            data={"protocol": "rtsp", "path": path}
                         )
                         findings.append(finding)
                     # Don't check other paths if we found a listening RTSP port
@@ -61,10 +64,11 @@ class StreamScannerPlugin(ScannerPlugin):
                     url = f"{protocol}://{target.ip}:{port_result.port}{path}"
                     if self._test_http_stream(url):
                         finding = Finding(
-                            category="Live Stream",
+                            category="stream",
                             description=f"Potential HTTP stream found at {url}",
-                            confidence=0.9,
-                            raw_evidence=url
+                            severity="medium",
+                            url=url,
+                            data={"protocol": "http", "path": path}
                         )
                         findings.append(finding)
         return findings
