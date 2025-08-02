@@ -160,7 +160,10 @@ class CredentialScannerPlugin(ScannerPlugin):
             ]
 
             for endpoint in endpoints:
+                found_creds_for_endpoint = False
                 for username, passwords in self.DEFAULT_CREDENTIALS.items():
+                    if found_creds_for_endpoint:
+                        break
                     for password in passwords:
                         try:
                             response = requests.get(endpoint, auth=(username, password),
@@ -198,7 +201,8 @@ class CredentialScannerPlugin(ScannerPlugin):
                                 )
                                 findings.append(finding)
                                 # Found creds for this endpoint, no need to test more
-                                return findings
+                                found_creds_for_endpoint = True
+                                break # Stop testing passwords for this user/endpoint
                         except requests.RequestException:
                             continue
         return findings

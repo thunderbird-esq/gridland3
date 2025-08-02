@@ -55,7 +55,7 @@ class StreamScannerPlugin(ScannerPlugin):
                         )
                         findings.append(finding)
                     # Don't check other paths if we found a listening RTSP port
-                    break
+                    continue
 
             # Check HTTP streams
             elif port_result.port in [80, 443, 8080, 8443]:
