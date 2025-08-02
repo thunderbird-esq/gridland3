@@ -1,143 +1,74 @@
-<h4 align="center"> If you find this GitHub repo useful, please consider giving it a star! ⭐️ </h4> 
-<p align="center">
-    <a href="https://spyboy.in/twitter">
-      <img src="https://img.shields.io/badge/-TWITTER-black?logo=twitter&style=for-the-badge">
-    </a>
-    &nbsp;
-    <a href="https://spyboy.in/">
-      <img src="https://img.shields.io/badge/-spyboy.in-black?logo=google&style=for-the-badge">
-    </a>
-    &nbsp;
-    <a href="https://spyboy.blog/">
-      <img src="https://img.shields.io/badge/-spyboy.blog-black?logo=wordpress&style=for-the-badge">
-    </a>
-    &nbsp;
-    <a href="https://spyboy.in/Discord">
-      <img src="https://img.shields.io/badge/-Discord-black?logo=discord&style=for-the-badge">
-    </a>
-  
-</p>
+# GRIDLAND - Real Security Scanner
 
-<p align="center">
-  <img width="20%" src="https://github.com/spyboy-productions/CamXploit/blob/main/CCTV recon.jpg" />
-</p>
+This project is a no-nonsense, effective network security scanner for identifying and assessing network cameras and other devices. It is designed for authorized penetration testing and security auditing.
 
+The core philosophy of this tool is to **build things that work.** It prioritizes real functionality over marketing buzzwords and complex, unnecessary frameworks.
 
+## Features
 
-CamXploit is a reconnaissance tool designed to help researchers and security enthusiasts check if an IP address is hosting an exposed CCTV camera. It scans common camera ports, checks for login pages, tests default credentials, and provides useful search links for further investigation.  
+- **Web-Based UI:** A simple, real-time web interface to run scans and view results as they are discovered.
+- **Powerful CLI:** A comprehensive command-line interface for advanced users and automation, based on the proven logic of `CamXploit.py`.
+- **Multi-threaded Scanning:** High-performance, multi-threaded port scanning.
+- **Device Fingerprinting:** Identifies common camera brands (Hikvision, Dahua, Axis, etc.).
+- **Credential Testing:** Aggressively tests for default and common credentials on discovered devices.
+- **Stream Discovery:** Scans for open RTSP and HTTP video streams.
 
-⚠️ **Disclaimer:** This tool is intended for educational and security research purposes **only**. Unauthorized scanning of systems you do not own is illegal. Use responsibly.  
+## Installation
 
-### ☁️ Run It Instantly on Google Colab (No Installation Needed)
+1.  Clone the repository.
+2.  Install the required Python packages:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/spyboy-productions/CamXploit/blob/main/CamXploit.ipynb)
+## Usage
 
----
+There are two ways to use Gridland: the Web UI (recommended for most users) and the Command-Line Interface (CLI).
 
-## 🆕 What's New in v2.0.1
-- Massive port scan: Now scans 1000+ ports, including custom and high camera ports
-- CP Plus (CP-UVR-0401E1-IC2) and DVR/NVR detection
-- Enhanced live stream detection (RTSP/HTTP/RTMP/MMS, with real stream validation)
-- Multi-threaded authentication and password brute-force (much faster)
-- Improved camera indicator analysis (brand, model, login forms, titles)
-- Comprehensive IP/location info with Google Maps/Earth links
-- Improved error handling and progress reporting
+### Web UI
 
----
+The web UI provides a simple way to run scans and see live results.
 
-## 🚀 **Features**  
+1.  **Start the server:**
+    ```bash
+    flask --app server run --port 5001
+    ```
+2.  **Access the UI:**
+    Open your web browser and navigate to `http://127.0.0.1:5001`.
 
-✔️ **Scans all common CCTV ports**  
-✔️ **Detects exposed camera login pages**  
-✔️ **Checks if the device is a camera stream**  
-✔️ **Identifies camera brands & known vulnerabilities**  
-✔️ **Tests for default credentials on login pages**  
-✔️ **Provides manual search links (Shodan, Censys, Zoomeye, Google Dorking)**  
-✔️ **Google Dorking suggestions for deeper recon**  
-✔️ **Enhanced Camera Detection** with detailed port analysis and brand identification  
-✔️ **Live Stream Detection** for RTSP, RTMP, HTTP, and MMS protocols  
-✔️ **Comprehensive IP & Location Information** with Google Maps/Earth links  
-✔️ **Multi-threaded Port Scanning** for faster results  
-✔️ **Enhanced Error Handling** and SSL support  
-✔️ **Detailed Camera Brand Detection** (Hikvision, Dahua, Axis, Sony, Bosch, Samsung, Panasonic, Vivotek, CP Plus)  
-✔️ **ONVIF Protocol Support** for standardized camera communication  
-✔️ **Smart Brute-force Protection** with rate limiting  
-✔️ **Detailed Port Analysis** showing server information and authentication types  
+3.  **Run a scan:**
+    - Enter a target IP address (e.g., `192.168.1.100`) or a network range in CIDR notation (e.g., `192.168.1.0/24`).
+    - Click "Start Scan".
+    - Watch the results appear in real-time in the "Results" table and the "Raw Scan Log".
 
----
+### Command-Line Interface (CLI)
 
-## 📚 Supported Brands & Devices
-- Hikvision, Dahua, Axis, Sony, Bosch, Samsung, Panasonic, Vivotek, CP Plus, and most generic DVR/NVRs
-- CP Plus DVRs (e.g., CP-UVR-0401E1-IC2) with custom ports
-- Any device exposing RTSP, HTTP, RTMP, or MMS video streams
+The `gridland_clean.py` script provides a powerful command-line interface for more advanced use cases.
 
----
-
-## 🛠️ **Installation**  
-
-### **1️⃣ Clone the Repository**  
+**Basic Scan:**
 ```bash
-git clone https://github.com/spyboy-productions/CamXploit.git
+python gridland_clean.py scan <TARGET_IP_OR_CIDR>
 ```
-```
-cd CamXploit
-```  
+
+**Aggressive Scan:**
+Includes credential testing and stream discovery.
 ```bash
-pip install -r requirements.txt
+python gridland_clean.py scan <TARGET_IP_OR_CIDR> --aggressive
+```
+
+**Quick Scan (Single Target):**
+An alias for an aggressive scan on a single target.
+```bash
+python gridland_clean.py quick <TARGET_IP>
+```
+
+**Options:**
+- `--threads <NUM>` or `-t <NUM>`: Set the number of concurrent scanning threads (default: 100).
+- `--output <FILENAME>.json` or `-o <FILENAME>.json`: Save the results to a JSON file.
+
+**Example:**
+```bash
+python gridland_clean.py scan 192.168.1.0/24 --aggressive -t 200 -o scan_results.json
 ```
 ---
-```
-python CamXploit.py
-```
-Enter the **public IP address** of the target device when prompted.  
-
-### **🔍 What It Does:**  
-1️⃣ **Scans open ports** (Common CCTV ports)  
-2️⃣ **Checks if a camera is present**  
-3️⃣ If a camera is found, it:  
-   - Searches for **login pages**  
-   - Checks **default credentials**  
-   - Identifies **camera brand & vulnerabilities**  
-   - Detects **live streams** (RTSP, RTMP, HTTP, MMS)  
-   - Provides **location information** with maps  
-   - Shows **server details** and authentication types  
-4️⃣ Provides **manual search URLs** for deeper investigation  
-
----
-
-## ⚡ Usage Tips
-- Scanning all ports (1000+) may take several minutes, depending on your network and target.
-- The tool uses multi-threading for port, login, and password checks for speed.
-- If you see "No camera found" but you know a camera is present, check the open ports and look for custom ports in the output.
-- For best results, run as administrator/root to avoid local firewall issues.
-
----
-
-## 📚 Troubleshooting
-- If no open ports are found, ensure the target is online and not behind a strict firewall.
-- If live streams are not detected, try accessing the URLs manually in VLC or a browser.
-- For best detection, ensure your Python version is 3.6+ and all dependencies are installed.
-
----
-
-## 📸 **Example Output**  
-
-<img width="100%" align="centre" src="https://github.com/spyboy-productions/CamXploit/blob/main/demo.png" />
-
----
-
-
-## 🤖 **To-Do & Future Features**  
-- [x] Add multi-threaded scanning for speed  
-- [x] Expand camera brand detection  
-- [ ] Implement logging feature  
-- [ ] Add screenshot capture functionality  
-- [ ] Implement report generation  
-- [ ] Add network range scanning  
-- [ ] Implement MAC address lookup  
-
----
-## 🙌 **Contributions**  
-Feel free to submit issues, suggestions, or pull requests!  
-
-<h4 align="center"> If you find this GitHub repo useful, please consider giving it a star! ⭐️ </h4> 
+*This tool is intended for authorized security auditing and penetration testing purposes only. Use responsibly.*
