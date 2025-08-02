@@ -5,7 +5,7 @@ import ipaddress
 from typing import List
 from .core import ScanTarget
 from .network import scan_ports
-from .identify import identify_device
+from .identify import identify_device, get_device_details
 from .jobs import get_job, update_job_status, add_job_log, set_job_results, update_job_progress
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
@@ -184,6 +184,13 @@ def _scan_single_target(job_id: str, ip: str, aggressive: bool, threads: int) ->
     
     if target.device_type:
         add_job_log(job_id, f"Identified {ip} as {target.device_type} ({target.brand})")
+
+        # Step 3: Get model and firmware details
+        update_job_progress(job_id, 25, f"Getting device details for {ip}...")
+        target.model, target.firmware = get_device_details(target)
+        if target.model:
+            add_job_log(job_id, f"Model: {target.model}, Firmware: {target.firmware or 'Unknown'}")
+
     else:
         add_job_log(job_id, f"Could not identify device type for {ip}")
     

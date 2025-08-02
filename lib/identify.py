@@ -4,7 +4,7 @@ Device identification functions for Gridland
 import requests
 import re
 from typing import List, Tuple, Optional
-from .core import PortResult
+from .core import PortResult, ScanTarget
 
 
 # Disable SSL warnings for embedded devices
@@ -88,22 +88,20 @@ def _analyze_response(response: requests.Response, ip: str, port: int) -> Tuple[
     www_auth = headers.get('www-authenticate', '')
     
     # Hikvision detection
-    if any(x in content for x in ['hikvision', 'hik-connect', 'ivms', 'dss']):
-        return "IP Camera", "Hikvision"
-    if 'hikvision' in server_header or 'hik' in server_header:
+    if 'hikvision' in server_header or 'hik' in server_header or any(x in content for x in ['hikvision', 'hik-connect', 'ivms', 'dss', 'isapi']):
         return "IP Camera", "Hikvision"
     
     # Dahua detection
-    if any(x in content for x in ['dahua', 'dss', 'smartpss']):
-        return "IP Camera", "Dahua"
-    if 'dahua' in server_header:
+    if 'dahua' in server_header or any(x in content for x in ['dahua', 'dss', 'smartpss', 'web service']):
         return "IP Camera", "Dahua"
     
     # Axis detection
-    if any(x in content for x in ['axis', 'vapix']):
+    if 'axis' in server_header or any(x in content for x in ['axis', 'vapix', 'axis communications']):
         return "IP Camera", "Axis"
-    if 'axis' in server_header:
-        return "IP Camera", "Axis"
+
+    # CP Plus detection (from CamXploit)
+    if any(x in content for x in ['cp plus', 'cp-plus', 'cpplus', 'cp_plus', 'uvr', '0401e1']):
+        return "IP Camera", "CP Plus"
     
     # Sony detection
     if any(x in content for x in ['sony', 'snc-', 'sony network camera']):
@@ -210,69 +208,61 @@ def _check_camera_endpoints(ip: str, port: int, timeout: float = 3.0) -> bool:
     return False
 
 
-def get_device_info(ip: str, port: int, timeout: float = 5.0) -> dict:
+def get_device_details(target: ScanTarget) -> Tuple[Optional[str], Optional[str]]:
     """
-    Get detailed device information if available
-    
-    Args:
-        ip: Target IP
-        port: Target port
-        timeout: Request timeout
-        
-    Returns:
-        dict: Device information
+    Get detailed device model and firmware if available by checking common endpoints.
     """
-    info = {
-        'model': None,
-        'firmware': None,
-        'serial': None,
-        'mac': None
-    }
+    model, firmware = None, None
     
-    # Try common info endpoints
     info_endpoints = [
         '/ISAPI/System/deviceInfo',
         '/onvif/device_service',
         '/cgi-bin/hi3510/param.cgi?cmd=getserverinfo',
         '/api/system/device_info',
-        '/system_info.cgi'
+        '/system_info.cgi',
+        '/axis-cgi/admin/param.cgi?action=list'
     ]
     
-    for endpoint in info_endpoints:
-        try:
-            url = f"http://{ip}:{port}{endpoint}"
-            response = requests.get(url, timeout=timeout, verify=False)
-            
-            if response.status_code == 200:
-                content = response.text
+    http_ports = [p.port for p in target.open_ports if p.port in [80, 8080, 443, 8443]]
+
+    for port in http_ports:
+        protocol = "https" if port in [443, 8443] else "http"
+        for endpoint in info_endpoints:
+            try:
+                url = f"{protocol}://{target.ip}:{port}{endpoint}"
+                response = requests.get(url, timeout=3, verify=False)
                 
-                # Extract model information
-                model_patterns = [
-                    r'<model[^>]*>([^<]+)</model>',
-                    r'"model"\s*:\s*"([^"]+)"',
-                    r'Model\s*:\s*([^\r\n]+)'
-                ]
+                if response.status_code == 200:
+                    content = response.text
+
+                    # Regex patterns for model and firmware
+                    model_patterns = [
+                        r'<model[^>]*>([^<]+)</model>', r'"model"\s*:\s*"([^"]+)"',
+                        r'Model\s*:\s*([^\r\n]+)', r'root\.Brand\.ProdShortName=([^\r\n]+)'
+                    ]
+                    fw_patterns = [
+                        r'<firmwareVersion[^>]*>([^<]+)</firmwareVersion>',
+                        r'"firmware"\s*:\s*"([^"]+)"', r'Firmware\s*:\s*([^\r\n]+)',
+                        r'root\.Brand\.FirmwareVersion=([^\r\n]+)'
+                    ]
+
+                    if not model:
+                        for pattern in model_patterns:
+                            match = re.search(pattern, content, re.IGNORECASE)
+                            if match:
+                                model = match.group(1).strip().replace('"', '')
+                                break
+
+                    if not firmware:
+                        for pattern in fw_patterns:
+                            match = re.search(pattern, content, re.IGNORECASE)
+                            if match:
+                                firmware = match.group(1).strip().replace('"', '')
+                                break
                 
-                for pattern in model_patterns:
-                    match = re.search(pattern, content, re.IGNORECASE)
-                    if match:
-                        info['model'] = match.group(1).strip()
-                        break
+                if model and firmware:
+                    return model, firmware
+            except requests.exceptions.RequestException:
+                continue
                 
-                # Extract firmware information
-                fw_patterns = [
-                    r'<firmwareVersion[^>]*>([^<]+)</firmwareVersion>',
-                    r'"firmware"\s*:\s*"([^"]+)"',
-                    r'Firmware\s*:\s*([^\r\n]+)'
-                ]
-                
-                for pattern in fw_patterns:
-                    match = re.search(pattern, content, re.IGNORECASE)
-                    if match:
-                        info['firmware'] = match.group(1).strip()
-                        break
-        
-        except requests.exceptions.RequestException:
-            continue
-    
-    return info
+    return model, firmware

@@ -25,6 +25,8 @@ class ScanTarget:
     open_ports: List[PortResult] = None
     device_type: Optional[str] = None
     brand: Optional[str] = None
+    model: Optional[str] = None
+    firmware: Optional[str] = None
     credentials: Dict[str, str] = None
     streams: List[str] = None
     vulnerabilities: List[str] = None
@@ -46,6 +48,8 @@ class ScanTarget:
             'open_ports': [{'port': p.port, 'service': p.service, 'banner': p.banner} for p in self.open_ports],
             'device_type': self.device_type,
             'brand': self.brand,
+            'model': self.model,
+            'firmware': self.firmware,
             'credentials': self.credentials,
             'streams': self.streams,
             'vulnerabilities': self.vulnerabilities
