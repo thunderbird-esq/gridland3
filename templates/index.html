@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gridland Scanner</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; background-color: #f4f4f4; }
+        #scan-output {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1em;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            height: 400px;
+            overflow-y: scroll;
+        }
+    </style>
+</head>
+<body>
+    <h1>Gridland Security Scanner</h1>
+    <div>
+        <input type="text" id="target-input" placeholder="e.g., 192.168.1.0/24">
+        <button id="start-scan-btn">Start Scan</button>
+    </div>
+    <h2>Results</h2>
+    <table id="results-table">
+        <thead>
+            <tr>
+                <th>IP Address</th>
+                <th>Open Ports</th>
+                <th>Brand</th>
+                <th>Credentials</th>
+                <th>Streams</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <h2>Raw Scan Log</h2>
+    <pre id="scan-output"></pre>
+    <script>
+        const scanBtn = document.getElementById('start-scan-btn');
+        const targetInput = document.getElementById('target-input');
+        const outputEl = document.getElementById('scan-output');
+        const resultsTableBody = document.querySelector('#results-table tbody');
+
+        scanBtn.addEventListener('click', () => {
+            const target = targetInput.value;
+            if (!target) {
+                alert('Please enter a target.');
+                return;
+            }
+
+            // Clear previous output
+            outputEl.textContent = `Starting scan on ${target}...\n`;
+            resultsTableBody.innerHTML = '';
+            scanBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('target', target);
+
+            fetch('/scan', {
+                method: 'POST',
+                body: new URLSearchParams(formData)
+            }).then(response => {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                function processChunk(chunk) {
+                    const lines = chunk.split('\\n\\n');
+                    lines.forEach(line => {
+                        if (line.startsWith('data:')) {
+                            const jsonData = line.substring(5).trim();
+                            try {
+                                const data = JSON.parse(jsonData);
+                                const message = data.message;
+
+                                if (message.startsWith('result:')) {
+                                    const resultJson = message.substring(7);
+                                    const result = JSON.parse(resultJson);
+                                    addResultToTable(result);
+                                } else {
+                                    outputEl.textContent += message + '\\n';
+                                }
+                                outputEl.scrollTop = outputEl.scrollHeight;
+                            } catch (e) {
+                                // Ignore json parse errors on partial data
+                            }
+                        }
+                    });
+                }
+
+                function push() {
+                    reader.read().then(({ done, value }) => {
+                        if (done) {
+                            outputEl.textContent += '\n[SCAN COMPLETE]\nConnection closed.';
+                            scanBtn.disabled = false;
+                            return;
+                        }
+                        processChunk(decoder.decode(value, {stream: true}));
+                        push();
+                    });
+                }
+                push();
+            });
+        });
+
+        function addResultToTable(result) {
+            const row = resultsTableBody.insertRow();
+            row.insertCell(0).textContent = result.ip;
+            row.insertCell(1).textContent = result.open_ports.join(', ');
+            row.insertCell(2).textContent = result.brand || 'N/A';
+
+            const creds = Object.values(result.credentials).join(', ');
+            row.insertCell(3).textContent = creds || 'None';
+
+            const streams = result.streams.join(', ');
+            row.insertCell(4).textContent = streams || 'None';
+        }
+    </script>
+</body>
+</html>

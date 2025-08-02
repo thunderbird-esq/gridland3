@@ -81,19 +81,24 @@ class GridlandScanner:
         'generic': ['camera', 'webcam', 'surveillance', 'ip camera', 'network camera', 'dvr', 'nvr', 'recorder']
     }
     
-    def __init__(self, max_threads=100, timeout=1.5):
+    def __init__(self, max_threads=100, timeout=1.5, progress_callback: Optional[callable] = None):
         self.max_threads = max_threads
         self.timeout = timeout
         self.http_timeout = 5
         self._stop_scanning = False
         self.headers = {'User-Agent': 'Mozilla/5.0 Security Scanner'}
+        self.progress_callback = progress_callback
+
+    def _log(self, message: str):
+        if self.progress_callback:
+            self.progress_callback(message)
     
     def scan_ports(self, ip: str, ports: List[int] = None) -> List[int]:
         """Port scanning based on CamXploit.py check_ports()"""
         if ports is None:
             ports = self.CAMERA_PORTS
             
-        print(f"[🔍] Scanning {ip} ({len(ports)} ports)")
+        self._log(f"[🔍] Scanning {ip} ({len(ports)} ports)")
         
         open_ports = []
         lock = threading.Lock()
@@ -110,12 +115,12 @@ class GridlandScanner:
                     if sock.connect_ex((ip, port)) == 0:
                         with lock:
                             open_ports.append(port)
-                            print(f"  ✅ Port {port} OPEN!")
+                            self._log(f"  ✅ Port {port} OPEN!")
                     else:
                         with lock:
                             scanned_count += 1
                             if scanned_count % 50 == 0:
-                                print(f"  📊 Scanned {scanned_count}/{len(ports)} ports...")
+                                self._log(f"  📊 Scanned {scanned_count}/{len(ports)} ports...")
                 except:
                     with lock:
                         scanned_count += 1
@@ -131,7 +136,7 @@ class GridlandScanner:
     
     def detect_camera(self, ip: str, ports: List[int]) -> Tuple[Optional[str], Optional[str]]:
         """Camera detection based on CamXploit.py check_if_camera()"""
-        print(f"[📷] Analyzing {ip} for camera indicators")
+        self._log(f"[📷] Analyzing {ip} for camera indicators")
         
         for port in ports:
             protocol = "https" if port in [443, 8443] else "http"
@@ -148,7 +153,7 @@ class GridlandScanner:
                 for brand, keywords in self.CAMERA_BRANDS.items():
                     if any(keyword in server_header for keyword in keywords) or \
                        any(keyword in content for keyword in keywords):
-                        print(f"    ✅ {brand.upper()} Camera Detected!")
+                        self._log(f"    ✅ {brand.upper()} Camera Detected!")
                         return "camera", brand
                 
             except Exception as e:
@@ -158,7 +163,7 @@ class GridlandScanner:
     
     def test_credentials(self, ip: str, ports: List[int]) -> Dict[str, str]:
         """Credential testing based on CamXploit.py test_default_passwords()"""
-        print(f"[🔑] Testing credentials on {ip}")
+        self._log(f"[🔑] Testing credentials on {ip}")
         
         successful_creds = {}
         
@@ -186,7 +191,7 @@ class GridlandScanner:
                             if response.status_code == 200:
                                 cred_key = f"{port}_{username}"
                                 successful_creds[cred_key] = f"{username}:{password}"
-                                print(f"    🔥 SUCCESS: {username}:{password} @ {endpoint}")
+                                self._log(f"    🔥 SUCCESS: {username}:{password} @ {endpoint}")
                                 return successful_creds  # Found credentials, stop testing
                                 
                         except Exception:
@@ -196,7 +201,7 @@ class GridlandScanner:
     
     def discover_streams(self, ip: str, ports: List[int]) -> List[str]:
         """Stream discovery based on CamXploit.py detect_live_streams()"""
-        print(f"[🎥] Checking for streams on {ip}")
+        self._log(f"[🎥] Checking for streams on {ip}")
         
         streams = []
         
@@ -213,7 +218,7 @@ class GridlandScanner:
                     stream_url = f"rtsp://{ip}:{port}{path}"
                     if self._test_rtsp_stream(ip, port):
                         streams.append(stream_url)
-                        print(f"    ✅ RTSP Stream: {stream_url}")
+                        self._log(f"    ✅ RTSP Stream: {stream_url}")
                         break
             
             # Check HTTP streams
@@ -223,7 +228,7 @@ class GridlandScanner:
                     stream_url = f"{protocol}://{ip}:{port}{path}"
                     if self._test_http_stream(stream_url):
                         streams.append(stream_url)
-                        print(f"    ✅ HTTP Stream: {stream_url}")
+                        self._log(f"    ✅ HTTP Stream: {stream_url}")
         
         return streams
     
@@ -253,7 +258,7 @@ class GridlandScanner:
     
     def scan_target(self, ip: str, aggressive: bool = True) -> ScanTarget:
         """Complete scan of single target"""
-        print(f"\n[🎯] Scanning {ip}")
+        self._log(f"\n[🎯] Scanning {ip}")
         
         target = ScanTarget(ip=ip)
         
@@ -261,7 +266,7 @@ class GridlandScanner:
         target.open_ports = self.scan_ports(ip)
         
         if not target.open_ports:
-            print(f"[❌] No open ports found")
+            self._log(f"[❌] No open ports found")
             return target
         
         # Step 2: Device detection
@@ -276,17 +281,17 @@ class GridlandScanner:
             # Step 4: Stream discovery
             target.streams = self.discover_streams(ip, target.open_ports)
         
-        print(f"[✅] Scan complete for {ip}")
+        self._log(f"[✅] Scan complete for {ip}")
         return target
     
     def scan_network(self, network_range: str, aggressive: bool = True) -> List[ScanTarget]:
         """Scan entire network range"""
-        print(f"\n[🌐] Scanning network: {network_range}")
+        self._log(f"\n[🌐] Scanning network: {network_range}")
         
         try:
             network = ipaddress.ip_network(network_range, strict=False)
         except ValueError:
-            print(f"[❌] Invalid network range")
+            self._log(f"[❌] Invalid network range")
             return []
         
         targets = []
@@ -297,6 +302,8 @@ class GridlandScanner:
             target = self.scan_target(str(ip), aggressive)
             if target.open_ports:
                 targets.append(target)
+                # Log the structured result for the UI
+                self._log(f"result:{json.dumps(dataclasses.asdict(target))}")
         
         return targets
     
@@ -317,7 +324,7 @@ def gridland():
 def scan(target, aggressive, threads, output):
     """Scan single IP or network range"""
     
-    scanner = GridlandScanner(max_threads=threads)
+    scanner = GridlandScanner(max_threads=threads, progress_callback=print)
     
     try:
         if '/' in target:
@@ -372,7 +379,7 @@ def scan(target, aggressive, threads, output):
 @click.argument('target')
 def quick(target):
     """Quick aggressive scan"""
-    scanner = GridlandScanner()
+    scanner = GridlandScanner(progress_callback=print)
     result = scanner.scan_target(target, aggressive=True)
     
     if result.open_ports:
