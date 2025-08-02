@@ -3,14 +3,28 @@
 Flask server launcher for Gridland
 """
 from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify
+from flask_talisman import Talisman
+from flask_wtf.csrf import CSRFProtect
 import threading
 import logging
 import os
 from datetime import datetime
+from dotenv import load_dotenv
 from lib.jobs import create_job, get_job
 from lib.orchestrator import run_scan
 
+# Load environment variables from .env file
+load_dotenv()
+
 app = Flask(__name__, template_folder='templates')
+app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
+
+# Enable security headers
+talisman = Talisman(app)
+
+# Enable CSRF protection
+csrf = CSRFProtect(app)
 
 # Configure web interface logging
 def setup_web_logging() -> logging.Logger:
