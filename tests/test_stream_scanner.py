@@ -3,31 +3,54 @@ from unittest.mock import patch, MagicMock
 from plugins.stream_scanner import StreamScannerPlugin
 from lib.core import ScanTarget, PortResult
 
-@patch('requests.head')
 @patch('socket.socket')
-def test_stream_scanner_plugin(mock_socket, mock_head):
-    """
-    Tests that the StreamScannerPlugin can identify both RTSP and HTTP streams.
-    """
+def test_verify_rtsp_stream_success(mock_socket):
+    """Tests that a valid RTSP stream is successfully verified."""
     # Arrange
-    # Mock the socket connection for RTSP
     mock_sock_instance = MagicMock()
-    mock_sock_instance.connect.return_value = None
-    mock_socket.return_value.__enter__.return_value = mock_sock_instance
+    mock_sock_instance.recv.return_value = b"RTSP/1.0 200 OK\r\nContent-Type: application/sdp\r\nm=video 554 RTP/AVP 96\r\na=rtpmap:96 H264/90000\r\n"
+    mock_socket.return_value = mock_sock_instance
 
-    # Mock the requests.head call for HTTP
-    def mock_head_side_effect(url, **kwargs):
-        mock_response = MagicMock()
-        if "192.168.1.101:8080/video" in url:
-            mock_response.status_code = 200
-            mock_response.headers = {'Content-Type': 'video/mjpeg'}
-        else:
-            mock_response.status_code = 404
-            mock_response.headers = {'Content-Type': 'text/html'}
-        return mock_response
-    mock_head.side_effect = mock_head_side_effect
+    plugin = StreamScannerPlugin()
+    url = "rtsp://192.168.1.101:554/stream1"
 
-    # Create a target with open RTSP and HTTP ports
+    # Act
+    result = plugin._verify_rtsp_stream(url)
+
+    # Assert
+    assert result == "H.264"
+    mock_sock_instance.connect.assert_called_once_with(('192.168.1.101', 554))
+    mock_sock_instance.send.assert_called_once()
+
+@patch('requests.get')
+def test_verify_http_stream_success(mock_get):
+    """Tests that a valid HTTP stream is successfully verified."""
+    # Arrange
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {'Content-Type': 'video/mjpeg'}
+    mock_response.iter_content.return_value = iter([b'fakedata'])
+    mock_get.return_value = mock_response
+
+    plugin = StreamScannerPlugin()
+    url = "http://192.168.1.101:8080/video"
+
+    # Act
+    result = plugin._verify_http_stream(url)
+
+    # Assert
+    assert result == "MJPEG"
+    mock_get.assert_called_once_with(url, timeout=3, verify=False, stream=True)
+
+@patch('plugins.stream_scanner.StreamScannerPlugin._verify_rtsp_stream')
+@patch('plugins.stream_scanner.StreamScannerPlugin._verify_http_stream')
+def test_scan_calls_verification_methods(mock_verify_http, mock_verify_rtsp):
+    """Tests that the main scan method calls the correct verification methods."""
+    # Arrange
+    mock_verify_rtsp.return_value = "H.264"
+    mock_verify_http.return_value = "MJPEG"
+
+    plugin = StreamScannerPlugin()
     target = ScanTarget(
         ip='192.168.1.101',
         open_ports=[
@@ -37,25 +60,22 @@ def test_stream_scanner_plugin(mock_socket, mock_head):
     )
 
     # Act
-    plugin = StreamScannerPlugin()
     findings = plugin.scan(target)
 
     # Assert
-    assert len(findings) == len(plugin.RTSP_PATHS) + 1, f"Expected {len(plugin.RTSP_PATHS) + 1} findings, but got {len(findings)}"
+    # It should call the verification methods for each path
+    assert mock_verify_rtsp.call_count == len(plugin.RTSP_PATHS)
+    assert mock_verify_http.call_count == len(plugin.HTTP_PATHS)
 
-    # Check the RTSP findings
-    rtsp_finding_urls = [f.url for f in findings if f.url.startswith('rtsp')]
-    assert len(rtsp_finding_urls) == len(plugin.RTSP_PATHS)
-    assert f"rtsp://192.168.1.101:554{plugin.RTSP_PATHS[0]}" in rtsp_finding_urls
+    # The number of findings should be the number of successful verifications
+    assert len(findings) == len(plugin.RTSP_PATHS) + len(plugin.HTTP_PATHS)
 
-    # Check the HTTP finding
-    http_findings = [f for f in findings if f.url.startswith('http')]
-    assert len(http_findings) == 1
-    http_finding = http_findings[0]
+    first_finding = findings[0]
+    assert first_finding.category == "stream"
+    assert first_finding.severity == "high"
+    assert first_finding.data['format'] == "H.264"
 
-    assert http_finding.category == "stream"
-    assert http_finding.url == "http://192.168.1.101:8080/video"
-
-    # Verify mocks were called
-    mock_socket.assert_called()
-    mock_head.assert_called()
+    last_finding = findings[-1]
+    assert last_finding.category == "stream"
+    assert last_finding.severity == "high"
+    assert last_finding.data['format'] == "MJPEG"
