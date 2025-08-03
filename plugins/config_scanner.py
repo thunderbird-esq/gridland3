@@ -111,25 +111,18 @@ class ConfigScannerPlugin(ScannerPlugin):
     # Sensitive data patterns to look for in responses
     SENSITIVE_PATTERNS = {
         "credentials": [
-            r"password\s*[=:]\s*['\"]?([^'\"\s<>]+)",
-            r"passwd\s*[=:]\s*['\"]?([^'\"\s<>]+)",
-            r"secret\s*[=:]\s*['\"]?([^'\"\s<>]+)",
-            r"key\s*[=:]\s*['\"]?([^'\"\s<>]+)",
-            r"token\s*[=:]\s*['\"]?([^'\"\s<>]+)"
+            # More robust pattern to find keys in various formats, including <key>value</key>, "key":"value", or key=value
+            r"['\"<]?(?:password|passwd|secret|key|token)['\" >:]\s*['\"]?([a-zA-Z0-9_.-]{8,})['\"<]?",
         ],
 
         "network_info": [
-            r"ip\s*[=:]\s*['\"]?(\d+\.\d+\.\d+\.\d+)",
-            r"hostname\s*[=:]\s*['\"]?([^'\"\s<>]+)",
-            r"gateway\s*[=:]\s*['\"]?(\d+\.\d+\.\d+\.\d+)",
-            r"dns\s*[=:]\s*['\"]?(\d+\.\d+\.\d+\.\d+)"
+            r"['\"<]?(?:ip|gateway|dns|netmask)['\" >:]\s*['\"]?(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})['\"<]?",
+            r"['\"<]?(?:hostname)['\" >:]\s*['\"]?([a-zA-Z0-9_.-]+)['\"<]?",
         ],
         
         "system_info": [
-            r"version\s*[=:]\s*['\"]?([^'\"\s<>]+)",
-            r"build\s*[=:]\s*['\"]?([^'\"\s<>]+)",
-            r"serial\s*[=:]\s*['\"]?([^'\"\s<>]+)",
-            r"mac\s*[=:]\s*['\"]?([a-fA-F0-9:]{17})"
+            r"['\"<]?(?:version|build|serial|firmware)['\" >:]\s*['\"]?([a-zA-Z0-9_.-]+)['\"<]?",
+            r"['\"<]?(?:mac|mac_address|mac address)['\" >:]\s*['\"]?([a-fA-F0-9:]{17})['\"<]?",
         ]
     }
 

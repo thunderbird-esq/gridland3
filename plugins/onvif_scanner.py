@@ -93,15 +93,22 @@ class ONVIFScannerPlugin(ScannerPlugin):
                 
             protocol = "https" if port_result.port in [443, 8443] else "http"
             
+            # Keep track of tested endpoints on this port to avoid re-running successful tests
+            working_endpoints_on_port = set()
+
             # Test each potential ONVIF endpoint
             for endpoint in self.ONVIF_ENDPOINTS:
                 base_url = f"{protocol}://{target.ip}:{port_result.port}{endpoint}"
+                if base_url in working_endpoints_on_port:
+                    continue  # Already found this one, move to the next path
+
                 endpoint_findings = self._test_onvif_endpoint(base_url, target.ip, port_result.port)
-                findings.extend(endpoint_findings)
-                
-                # If we found a working ONVIF endpoint, don't test others on this port
+
                 if endpoint_findings:
-                    break
+                    findings.extend(endpoint_findings)
+                    # Add the successful base URL to the set
+                    working_endpoints_on_port.add(base_url)
+                    # DO NOT BREAK. Continue to test other endpoints.
         
         # Test for ONVIF discovery via WS-Discovery (port 3702)
         if any(p.port == 3702 for p in target.open_ports):

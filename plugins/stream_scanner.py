@@ -54,8 +54,7 @@ class StreamScannerPlugin(ScannerPlugin):
                             data={"protocol": "rtsp", "path": path}
                         )
                         findings.append(finding)
-                    # Don't check other paths if we found a listening RTSP port
-                    break
+                    # NO break here. Let the loop continue to the elif.
 
             # Check HTTP streams
             elif port_result.port in [80, 443, 8080, 8443]:
