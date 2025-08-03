@@ -121,7 +121,7 @@ class ConfigScannerPlugin(ScannerPlugin):
             r"access_token\s*[=:]\s*['\"]?([^'\"\s<>]+)"
         ],
         "api_keys": [
-            r"api_key\s*[=:]\s*['\"]?([a-zA-Z0-9_-]{16,})",
+            r"['\"<](api_key|access_key)['\">]\s*([a-zA-Z0-9_.-]+)\s*['\"<]",
             r"aws_access_key_id\s*[=:]\s*['\"]?(AKIA[0-9A-Z]{16})",
             r"google_api_key\s*[=:]\s*['\"]?(AIza[0-9A-Za-z\\-_]{35})"
         ],
@@ -227,7 +227,7 @@ class ConfigScannerPlugin(ScannerPlugin):
                         headers={'User-Agent': 'Mozilla/5.0 Config Scanner'}
                     )
                     
-                    if response.status_code == 200 and len(response.content) > 100:  # Minimum size check
+                    if response.status_code == 200 and len(response.content) > 0:
                         content = response.text if len(response.content) < 10000 else response.text[:10000]
                         
                         # Analyze backup content

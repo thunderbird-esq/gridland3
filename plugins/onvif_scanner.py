@@ -99,9 +99,10 @@ class ONVIFScannerPlugin(ScannerPlugin):
                 endpoint_findings = self._test_onvif_endpoint(base_url, target.ip, port_result.port)
                 findings.extend(endpoint_findings)
                 
-                # If we found a working ONVIF endpoint, don't test others on this port
-                if endpoint_findings:
-                    break
+                # If we found a working ONVIF endpoint, we can continue to the next port,
+                # but for now we will check all endpoints on all ports for completeness.
+                # if endpoint_findings:
+                #     break
         
         # Test for ONVIF discovery via WS-Discovery (port 3702)
         if any(p.port == 3702 for p in target.open_ports):
