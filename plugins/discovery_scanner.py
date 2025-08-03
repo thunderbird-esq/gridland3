@@ -1,0 +1,304 @@
+"""
+Discovery Scanner Plugin for Gridland
+Consolidated scanner for discovering exposed files, interfaces, and endpoints.
+"""
+import requests
+import yaml
+import os
+import re
+from typing import List, Dict, Any, Optional
+from lib.plugins import ScannerPlugin, Finding
+from lib.core import ScanTarget
+from lib.evasion import get_request_headers, get_proxies
+
+class DiscoveryScannerPlugin(ScannerPlugin):
+    """
+    A data-driven scanner that discovers web assets based on a YAML configuration file.
+    It merges the functionality of the previous ConfigScanner and WebInterfaceScanner.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.path_groups = self._load_paths()
+        self.sensitive_patterns = self._get_sensitive_patterns()
+        self.admin_indicators = self._get_admin_indicators()
+        self.dir_listing_indicators = self._get_dir_listing_indicators()
+
+
+    def _load_paths(self, paths_file: str = 'data/discovery/paths.yml') -> List[Dict[str, Any]]:
+        """Loads path definitions from the YAML file."""
+        if not os.path.exists(paths_file):
+            return []
+        with open(paths_file, 'r') as f:
+            data = yaml.safe_load(f)
+        return data.get('path_groups', [])
+
+    def can_scan(self, target: ScanTarget) -> bool:
+        """Check if target has web ports for discovery scanning."""
+        web_ports = [80, 443, 8080, 8443, 8000, 8001, 8008, 8081, 8082, 8083, 8084, 8085]
+        return any(p.port in web_ports for p in target.open_ports)
+
+    def get_description(self) -> str:
+        """Get plugin description."""
+        return "Consolidated discovery scanner for web assets, configurations, and interfaces."
+
+    def scan(self, target: ScanTarget) -> List[Finding]:
+        """Perform discovery scan based on loaded path definitions."""
+        findings = []
+        proxy_url = os.environ.get('PROXY_URL')
+
+        for port_result in target.open_ports:
+            if port_result.port not in [80, 443, 8080, 8443, 8000, 8001, 8008, 8081, 8082, 8083, 8084, 8085]:
+                continue
+
+            protocol = "https" if port_result.port in [443, 8443] else "http"
+            base_url = f"{protocol}://{target.ip}:{port_result.port}"
+
+            for group in self.path_groups:
+                category = group.get('category', 'unknown')
+                scan_type = group.get('scan_type', 'file_check')
+                paths = group.get('paths', [])
+
+                for path in paths:
+                    try:
+                        url = f"{base_url}{path}"
+                        response = requests.get(
+                            url,
+                            timeout=5,
+                            verify=False,
+                            allow_redirects=True,
+                            headers=get_request_headers(),
+                            proxies=get_proxies(proxy_url)
+                        )
+
+                        if response.status_code == 200:
+                            finding = self._handle_successful_response(response, url, port_result.port, category, scan_type, path)
+                            if finding:
+                                findings.append(finding)
+
+                        elif response.status_code in [401, 403] and scan_type == 'interface_discovery':
+                             finding = Finding(
+                                category="web_interface",
+                                description=f"Protected interface found: {path}",
+                                severity="low",
+                                port=port_result.port,
+                                url=url,
+                                data={
+                                    "path": path,
+                                    "status_code": response.status_code,
+                                    "auth_required": True
+                                }
+                            )
+                             findings.append(finding)
+
+
+                    except requests.RequestException:
+                        continue
+        return findings
+
+    def _handle_successful_response(self, response: requests.Response, url: str, port: int, category: str, scan_type: str, path: str) -> Optional[Finding]:
+        """Process a 200 OK response based on the scan type."""
+        content = response.text
+        content_lower = content.lower()
+
+        # Check for directory listing first, as it can apply to any path
+        is_listing = any(indicator in content_lower for indicator in self.dir_listing_indicators)
+        if is_listing:
+            return Finding(
+                category="vulnerability",
+                description=f"Directory listing enabled: {path}",
+                severity="medium",
+                port=port,
+                url=url,
+                data={
+                    "vulnerability_type": "directory_listing",
+                    "directory": path,
+                    "file_count": content_lower.count('<a href='),
+                    "server": response.headers.get('Server', 'Unknown')
+                }
+            )
+
+        if scan_type == 'file_check':
+            analysis = self._analyze_file_content(content, path)
+            if analysis['is_sensitive']:
+                severity = self._determine_severity(analysis)
+                return Finding(
+                    category="configuration_exposure",
+                    description=f"Exposed file found: {path}",
+                    severity=severity,
+                    port=port,
+                    url=url,
+                    data={
+                        "file_category": category,
+                        "file_path": path,
+                        "content_size": len(response.content),
+                        "sensitive_data": analysis['sensitive_data'],
+                        "file_format": analysis['format']
+                    }
+                )
+
+        elif scan_type == 'backup_check':
+            return Finding(
+                category="backup_exposure",
+                description=f"Backup file exposed: {path}",
+                severity="high",
+                port=port,
+                url=url,
+                data={
+                    "backup_category": category,
+                    "file_path": path,
+                    "content_size": len(response.content),
+                }
+            )
+
+        elif scan_type == 'interface_discovery':
+            is_admin = any(indicator in content_lower for indicator in self.admin_indicators)
+            if is_admin:
+                interface_type = self._identify_interface_type(content_lower, path)
+                return Finding(
+                    category="web_interface",
+                    description=f"Admin interface found: {interface_type}",
+                    severity="medium",
+                    port=port,
+                    url=url,
+                    data={
+                        "interface_type": interface_type,
+                        "path": path,
+                        "requires_auth": "password" in content_lower or "login" in content_lower,
+                    }
+                )
+
+        elif scan_type == 'debug_endpoint':
+            debug_indicators = ['debug', 'development', 'test', 'staging', 'error', 'stack trace', 'exception', 'phpinfo', 'server info']
+            is_debug = any(indicator in content_lower for indicator in debug_indicators)
+            if is_debug:
+                system_info = self._extract_system_info(content)
+                return Finding(
+                    category="debug_exposure",
+                    description=f"Debug endpoint exposed: {path}",
+                    severity="medium",
+                    port=port,
+                    url=url,
+                    data={
+                        "endpoint_category": category,
+                        "debug_path": path,
+                        "system_info": system_info,
+                    }
+                )
+
+        return None
+
+    def _get_sensitive_patterns(self) -> Dict[str, List[str]]:
+        """Consolidated sensitive data patterns."""
+        return {
+            "credentials": [
+                r"password\s*[=:]\s*['\"]?([^'\"\s<>]+)",
+                r"passwd\s*[=:]\s*['\"]?([^'\"\s<>]+)",
+                r"secret\s*[=:]\s*['\"]?([^'\"\s<>]+)",
+                r"key\s*[=:]\s*['\"]?([^'\"\s<>]+)",
+                r"token\s*[=:]\s*['\"]?([^'\"\s<>]+)"
+            ],
+            "network_info": [
+                r"ip\s*[=:]\s*['\"]?(\d+\.\d+\.\d+\.\d+)",
+                r"hostname\s*[=:]\s*['\"]?([^'\"\s<>]+)",
+                r"gateway\s*[=:]\s*['\"]?(\d+\.\d+\.\d+\.\d+)",
+                r"dns\s*[=:]\s*['\"]?(\d+\.\d+\.\d+\.\d+)"
+            ],
+            "system_info": [
+                r"version\s*[=:]\s*['\"]?([^'\"\s<>]+)",
+                r"build\s*[=:]\s*['\"]?([^'\"\s<>]+)",
+                r"serial\s*[=:]\s*['\"]?([^'\"\s<>]+)",
+                r"mac\s*[=:]\s*['\"]?([a-fA-F0-9:]{17})"
+            ]
+        }
+
+    def _get_admin_indicators(self) -> List[str]:
+        """Consolidated admin panel indicators."""
+        return [
+            "administration", "control panel", "management", "dashboard",
+            "login", "password", "username", "sign in", "authentication",
+            "admin panel", "administrator", "configuration", "settings"
+        ]
+
+    def _get_dir_listing_indicators(self) -> List[str]:
+        """Directory listing indicators."""
+        return [
+            "index of", "directory listing", "[dir]", "parent directory",
+            "<title>index of", "apache/", "nginx/", "iis/", "lighttpd/"
+        ]
+
+    def _analyze_file_content(self, content: str, file_path: str) -> Dict:
+        """Analyze file content for format and sensitive data."""
+        analysis = {
+            'is_sensitive': False,
+            'format': 'unknown',
+            'sensitive_data': {}
+        }
+        content_lower = content.lower()
+
+        if content.strip().startswith('<?xml') or '<configuration>' in content_lower:
+            analysis['format'] = 'xml'
+        elif content.strip().startswith('{') and '}' in content:
+            analysis['format'] = 'json'
+        elif any(indicator in content_lower for indicator in ['[section]', 'key=value', 'setting=']):
+            analysis['format'] = 'ini'
+
+        sensitive_data = self._extract_system_info(content)
+        if sensitive_data:
+            analysis['sensitive_data'] = sensitive_data
+
+        if analysis['format'] != 'unknown' or analysis['sensitive_data']:
+             analysis['is_sensitive'] = True
+
+        return analysis
+
+    def _extract_system_info(self, content: str) -> Dict[str, List[str]]:
+        """Extracts structured sensitive information from text content."""
+        info = {}
+        for data_type, patterns in self.sensitive_patterns.items():
+            for pattern in patterns:
+                matches = re.findall(pattern, content, re.IGNORECASE)
+                if matches:
+                    if data_type not in info:
+                        info[data_type] = []
+                    info[data_type].extend(matches[:5])
+        return info
+
+    def _determine_severity(self, analysis: Dict) -> str:
+        """Determine severity based on analysis."""
+        if not analysis.get('sensitive_data'):
+            return "medium"
+
+        high_risk_types = ['credentials']
+        for data_type in analysis['sensitive_data']:
+            if data_type in high_risk_types:
+                return "critical"
+
+        return "high"
+
+    def _identify_interface_type(self, content_lower: str, path: str) -> str:
+        """Identify the type of admin interface from content."""
+        if any(brand in content_lower for brand in ['hikvision', 'hik-connect']):
+            return "Hikvision Admin Panel"
+        elif any(brand in content_lower for brand in ['dahua', 'dss']):
+            return "Dahua Admin Panel"
+        elif 'axis' in content_lower:
+            return "Axis Admin Panel"
+        elif 'sony' in content_lower:
+            return "Sony Admin Panel"
+        elif 'panasonic' in content_lower:
+            return "Panasonic Admin Panel"
+        elif any(term in content_lower for term in ['webcamxp', 'webcam']):
+            return "WebcamXP Interface"
+        elif any(term in content_lower for term in ['dvr', 'nvr', 'recorder']):
+            return "DVR/NVR Management Interface"
+        elif any(term in content_lower for term in ['camera', 'video', 'surveillance']):
+            return "Camera Management Interface"
+        elif 'configuration' in content_lower or 'settings' in content_lower:
+            return "Configuration Interface"
+        elif 'dashboard' in content_lower:
+            return "Admin Dashboard"
+        elif 'control panel' in content_lower:
+            return "Control Panel"
+        else:
+            return "Generic Admin Interface"

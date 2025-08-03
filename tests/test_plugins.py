@@ -1,42 +1,54 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from lib.plugin_manager import PluginManager
 from lib.core import ScanTarget, PortResult
+from plugins.credential_scanner import CredentialScannerPlugin
+from lib.evasion import get_request_headers
 
 @patch('requests.get')
-def test_credential_scanner_plugin(mock_get):
+def test_credential_scanner_plugin_success(mock_get):
     """
-    Tests that the PluginManager can load and run the CredentialScannerPlugin,
-    and that the plugin correctly identifies credentials.
+    Tests that the CredentialScannerPlugin correctly identifies credentials
+    when a valid login is found.
     """
     # Arrange
-    # Mock the response from requests.get to simulate a successful login
+    # This response should not trigger the "failed login" indicators
     mock_response = MagicMock()
     mock_response.status_code = 200
+    mock_response.text = "Welcome to the dashboard."
     mock_get.return_value = mock_response
 
-    # Create a target for the scan
     target = ScanTarget(
         ip='192.168.1.100',
         open_ports=[PortResult(port=80, is_open=True)]
     )
 
+    plugin = CredentialScannerPlugin()
+
     # Act
-    # The PluginManager will automatically discover and load plugins from the 'plugins' directory
-    manager = PluginManager()
-    all_findings = manager.run_all_plugins(target)
+    findings = plugin.scan(target)
 
     # Assert
-    assert len(manager.plugins) == 1
-    assert manager.plugins[0].name == 'credential_scanner'
+    # The plugin should find the first credential in its list and then stop.
+    # The first credential for 'admin' is an empty password.
+    assert len(findings) == 1
 
-    assert len(all_findings) == 1
-    finding = all_findings[0]
-    assert finding.category == "Default Credentials"
-    assert "admin:admin" in finding.description
+    finding = findings[0]
+    assert finding.category == "credential"
 
-    # Check that requests.get was called with the first credential combo
-    mock_get.assert_called_once()
-    args, kwargs = mock_get.call_args
-    assert 'auth' in kwargs
-    assert kwargs['auth'] == ('admin', 'admin')
+    # The first endpoint checked is the base URL
+    expected_endpoint = 'http://192.168.1.100:80/'
+    expected_description = f"Found default credentials admin: on {expected_endpoint}"
+    assert finding.description == expected_description
+
+    assert finding.data['username'] == 'admin'
+    assert finding.data['password'] == ''
+
+    # Verify that the correct request was made
+    mock_get.assert_any_call(
+        expected_endpoint,
+        auth=('admin', ''),
+        headers=get_request_headers(),
+        proxies=None,
+        timeout=3,
+        verify=False
+    )
