@@ -3,7 +3,9 @@
 GRIDLAND - Real Security Scanner
 Clean implementation based on proven CamXploit.py functionality
 """
-
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 import socket
 import threading
 import requests

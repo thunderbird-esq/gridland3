@@ -63,7 +63,7 @@ class StreamScannerPlugin(ScannerPlugin):
             return False
         return False
 
-    def scan(self, target: ScanTarget) -> List[Finding]:
+    def scan(self, target: ScanTarget, fingerprint: dict = None) -> List[Finding]:
         findings = []
         proxy_url = os.environ.get('PROXY_URL')
         for port_result in target.open_ports:

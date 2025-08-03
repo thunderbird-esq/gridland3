@@ -6,9 +6,9 @@ import requests
 import socket
 from typing import List, Dict, Optional
 from xml.etree import ElementTree as ET
-from lib.plugins import ScannerPlugin, Finding
-from lib.core import ScanTarget
-from lib.evasion import get_request_headers, get_proxies
+from ..lib.plugins import ScannerPlugin, Finding
+from ..lib.core import ScanTarget
+from ..lib.evasion import get_request_headers, get_proxies
 import os
 
 
@@ -85,7 +85,7 @@ class ONVIFScannerPlugin(ScannerPlugin):
         "/axis-cgi/onvif/device_service"
     ]
 
-    def scan(self, target: ScanTarget) -> List[Finding]:
+    def scan(self, target: ScanTarget, fingerprint: dict = None) -> List[Finding]:
         """Perform ONVIF protocol scanning"""
         findings = []
         proxy_url = os.environ.get('PROXY_URL')

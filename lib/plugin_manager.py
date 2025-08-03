@@ -75,34 +75,31 @@ class PluginManager:
         """Get only enabled plugins"""
         return [p for p in self.plugins if p.is_enabled()]
 
-    def run_all_plugins(self, target: ScanTarget) -> List[Finding]:
+    def run_all_plugins(self, target: ScanTarget, fingerprint: Dict = None) -> List[Finding]:
         """
-        Run all applicable plugins against a target
+        Run all applicable plugins against a target, informed by fingerprint data.
         
         Args:
             target: ScanTarget to scan
+            fingerprint: Fingerprint data from the intelligence gathering phase
             
         Returns:
             List[Finding]: Combined findings from all plugins
         """
         all_findings = []
-        enabled_plugins = self.get_enabled_plugins()
+        # In the new workflow, the fingerprint scanner is run separately first.
+        enabled_plugins = [p for p in self.get_enabled_plugins() if type(p).__name__ != 'FingerprintScannerPlugin']
         
-        self.logger.info(f"Running {len(enabled_plugins)} enabled plugins against {target.ip}")
+        self.logger.info(f"Running {len(enabled_plugins)} intelligence-led plugins against {target.ip}")
         
         for plugin in enabled_plugins:
             plugin_name = type(plugin).__name__
             try:
-                self.logger.debug(f"Checking if {plugin_name} can scan {target.ip}")
-                
                 if plugin.can_scan(target):
-                    self.logger.info(f"Running {plugin_name} against {target.ip}")
-                    findings = plugin.scan(target)
+                    self.logger.info(f"Running {plugin_name} against {target.ip} with fingerprint context")
+                    findings = plugin.scan(target, fingerprint=fingerprint or {})
                     
                     self.logger.debug(f"{plugin_name} found {len(findings)} findings")
-                    for finding in findings:
-                        self.logger.debug(f"{plugin_name} finding: {finding.category} - {finding.description}")
-                    
                     all_findings.extend(findings)
                 else:
                     self.logger.debug(f"{plugin_name} cannot scan {target.ip} (no applicable ports)")
@@ -115,21 +112,27 @@ class PluginManager:
         self.logger.info(f"Plugin execution completed. Total findings: {len(all_findings)}")
         return all_findings
 
-    def run_plugin_by_name(self, plugin_name: str, target: ScanTarget) -> List[Finding]:
+    def run_plugin_by_name(self, plugin_name: str, target: ScanTarget, fingerprint: Dict = None) -> List[Finding]:
         """
-        Run a specific plugin by name
+        Run a specific plugin by name, informed by fingerprint data.
         
         Args:
-            plugin_name: Name of plugin to run
+            plugin_name: Name of the plugin class to run
             target: ScanTarget to scan
+            fingerprint: Optional fingerprint data
             
         Returns:
             List[Finding]: Findings from the plugin
         """
         for plugin in self.plugins:
-            if plugin.name == plugin_name and plugin.is_enabled():
+            if type(plugin).__name__ == plugin_name and plugin.is_enabled():
                 if plugin.can_scan(target):
-                    return plugin.scan(target)
+                    # The base 'scan' method in the abstract class does not have the fingerprint arg.
+                    # We rely on concrete implementations to have it.
+                    if fingerprint is not None:
+                        return plugin.scan(target, fingerprint=fingerprint)
+                    else:
+                        return plugin.scan(target)
                 break
         
         return []

@@ -7,9 +7,9 @@ import yaml
 import os
 import re
 from typing import List, Dict, Any, Optional
-from lib.plugins import ScannerPlugin, Finding
-from lib.core import ScanTarget
-from lib.evasion import get_request_headers, get_proxies
+from ..lib.plugins import ScannerPlugin, Finding
+from ..lib.core import ScanTarget
+from ..lib.evasion import get_request_headers, get_proxies
 
 class DiscoveryScannerPlugin(ScannerPlugin):
     """
@@ -66,20 +66,46 @@ class DiscoveryScannerPlugin(ScannerPlugin):
                 flat_list.append({'path': path, 'category': category, 'scan_type': scan_type})
         return flat_list
 
-    def _build_scan_list(self, server_type: Optional[str]) -> List[Dict[str, str]]:
-        """Builds a prioritized, flat list of paths to scan."""
+    def _build_scan_list(self, server_type: Optional[str], vendor: Optional[str]) -> List[Dict[str, str]]:
+        """Builds a prioritized, flat list of paths to scan based on server and vendor."""
         scan_list = []
+        vendor_specific_paths = []
 
-        # 1. Add server-specific paths first
+        vendor_lower = vendor.lower() if vendor else None
+
+        # 1. Add server-specific paths from server_specific block
         if server_type and server_type in self.path_config.get('server_specific', {}):
             specific_groups = self.path_config['server_specific'][server_type].get('path_groups', [])
             scan_list.extend(self._flatten_path_groups(specific_groups))
 
-        # 2. Add generic paths
+        # 2. Extract vendor-specific paths from the generic list
         generic_groups = self.path_config.get('generic', {}).get('path_groups', [])
-        scan_list.extend(self._flatten_path_groups(generic_groups))
+        remaining_generic_groups = []
 
-        return scan_list
+        if vendor_lower:
+            for group in generic_groups:
+                # Prioritize groups that are brand-specific
+                if group['category'] in ['brand_specific_interface', 'camera_specific_config']:
+                    for path_info in self._flatten_path_groups([group]):
+                        if vendor_lower in path_info['path'].lower():
+                            vendor_specific_paths.append(path_info)
+                else:
+                    remaining_generic_groups.append(group)
+        else:
+            remaining_generic_groups = generic_groups
+
+        # 3. Combine the lists: vendor-specific first, then server-specific, then generic
+        final_scan_list = vendor_specific_paths + scan_list + self._flatten_path_groups(remaining_generic_groups)
+
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_list = []
+        for item in final_scan_list:
+            if item['path'] not in seen:
+                unique_list.append(item)
+                seen.add(item['path'])
+
+        return unique_list
 
     def _check_path(self, session: requests.Session, base_url: str, path_info: Dict[str, str], port: int) -> Optional[Finding]:
         """Checks a single path and returns a Finding if successful."""
@@ -107,10 +133,12 @@ class DiscoveryScannerPlugin(ScannerPlugin):
             pass # This is expected for non-existent paths, so we don't log an error.
         return None
 
-    def scan(self, target: ScanTarget) -> List[Finding]:
+    def scan(self, target: ScanTarget, fingerprint: dict = None) -> List[Finding]:
         """Perform an intelligent discovery scan based on server type and path priority."""
         findings = []
         proxy_url = os.environ.get('PROXY_URL')
+
+        vendor = fingerprint.get('vendor') if fingerprint else None
 
         for port_result in target.open_ports:
             if port_result.port not in [80, 443, 8080, 8443, 8000, 8001, 8008, 8081, 8082, 8083, 8084, 8085]:
@@ -126,7 +154,7 @@ class DiscoveryScannerPlugin(ScannerPlugin):
                 session.allow_redirects = True
 
                 server_type = self._get_server_type(session, base_url)
-                scan_list = self._build_scan_list(server_type)
+                scan_list = self._build_scan_list(server_type, vendor)
 
                 for path_info in scan_list:
                     finding = self._check_path(session, base_url, path_info, port_result.port)

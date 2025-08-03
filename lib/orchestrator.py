@@ -165,7 +165,7 @@ def run_scan(job_id: str, target: str, aggressive: bool = False, threads: int = 
 
 def _scan_single_target(job_id: str, ip: str, aggressive: bool, threads: int) -> ScanTarget:
     """
-    Scan a single target IP
+    Scan a single target IP using an intelligence-led workflow.
     
     Args:
         job_id: Job identifier for logging
@@ -188,46 +188,50 @@ def _scan_single_target(job_id: str, ip: str, aggressive: bool, threads: int) ->
     
     add_job_log(job_id, f"Found {len(target.open_ports)} open ports on {ip}")
     
-    # Step 2: Device identification
-    add_job_log(job_id, f"Identifying device at {ip}...")
-    target.device_type, target.brand = identify_device(ip, target.open_ports)
+    # Step 2: Fingerprint Scanning (Intelligence Gathering)
+    add_job_log(job_id, f"Fingerprinting device at {ip}...")
+    from .plugin_manager import PluginManager
+    manager = PluginManager()
     
-    if target.device_type:
-        add_job_log(job_id, f"Identified {ip} as {target.device_type} ({target.brand})")
+    # Run only the fingerprint scanner first
+    fingerprint_findings = manager.run_plugin_by_name("FingerprintScannerPlugin", target)
+
+    fingerprint = {}
+    if fingerprint_findings and fingerprint_findings[0].category == 'fingerprint':
+        fingerprint = fingerprint_findings[0].data
+        target.brand = fingerprint.get('vendor')
+        target.device_type = fingerprint.get('product')
+        add_job_log(job_id, f"Fingerprint successful: {target.brand} {target.device_type or ''}")
     else:
         add_job_log(job_id, f"Could not identify device type for {ip}")
-    
+
+    # Step 3: Run all other plugins if in aggressive mode
     if aggressive:
-        add_job_log(job_id, f"Running aggressive scans on {ip}...")
+        add_job_log(job_id, f"Running intelligence-led scans on {ip}...")
+
+        # Run all plugins, passing in the fingerprint intelligence
+        findings = manager.run_all_plugins(target, fingerprint=fingerprint)
         
-        # Import and run plugins
-        try:
-            from .plugin_manager import PluginManager
-            manager = PluginManager()
-            findings = manager.run_all_plugins(target)
+        # Process findings and add to target
+        for finding in findings:
+            # Skip the fingerprint finding since we already processed it
+            if finding.category == "fingerprint":
+                continue
+
+            add_job_log(job_id, f"Found: {finding.category} - {finding.description}")
             
-            # Process findings and add to target
-            for finding in findings:
-                add_job_log(job_id, f"Found: {finding.category} - {finding.description}")
-                
-                if finding.category == "credential":
-                    # Extract credentials from finding
-                    if finding.data and "username" in finding.data and "password" in finding.data:
-                        creds_key = f"{finding.data['username']}:{finding.data['password']}"
-                        target.credentials[creds_key] = finding.url or f"{ip}:{finding.port}"
-                
-                elif finding.category == "stream":
-                    # Add discovered streams
-                    if finding.url:
-                        target.streams.append(finding.url)
-                
-                else:
-                    # Add other findings as vulnerabilities
-                    target.vulnerabilities.append(finding.description)
+            if finding.category == "credential":
+                if finding.data and "username" in finding.data and "password" in finding.data:
+                    creds_key = f"{finding.data['username']}:{finding.data['password']}"
+                    target.credentials[creds_key] = finding.url or f"{ip}:{finding.port}"
+
+            elif finding.category == "stream":
+                if finding.url:
+                    target.streams.append(finding.url)
+
+            else:
+                target.vulnerabilities.append(finding.description)
                     
-        except Exception as e:
-            add_job_log(job_id, f"Plugin system error: {str(e)}")
-        
         add_job_log(job_id, f"Aggressive scans completed for {ip}")
     
     return target

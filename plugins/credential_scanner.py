@@ -1,8 +1,8 @@
 import requests
 from typing import List
-from lib.plugins import ScannerPlugin, Finding
-from lib.core import ScanTarget
-from lib.evasion import get_request_headers, get_proxies
+from ..lib.plugins import ScannerPlugin, Finding
+from ..lib.core import ScanTarget
+from ..lib.evasion import get_request_headers, get_proxies
 import os
 
 class CredentialScannerPlugin(ScannerPlugin):
@@ -120,50 +120,68 @@ class CredentialScannerPlugin(ScannerPlugin):
         ]
     }
 
-    def scan(self, target: ScanTarget) -> List[Finding]:
+    def _get_prioritized_credentials(self, vendor: str) -> dict:
+        """Reorders the credential list to prioritize the specified vendor."""
+        if not vendor:
+            return self.DEFAULT_CREDENTIALS
+
+        vendor_lower = vendor.lower()
+
+        # Define vendor-specific credential keywords
+        vendor_keywords = {
+            'dahua': ['dahua', 'tlJwpbo6', '888888', '666666'],
+            'hikvision': ['hikvision', 'hik', '12345'],
+            'axis': ['axis', 'root', 'pass'],
+        }
+
+        # Get the keywords for the detected vendor
+        priority_keywords = vendor_keywords.get(vendor_lower, [])
+        if not priority_keywords:
+            return self.DEFAULT_CREDENTIALS
+
+        # Separate credentials into priority and other
+        priority_creds = {}
+        other_creds = {}
+
+        for username, passwords in self.DEFAULT_CREDENTIALS.items():
+            # Prioritize usernames that match vendor keywords
+            if any(keyword in username.lower() for keyword in priority_keywords):
+                priority_creds[username] = passwords
+            else:
+                # Prioritize passwords that match vendor keywords
+                priority_passwords = [p for p in passwords if any(keyword in p.lower() for keyword in priority_keywords)]
+                other_passwords = [p for p in passwords if p not in priority_passwords]
+
+                if priority_passwords:
+                    # If user is not priority, but some passwords are, create a priority entry
+                    if username not in priority_creds:
+                        priority_creds[username] = []
+                    priority_creds[username] = priority_passwords + priority_creds.get(username, [])
+
+                if other_passwords:
+                     other_creds[username] = other_passwords
+
+        # Combine the lists, with priority credentials first
+        # Return a new dictionary with priority items first
+        prioritized_dict = {**priority_creds, **other_creds}
+        return prioritized_dict
+
+    def scan(self, target: ScanTarget, fingerprint: dict = None) -> List[Finding]:
         findings = []
         proxy_url = os.environ.get('PROXY_URL')
+
+        vendor = fingerprint.get('vendor') if fingerprint else None
+        credentials_to_test = self._get_prioritized_credentials(vendor)
+
         for port_result in target.open_ports:
             if port_result.port not in [80, 443, 8080, 8443]:
                 continue
 
             protocol = "https" if port_result.port in [443, 8443] else "http"
-
-            # Comprehensive endpoint list based on real camera interfaces
-            endpoints = [
-                f"{protocol}://{target.ip}:{port_result.port}/",
-                f"{protocol}://{target.ip}:{port_result.port}/login",
-                f"{protocol}://{target.ip}:{port_result.port}/admin",
-                f"{protocol}://{target.ip}:{port_result.port}/cgi-bin/",
-                
-                # Common camera management paths
-                f"{protocol}://{target.ip}:{port_result.port}/home.html",
-                f"{protocol}://{target.ip}:{port_result.port}/admin.html",
-                f"{protocol}://{target.ip}:{port_result.port}/index.html",
-                f"{protocol}://{target.ip}:{port_result.port}/main.html",
-                
-                # DVR/NVR interfaces
-                f"{protocol}://{target.ip}:{port_result.port}/dvr/",
-                f"{protocol}://{target.ip}:{port_result.port}/nvr/",
-                f"{protocol}://{target.ip}:{port_result.port}/recorder/",
-                
-                # Brand-specific paths
-                f"{protocol}://{target.ip}:{port_result.port}/ISAPI/",           # Hikvision
-                f"{protocol}://{target.ip}:{port_result.port}/dms/",             # Dahua
-                f"{protocol}://{target.ip}:{port_result.port}/axis-cgi/",        # Axis
-                f"{protocol}://{target.ip}:{port_result.port}/sony/",            # Sony
-                f"{protocol}://{target.ip}:{port_result.port}/panasonic/",       # Panasonic
-                
-                # Generic CGI paths
-                f"{protocol}://{target.ip}:{port_result.port}/cgi/",
-                f"{protocol}://{target.ip}:{port_result.port}/web/",
-                f"{protocol}://{target.ip}:{port_result.port}/api/",
-                f"{protocol}://{target.ip}:{port_result.port}/config/",
-                f"{protocol}://{target.ip}:{port_result.port}/setup/"
-            ]
+            endpoints = [f"{protocol}://{target.ip}:{port_result.port}/"]
 
             for endpoint in endpoints:
-                for username, passwords in self.DEFAULT_CREDENTIALS.items():
+                for username, passwords in credentials_to_test.items():
                     for password in passwords:
                         try:
                             response = requests.get(endpoint, auth=(username, password),
@@ -171,27 +189,7 @@ class CredentialScannerPlugin(ScannerPlugin):
                                                   timeout=3, verify=False,
                                                   proxies=get_proxies(proxy_url))
                             
-                            # Check for successful authentication
-                            if response.status_code == 200:
-                                content = response.text.lower()
-                                
-                                # Check for failed authentication indicators
-                                failed_indicators = [
-                                    'login', 'username', 'password', 'not logged in',
-                                    'authentication failed', 'invalid credentials',
-                                    'please provide', 'unauthorized', 'access denied',
-                                    'sign in', 'log in', 'enter password'
-                                ]
-                                
-                                # If we find failure indicators, this is a false positive
-                                if any(indicator in content for indicator in failed_indicators):
-                                    continue
-                                
-                                # Additional check: successful auth usually doesn't have login forms
-                                if '<form' in content and ('login' in content or 'password' in content):
-                                    continue
-                                
-                                # If we get here, it's likely a real success
+                            if response.status_code == 200 and 'login' not in response.text.lower():
                                 creds = f"{username}:{password}"
                                 finding = Finding(
                                     category="credential",
@@ -201,8 +199,7 @@ class CredentialScannerPlugin(ScannerPlugin):
                                     data={"username": username, "password": password}
                                 )
                                 findings.append(finding)
-                                # Found creds for this endpoint, no need to test more
-                                return findings
+                                return findings # Early exit on success
                         except requests.RequestException:
                             continue
         return findings
