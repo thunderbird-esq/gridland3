@@ -8,7 +8,7 @@ from typing import List, Dict, Optional
 from xml.etree import ElementTree as ET
 from lib.plugins import ScannerPlugin, Finding
 from lib.core import ScanTarget
-from lib.evasion import get_request_headers, get_proxies
+from lib.http import create_secure_session
 import os
 
 
@@ -89,23 +89,27 @@ class ONVIFScannerPlugin(ScannerPlugin):
         """Perform ONVIF protocol scanning"""
         findings = []
         proxy_url = os.environ.get('PROXY_URL')
-        
-        for port_result in target.open_ports:
-            if port_result.port not in [80, 443, 8080, 8443, 3702, 8000, 8001]:
-                continue
+        session = create_secure_session(proxy_url)
+
+        try:
+            for port_result in target.open_ports:
+                if port_result.port not in [80, 443, 8080, 8443, 3702, 8000, 8001]:
+                    continue
+
+                protocol = "https" if port_result.port in [443, 8443] else "http"
                 
-            protocol = "https" if port_result.port in [443, 8443] else "http"
-            
-            # Test each potential ONVIF endpoint
-            for endpoint in self.ONVIF_ENDPOINTS:
-                base_url = f"{protocol}://{target.ip}:{port_result.port}{endpoint}"
-                endpoint_findings = self._test_onvif_endpoint(base_url, target.ip, port_result.port, proxy_url)
-                findings.extend(endpoint_findings)
+                # Test each potential ONVIF endpoint
+                for endpoint in self.ONVIF_ENDPOINTS:
+                    base_url = f"{protocol}://{target.ip}:{port_result.port}{endpoint}"
+                    endpoint_findings = self._test_onvif_endpoint(session, base_url, target.ip, port_result.port)
+                    findings.extend(endpoint_findings)
                 
                 # If we found a working ONVIF endpoint, don't test others on this port
                 if endpoint_findings:
                     break
-        
+        finally:
+            session.close()
+
         # Test for ONVIF discovery via WS-Discovery (port 3702)
         if any(p.port == 3702 for p in target.open_ports):
             discovery_findings = self._test_ws_discovery(target.ip)
@@ -113,26 +117,24 @@ class ONVIFScannerPlugin(ScannerPlugin):
             
         return findings
 
-    def _test_onvif_endpoint(self, base_url: str, ip: str, port: int, proxy_url: str = None) -> List[Finding]:
+    def _test_onvif_endpoint(self, session: requests.Session, base_url: str, ip: str, port: int) -> List[Finding]:
         """Test a specific ONVIF endpoint"""
         findings = []
         
-        headers = get_request_headers()
-        headers.update({
+        headers = {
             'Content-Type': 'application/soap+xml',
             'SOAPAction': ''
-        })
+        }
         
         # Test different ONVIF requests
         for request_name, soap_request in self.ONVIF_REQUESTS.items():
             try:
-                response = requests.post(
+                response = session.post(
                     base_url,
                     data=soap_request,
                     headers=headers,
                     timeout=10,
-                    verify=False,
-                    proxies=get_proxies(proxy_url)
+                    verify=False
                 )
                 
                 if response.status_code == 200 and 'soap' in response.text.lower():
@@ -172,7 +174,7 @@ class ONVIFScannerPlugin(ScannerPlugin):
                 # Test for authentication bypass
                 elif response.status_code == 401:
                     # Try without authentication first
-                    bypass_finding = self._test_auth_bypass(base_url, soap_request, headers, port, proxy_url)
+                    bypass_finding = self._test_auth_bypass(session, base_url, soap_request, headers, port)
                     if bypass_finding:
                         findings.append(bypass_finding)
                         
@@ -261,18 +263,15 @@ class ONVIFScannerPlugin(ScannerPlugin):
                 
         return False
 
-    def _test_auth_bypass(self, url: str, soap_request: str, headers: Dict, port: int, proxy_url: str = None) -> Optional[Finding]:
+    def _test_auth_bypass(self, session: requests.Session, url: str, soap_request: str, headers: Dict, port: int) -> Optional[Finding]:
         """Test for ONVIF authentication bypass vulnerabilities"""
         
         # Common authentication bypass techniques
         bypass_attempts = [
-            # Try with empty credentials
             ("", ""),
-            # Try with common default credentials
             ("admin", ""),
             ("admin", "admin"),
             ("root", "root"),
-            # Try with SQL injection in SOAP header
             ("admin'--", ""),
             ("admin' OR '1'='1", "")
         ]
@@ -286,13 +285,12 @@ class ONVIFScannerPlugin(ScannerPlugin):
                     credentials = base64.b64encode(f"{username}:{password}".encode()).decode()
                     auth_headers['Authorization'] = f'Basic {credentials}'
                 
-                response = requests.post(
+                response = session.post(
                     url,
                     data=soap_request,
                     headers=auth_headers,
                     timeout=5,
-                    verify=False,
-                    proxies=get_proxies(proxy_url)
+                    verify=False
                 )
                 
                 if response.status_code == 200 and 'soap' in response.text.lower():

@@ -9,7 +9,7 @@ import re
 from typing import List, Dict, Optional, Tuple
 from lib.plugins import ScannerPlugin, Finding
 from lib.core import ScanTarget
-from lib.evasion import get_request_headers, get_proxies
+from lib.http import create_secure_session
 import os
 
 
@@ -94,13 +94,15 @@ class BannerGrabberPlugin(ScannerPlugin):
     def scan(self, target: ScanTarget) -> List[Finding]:
         """Perform comprehensive banner grabbing and fingerprinting"""
         findings = []
-        
+        proxy_url = os.environ.get('PROXY_URL')
+        session = create_secure_session(proxy_url)
+
         for port_result in target.open_ports:
             port = port_result.port
             
             # HTTP/HTTPS banner grabbing
             if port in [80, 443, 8080, 8443, 8000, 8001, 8008, 8081, 8082, 8083, 8084, 8085]:
-                findings.extend(self._grab_http_banner(target.ip, port))
+                findings.extend(self._grab_http_banner(target.ip, port, session))
                 
             # RTSP banner grabbing
             elif port in [554, 8554, 1554, 2554, 3554, 4554, 5554, 6554, 7554, 9554]:
@@ -124,23 +126,16 @@ class BannerGrabberPlugin(ScannerPlugin):
         
         return findings
 
-    def _grab_http_banner(self, ip: str, port: int) -> List[Finding]:
+    def _grab_http_banner(self, ip: str, port: int, session: requests.Session) -> List[Finding]:
         """Grab HTTP/HTTPS banners and extract detailed information"""
         findings = []
         
-        protocols = ["https"] if port in [443, 8443] else ["http", "https"]
-        proxy_url = os.environ.get('PROXY_URL')
+        protocols = ["https" if port in [443, 8443] else "http", "https"]
         
         for protocol in protocols:
             try:
                 url = f"{protocol}://{ip}:{port}"
-                response = requests.get(
-                    url,
-                    timeout=5,
-                    verify=False,
-                    headers=get_request_headers(),
-                    proxies=get_proxies(proxy_url)
-                )
+                response = session.get(url, timeout=5, verify=False) # allow self-signed certs
                 
                 # Extract server information
                 server_header = response.headers.get('Server', '')

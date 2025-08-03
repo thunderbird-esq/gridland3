@@ -2,7 +2,7 @@ import requests
 from typing import List
 from lib.plugins import ScannerPlugin, Finding
 from lib.core import ScanTarget
-from lib.evasion import get_request_headers, get_proxies
+from lib.http import create_secure_session
 import os
 
 class CredentialScannerPlugin(ScannerPlugin):
@@ -123,6 +123,8 @@ class CredentialScannerPlugin(ScannerPlugin):
     def scan(self, target: ScanTarget) -> List[Finding]:
         findings = []
         proxy_url = os.environ.get('PROXY_URL')
+        session = create_secure_session(proxy_url)
+
         for port_result in target.open_ports:
             if port_result.port not in [80, 443, 8080, 8443]:
                 continue
@@ -135,26 +137,18 @@ class CredentialScannerPlugin(ScannerPlugin):
                 f"{protocol}://{target.ip}:{port_result.port}/login",
                 f"{protocol}://{target.ip}:{port_result.port}/admin",
                 f"{protocol}://{target.ip}:{port_result.port}/cgi-bin/",
-                
-                # Common camera management paths
                 f"{protocol}://{target.ip}:{port_result.port}/home.html",
                 f"{protocol}://{target.ip}:{port_result.port}/admin.html",
                 f"{protocol}://{target.ip}:{port_result.port}/index.html",
                 f"{protocol}://{target.ip}:{port_result.port}/main.html",
-                
-                # DVR/NVR interfaces
                 f"{protocol}://{target.ip}:{port_result.port}/dvr/",
                 f"{protocol}://{target.ip}:{port_result.port}/nvr/",
                 f"{protocol}://{target.ip}:{port_result.port}/recorder/",
-                
-                # Brand-specific paths
-                f"{protocol}://{target.ip}:{port_result.port}/ISAPI/",           # Hikvision
-                f"{protocol}://{target.ip}:{port_result.port}/dms/",             # Dahua
-                f"{protocol}://{target.ip}:{port_result.port}/axis-cgi/",        # Axis
-                f"{protocol}://{target.ip}:{port_result.port}/sony/",            # Sony
-                f"{protocol}://{target.ip}:{port_result.port}/panasonic/",       # Panasonic
-                
-                # Generic CGI paths
+                f"{protocol}://{target.ip}:{port_result.port}/ISAPI/",
+                f"{protocol}://{target.ip}:{port_result.port}/dms/",
+                f"{protocol}://{target.ip}:{port_result.port}/axis-cgi/",
+                f"{protocol}://{target.ip}:{port_result.port}/sony/",
+                f"{protocol}://{target.ip}:{port_result.port}/panasonic/",
                 f"{protocol}://{target.ip}:{port_result.port}/cgi/",
                 f"{protocol}://{target.ip}:{port_result.port}/web/",
                 f"{protocol}://{target.ip}:{port_result.port}/api/",
@@ -166,10 +160,7 @@ class CredentialScannerPlugin(ScannerPlugin):
                 for username, passwords in self.DEFAULT_CREDENTIALS.items():
                     for password in passwords:
                         try:
-                            response = requests.get(endpoint, auth=(username, password),
-                                                  headers=get_request_headers(),
-                                                  timeout=3, verify=False,
-                                                  proxies=get_proxies(proxy_url))
+                            response = session.get(endpoint, auth=(username, password), timeout=3, verify=False)
                             
                             # Check for successful authentication
                             if response.status_code == 200:

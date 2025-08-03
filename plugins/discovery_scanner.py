@@ -9,7 +9,7 @@ import re
 from typing import List, Dict, Any, Optional
 from lib.plugins import ScannerPlugin, Finding
 from lib.core import ScanTarget
-from lib.evasion import get_request_headers, get_proxies
+from lib.http import create_secure_session
 
 class DiscoveryScannerPlugin(ScannerPlugin):
     """
@@ -119,10 +119,8 @@ class DiscoveryScannerPlugin(ScannerPlugin):
             protocol = "https" if port_result.port in [443, 8443] else "http"
             base_url = f"{protocol}://{target.ip}:{port_result.port}"
 
-            with requests.Session() as session:
-                session.headers.update(get_request_headers())
-                session.proxies = get_proxies(proxy_url)
-                session.verify = False
+            session = create_secure_session(proxy_url)
+            try:
                 session.allow_redirects = True
 
                 server_type = self._get_server_type(session, base_url)
@@ -132,6 +130,8 @@ class DiscoveryScannerPlugin(ScannerPlugin):
                     finding = self._check_path(session, base_url, path_info, port_result.port)
                     if finding:
                         findings.append(finding)
+            finally:
+                session.close()
         return findings
 
     def _handle_successful_response(self, response: requests.Response, url: str, port: int, category: str, scan_type: str, path: str) -> Optional[Finding]:

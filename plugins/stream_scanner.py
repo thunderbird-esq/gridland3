@@ -3,7 +3,7 @@ import socket
 from typing import List
 from lib.plugins import ScannerPlugin, Finding
 from lib.core import ScanTarget
-from lib.evasion import get_request_headers, get_proxies
+from lib.http import create_secure_session
 import os
 
 class StreamScannerPlugin(ScannerPlugin):
@@ -43,12 +43,12 @@ class StreamScannerPlugin(ScannerPlugin):
         except (socket.error, socket.timeout):
             return False
 
-    def _verify_http_stream(self, url: str, proxy_url: str = None) -> bool:
+    def _verify_http_stream(self, session: requests.Session, url: str) -> bool:
         """
         Verifies if a stream URL is active by reading a small chunk of the stream.
         """
         try:
-            with requests.get(url, timeout=self.HTTP_TIMEOUT, verify=False, stream=True, headers=get_request_headers(), proxies=get_proxies(proxy_url)) as response:
+            with session.get(url, timeout=self.HTTP_TIMEOUT, verify=False, stream=True) as response:
                 if response.status_code == 200:
                     content_type = response.headers.get('Content-Type', '').lower()
                     if 'video' in content_type or 'image' in content_type:
@@ -66,35 +66,41 @@ class StreamScannerPlugin(ScannerPlugin):
     def scan(self, target: ScanTarget) -> List[Finding]:
         findings = []
         proxy_url = os.environ.get('PROXY_URL')
-        for port_result in target.open_ports:
-            # Check RTSP streams
-            if port_result.port in [554, 8554]:
-                if self._test_rtsp_stream(target.ip, port_result.port):
-                    # If the server responds correctly, we can assume standard paths might work
-                    for path in self.RTSP_PATHS:
-                        url = f"rtsp://{target.ip}:{port_result.port}{path}"
-                        finding = Finding(
-                            category="stream",
-                            description=f"Verified RTSP service at {url}",
-                            severity="medium",
-                            url=url,
-                            data={"protocol": "rtsp", "path": path}
-                        )
-                        findings.append(finding)
-                    break # Move to next port after finding a valid RTSP server
+        session = create_secure_session(proxy_url)
 
-            # Check and verify HTTP streams
-            elif port_result.port in [80, 443, 8080, 8443]:
-                protocol = "https" if port_result.port in [443, 8443] else "http"
-                for path in self.HTTP_PATHS:
-                    url = f"{protocol}://{target.ip}:{port_result.port}{path}"
-                    if self._verify_http_stream(url, proxy_url):
-                        finding = Finding(
-                            category="stream",
-                            description=f"Verified HTTP stream found at {url}",
-                            severity="medium",
-                            url=url,
-                            data={"protocol": "http", "path": path}
-                        )
-                        findings.append(finding)
+        try:
+            for port_result in target.open_ports:
+                # Check RTSP streams
+                if port_result.port in [554, 8554]:
+                    if self._test_rtsp_stream(target.ip, port_result.port):
+                        # If the server responds correctly, we can assume standard paths might work
+                        for path in self.RTSP_PATHS:
+                            url = f"rtsp://{target.ip}:{port_result.port}{path}"
+                            finding = Finding(
+                                category="stream",
+                                description=f"Verified RTSP service at {url}",
+                                severity="medium",
+                                url=url,
+                                data={"protocol": "rtsp", "path": path}
+                            )
+                            findings.append(finding)
+                        break # Move to next port after finding a valid RTSP server
+
+                # Check and verify HTTP streams
+                elif port_result.port in [80, 443, 8080, 8443]:
+                    protocol = "https" if port_result.port in [443, 8443] else "http"
+                    for path in self.HTTP_PATHS:
+                        url = f"{protocol}://{target.ip}:{port_result.port}{path}"
+                        if self._verify_http_stream(session, url):
+                            finding = Finding(
+                                category="stream",
+                                description=f"Verified HTTP stream found at {url}",
+                                severity="medium",
+                                url=url,
+                                data={"protocol": "http", "path": path}
+                            )
+                            findings.append(finding)
+        finally:
+            session.close()
+
         return findings

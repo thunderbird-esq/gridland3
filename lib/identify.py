@@ -4,16 +4,9 @@ Device identification functions for Gridland
 import requests
 import re
 from typing import List, Tuple, Optional
-from .core import PortResult
-
-
-# Disable SSL warnings for embedded devices
-import warnings
-warnings.filterwarnings("ignore", message="Unverified HTTPS request")
-try:
-    requests.packages.urllib3.disable_warnings()
-except:
-    pass
+from lib.core import PortResult
+from lib.http import create_secure_session
+import os
 
 
 def identify_device(ip: str, open_ports: List[PortResult], timeout: float = 5.0) -> Tuple[Optional[str], Optional[str]]:
@@ -31,31 +24,34 @@ def identify_device(ip: str, open_ports: List[PortResult], timeout: float = 5.0)
     device_type = None
     brand = None
     
+    proxy_url = os.environ.get('PROXY_URL')
+    session = create_secure_session(proxy_url)
+
     # Try HTTP ports first
     http_ports = [p for p in open_ports if p.port in [80, 8080, 8081, 8082, 8083, 8084, 8085, 8000, 8001]]
     
     for port_result in http_ports:
         port = port_result.port
         
+        # Determine protocol based on common port usage
+        protocol = "https" if port in [443, 8443] else "http"
+        url = f"{protocol}://{ip}:{port}"
+
         try:
-            # Try HTTP first
-            url = f"http://{ip}:{port}"
-            response = requests.get(url, timeout=timeout, verify=False, allow_redirects=True)
-            
-            device_type, brand = _analyze_response(response, ip, port)
+            response = session.get(url, timeout=timeout, allow_redirects=True, verify=False) # verify=False for self-signed certs
+            device_type, brand = _analyze_response(response, ip, port, session, timeout)
             if device_type:
                 return device_type, brand
                 
         except requests.exceptions.RequestException:
-            # Try HTTPS if HTTP fails
+            # If the first attempt fails, try the other protocol
+            protocol = "https" if protocol == "http" else "http"
+            url = f"{protocol}://{ip}:{port}"
             try:
-                url = f"https://{ip}:{port}"
-                response = requests.get(url, timeout=timeout, verify=False, allow_redirects=True)
-                
-                device_type, brand = _analyze_response(response, ip, port)
+                response = session.get(url, timeout=timeout, allow_redirects=True, verify=False) # verify=False for self-signed certs
+                device_type, brand = _analyze_response(response, ip, port, session, timeout)
                 if device_type:
                     return device_type, brand
-                    
             except requests.exceptions.RequestException:
                 continue
     
@@ -68,15 +64,17 @@ def identify_device(ip: str, open_ports: List[PortResult], timeout: float = 5.0)
     return device_type, brand
 
 
-def _analyze_response(response: requests.Response, ip: str, port: int) -> Tuple[Optional[str], Optional[str]]:
+def _analyze_response(response: requests.Response, ip: str, port: int, session: requests.Session, timeout: float) -> Tuple[Optional[str], Optional[str]]:
     """
-    Analyze HTTP response to identify device type and brand
-    
+    Analyze HTTP response to identify device type and brand.
+
     Args:
         response: HTTP response object
         ip: Target IP
         port: Target port
-        
+        session: The requests session to use for further requests
+        timeout: Request timeout
+
     Returns:
         Tuple[device_type, brand]: Identified device info
     """
@@ -157,41 +155,38 @@ def _analyze_response(response: requests.Response, ip: str, port: int) -> Tuple[
         return "Router", "Generic"
     
     # Check if it responds to common camera URLs
-    if _check_camera_endpoints(ip, port):
+    if _check_camera_endpoints(ip, port, session, timeout):
         return "IP Camera", "Generic"
     
     return None, None
 
 
-def _check_camera_endpoints(ip: str, port: int, timeout: float = 3.0) -> bool:
+def _check_camera_endpoints(ip: str, port: int, session: requests.Session, timeout: float = 3.0) -> bool:
     """
-    Check for common camera endpoints
-    
+    Check for common camera endpoints.
+
     Args:
         ip: Target IP
         port: Target port
+        session: The requests session to use
         timeout: Request timeout
-        
+
     Returns:
         bool: True if camera endpoints are found
     """
     camera_endpoints = [
-        '/video.cgi',
-        '/video/stream',
-        '/axis-cgi/mjpg/video.cgi',
-        '/videostream.cgi',
-        '/onvif/device_service',
-        '/ISAPI/System/deviceInfo',
-        '/cgi-bin/hi3510/snap.cgi',
-        '/dms?nowprofileid=1',
-        '/video.mjpg'
+        '/video.cgi', '/video/stream', '/axis-cgi/mjpg/video.cgi',
+        '/videostream.cgi', '/onvif/device_service', '/ISAPI/System/deviceInfo',
+        '/cgi-bin/hi3510/snap.cgi', '/dms?nowprofileid=1', '/video.mjpg'
     ]
-    
+
     for endpoint in camera_endpoints:
+        # Determine protocol based on common port usage
+        protocol = "https" if port in [443, 8443] else "http"
+        url = f"{protocol}://{ip}:{port}{endpoint}"
         try:
-            url = f"http://{ip}:{port}{endpoint}"
-            response = requests.get(url, timeout=timeout, verify=False)
-            
+            response = session.get(url, timeout=timeout, verify=False) # verify=False for self-signed certs
+
             # Check for camera-specific responses
             if response.status_code in [200, 401, 403]:
                 content_type = response.headers.get('content-type', '').lower()
@@ -212,37 +207,32 @@ def _check_camera_endpoints(ip: str, port: int, timeout: float = 3.0) -> bool:
 
 def get_device_info(ip: str, port: int, timeout: float = 5.0) -> dict:
     """
-    Get detailed device information if available
-    
+    Get detailed device information if available.
+
     Args:
         ip: Target IP
         port: Target port
         timeout: Request timeout
-        
+
     Returns:
         dict: Device information
     """
-    info = {
-        'model': None,
-        'firmware': None,
-        'serial': None,
-        'mac': None
-    }
-    
-    # Try common info endpoints
+    info = {'model': None, 'firmware': None, 'serial': None, 'mac': None}
+    proxy_url = os.environ.get('PROXY_URL')
+    session = create_secure_session(proxy_url)
+
     info_endpoints = [
-        '/ISAPI/System/deviceInfo',
-        '/onvif/device_service',
-        '/cgi-bin/hi3510/param.cgi?cmd=getserverinfo',
-        '/api/system/device_info',
+        '/ISAPI/System/deviceInfo', '/onvif/device_service',
+        '/cgi-bin/hi3510/param.cgi?cmd=getserverinfo', '/api/system/device_info',
         '/system_info.cgi'
     ]
-    
+
     for endpoint in info_endpoints:
+        protocol = "https" if port in [443, 8443] else "http"
+        url = f"{protocol}://{ip}:{port}{endpoint}"
         try:
-            url = f"http://{ip}:{port}{endpoint}"
-            response = requests.get(url, timeout=timeout, verify=False)
-            
+            response = session.get(url, timeout=timeout, verify=False) # verify=False for self-signed certs
+
             if response.status_code == 200:
                 content = response.text
                 
