@@ -1,0 +1,15 @@
+# Plugin Configuration for Gridland
+
+CredentialScannerPlugin:
+  # You can disable specific usernames from being tested
+  disabled_usernames:
+    - "guest"
+    - "viewer"
+  # You can add custom credentials to be tested
+  custom_credentials:
+    "myadmin": ["mysecretpassword123"]
+
+VulnerabilityScannerPlugin:
+  # You can disable specific vulnerability tests
+  disabled_tests:
+    - "csrf"

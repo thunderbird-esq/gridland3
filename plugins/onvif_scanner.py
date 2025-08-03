@@ -83,7 +83,7 @@ class ONVIFScannerPlugin(ScannerPlugin):
         "/axis-cgi/onvif/device_service"
     ]
 
-    def scan(self, target: ScanTarget, progress_callback=None) -> List[Finding]:
+    def scan(self, target: ScanTarget) -> List[Finding]:
         """Perform ONVIF protocol scanning"""
         findings = []
         
@@ -99,10 +99,9 @@ class ONVIFScannerPlugin(ScannerPlugin):
                 endpoint_findings = self._test_onvif_endpoint(base_url, target.ip, port_result.port)
                 findings.extend(endpoint_findings)
                 
-                # If we found a working ONVIF endpoint, we can continue to the next port,
-                # but for now we will check all endpoints on all ports for completeness.
-                # if endpoint_findings:
-                #     break
+                # If we found a working ONVIF endpoint, don't test others on this port
+                if endpoint_findings:
+                    break
         
         # Test for ONVIF discovery via WS-Discovery (port 3702)
         if any(p.port == 3702 for p in target.open_ports):
@@ -165,21 +164,6 @@ class ONVIFScannerPlugin(ScannerPlugin):
                                 }
                             )
                             findings.append(sensitive_finding)
-
-                        # Specifically check for unauthenticated user listing
-                        if request_name == "get_users" and parsed_data.get("users"):
-                            user_finding = Finding(
-                                category="vulnerability",
-                                description="Unauthenticated access to user list via ONVIF",
-                                severity="critical",
-                                port=port,
-                                url=base_url,
-                                data={
-                                    "vulnerability_type": "unauthenticated_user_enumeration",
-                                    "users": parsed_data.get("users")
-                                }
-                            )
-                            findings.append(user_finding)
                 
                 # Test for authentication bypass
                 elif response.status_code == 401:

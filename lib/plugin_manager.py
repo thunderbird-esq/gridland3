@@ -75,13 +75,12 @@ class PluginManager:
         """Get only enabled plugins"""
         return [p for p in self.plugins if p.is_enabled()]
 
-    def run_all_plugins(self, target: ScanTarget, progress_callback=None) -> List[Finding]:
+    def run_all_plugins(self, target: ScanTarget) -> List[Finding]:
         """
         Run all applicable plugins against a target
         
         Args:
             target: ScanTarget to scan
-            progress_callback: Optional callback for progress reporting
             
         Returns:
             List[Finding]: Combined findings from all plugins
@@ -91,21 +90,14 @@ class PluginManager:
         
         self.logger.info(f"Running {len(enabled_plugins)} enabled plugins against {target.ip}")
         
-        for i, plugin in enumerate(enabled_plugins):
+        for plugin in enabled_plugins:
             plugin_name = type(plugin).__name__
             try:
                 self.logger.debug(f"Checking if {plugin_name} can scan {target.ip}")
                 
-                # Report overall plugin progress
-                if progress_callback:
-                    plugin_progress = (i / len(enabled_plugins)) * 100
-                    progress_callback("PluginManager", plugin_progress, f"Running plugin {i+1}/{len(enabled_plugins)} ({plugin_name})")
-
                 if plugin.can_scan(target):
                     self.logger.info(f"Running {plugin_name} against {target.ip}")
-
-                    # Pass the callback to the plugin's scan method
-                    findings = plugin.scan(target, progress_callback=progress_callback)
+                    findings = plugin.scan(target)
                     
                     self.logger.debug(f"{plugin_name} found {len(findings)} findings")
                     for finding in findings:

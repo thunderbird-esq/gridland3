@@ -24,13 +24,12 @@ class WebInterfaceScannerPlugin(ScannerPlugin):
         # Generic admin panels
         "/admin", "/admin/", "/admin.html", "/admin.php", "/admin.asp", "/admin.aspx",
         "/administrator", "/administrator/", "/administration", "/management",
-        "/manager", "/console", "/control", "/cp", "/panel", "/_admin", "/_administrator",
+        "/manager", "/console", "/control", "/cp", "/panel",
         
         # Camera-specific admin interfaces
         "/home.html", "/main.html", "/index.html", "/login.html", "/auth.html",
         "/setup.html", "/config.html", "/settings.html", "/system.html",
         "/network.html", "/security.html", "/users.html", "/maintenance.html",
-        "/view/view.shtml", "/view/index.shtml",
         
         # Brand-specific paths
         "/ISAPI/", "/ISAPI/System/", "/ISAPI/Security/",  # Hikvision
@@ -107,7 +106,7 @@ class WebInterfaceScannerPlugin(ScannerPlugin):
         "admin panel", "administrator", "configuration", "settings"
     ]
 
-    def scan(self, target: ScanTarget, progress_callback=None) -> List[Finding]:
+    def scan(self, target: ScanTarget) -> List[Finding]:
         """Perform web interface and admin panel discovery"""
         findings = []
         

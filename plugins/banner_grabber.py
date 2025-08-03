@@ -89,7 +89,7 @@ class BannerGrabberPlugin(ScannerPlugin):
         }
     }
 
-    def scan(self, target: ScanTarget, progress_callback=None) -> List[Finding]:
+    def scan(self, target: ScanTarget) -> List[Finding]:
         """Perform comprehensive banner grabbing and fingerprinting"""
         findings = []
         
