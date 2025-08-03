@@ -1,7 +1,12 @@
 import requests
+import sys
 from typing import List
 from lib.plugins import ScannerPlugin, Finding
 from lib.core import ScanTarget
+
+# Suppress InsecureRequestWarning for self-signed certs
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 class CredentialScannerPlugin(ScannerPlugin):
     """
@@ -118,40 +123,83 @@ class CredentialScannerPlugin(ScannerPlugin):
         ]
     }
 
+    def _is_successful_login(self, response: requests.Response) -> bool:
+        """Helper function to determine if a login was successful."""
+        if response.status_code != 200:
+            return False
+
+        content = response.text.lower()
+        failed_indicators = [
+            'login', 'username', 'password', 'not logged in',
+            'authentication failed', 'invalid credentials',
+            'please provide', 'unauthorized', 'access denied',
+            'sign in', 'log in', 'enter password'
+        ]
+        if any(indicator in content for indicator in failed_indicators):
+            return False
+        if '<form' in content and ('login' in content or 'password' in content):
+            return False
+
+        return True
+
+    def _test_endpoint_credentials(self, endpoint: str, target: ScanTarget) -> List[Finding]:
+        """Tests all credentials for a single endpoint and stops if one is found."""
+        for username, passwords in self.DEFAULT_CREDENTIALS.items():
+            for password in passwords:
+                try:
+                    response = requests.get(
+                        endpoint,
+                        auth=(username, password),
+                        headers={'User-Agent': 'Mozilla/5.0 Security Scanner'},
+                        timeout=5, # Prevent indefinite hangs on unresponsive endpoints
+                        verify=False
+                    )
+                    if self._is_successful_login(response):
+                        # Handle display for empty passwords
+                        creds = f"{username}:{password}" if password else f"{username}:<empty>"
+                        finding = Finding(
+                            category="credential",
+                            description=f"Found default credentials '{creds}' on {endpoint}",
+                            severity="high",
+                            url=endpoint,
+                            data={"username": username, "password": password}
+                        )
+                        return [finding]
+                except requests.exceptions.Timeout:
+                    # Continue to the next credential if this one times out
+                    continue
+                except requests.RequestException:
+                    # Continue for other network-related errors
+                    continue
+        return []
+
     def scan(self, target: ScanTarget) -> List[Finding]:
         findings = []
+        web_ports = [80, 443, 8080, 8443, 8000, 8001, 8008, 8081, 8082, 8083, 8084, 8085, 5001]
+
         for port_result in target.open_ports:
-            if port_result.port not in [80, 443, 8080, 8443]:
+            if port_result.port not in web_ports:
                 continue
 
             protocol = "https" if port_result.port in [443, 8443] else "http"
 
-            # Comprehensive endpoint list based on real camera interfaces
             endpoints = [
                 f"{protocol}://{target.ip}:{port_result.port}/",
                 f"{protocol}://{target.ip}:{port_result.port}/login",
                 f"{protocol}://{target.ip}:{port_result.port}/admin",
                 f"{protocol}://{target.ip}:{port_result.port}/cgi-bin/",
-
-                # Common camera management paths
                 f"{protocol}://{target.ip}:{port_result.port}/home.html",
                 f"{protocol}://{target.ip}:{port_result.port}/admin.html",
                 f"{protocol}://{target.ip}:{port_result.port}/index.html",
                 f"{protocol}://{target.ip}:{port_result.port}/main.html",
-
-                # DVR/NVR interfaces
                 f"{protocol}://{target.ip}:{port_result.port}/dvr/",
                 f"{protocol}://{target.ip}:{port_result.port}/nvr/",
                 f"{protocol}://{target.ip}:{port_result.port}/recorder/",
-
-                # Brand-specific paths
-                f"{protocol}://{target.ip}:{port_result.port}/ISAPI/",           # Hikvision
-                f"{protocol}://{target.ip}:{port_result.port}/dms/",             # Dahua
-                f"{protocol}://{target.ip}:{port_result.port}/axis-cgi/",        # Axis
-                f"{protocol}://{target.ip}:{port_result.port}/sony/",            # Sony
-                f"{protocol}://{target.ip}:{port_result.port}/panasonic/",       # Panasonic
-
-                # Generic CGI paths
+                f"{protocol}://{target.ip}:{port_result.port}/ISAPI/",
+                f"{protocol}://{target.ip}:{port_result.port}/dms/",
+                f"{protocol}://{target.ip}:{port_result.port}/axis-cgi/",
+                f"{protocol}://{target.ip}:{port_result.port}/sony/",
+                f"{protocol}://{target.ip}:{port_result.port}/panasonic/",
                 f"{protocol}://{target.ip}:{port_result.port}/cgi/",
                 f"{protocol}://{target.ip}:{port_result.port}/web/",
                 f"{protocol}://{target.ip}:{port_result.port}/api/",
@@ -160,45 +208,10 @@ class CredentialScannerPlugin(ScannerPlugin):
             ]
 
             for endpoint in endpoints:
-                for username, passwords in self.DEFAULT_CREDENTIALS.items():
-                    for password in passwords:
-                        try:
-                            response = requests.get(endpoint, auth=(username, password),
-                                                  headers={'User-Agent': 'Mozilla/5.0 Security Scanner'},
-                                                  timeout=3, verify=False)
-                            
-                            # Check for successful authentication
-                            if response.status_code == 200:
-                                content = response.text.lower()
+                endpoint_findings = self._test_endpoint_credentials(endpoint, target)
+                if endpoint_findings:
+                    findings.extend(endpoint_findings)
+                    # We continue to the next endpoint as a device might have
+                    # multiple interfaces on the same port.
 
-                                # Check for failed authentication indicators
-                                failed_indicators = [
-                                    'login', 'username', 'password', 'not logged in',
-                                    'authentication failed', 'invalid credentials',
-                                    'please provide', 'unauthorized', 'access denied',
-                                    'sign in', 'log in', 'enter password'
-                                ]
-
-                                # If we find failure indicators, this is a false positive
-                                if any(indicator in content for indicator in failed_indicators):
-                                    continue
-
-                                # Additional check: successful auth usually doesn't have login forms
-                                if '<form' in content and ('login' in content or 'password' in content):
-                                    continue
-                                
-                                # If we get here, it's likely a real success
-                                creds = f"{username}:{password}"
-                                finding = Finding(
-                                    category="credential",
-                                    description=f"Found default credentials {creds} on {endpoint}",
-                                    severity="high",
-                                    url=endpoint,
-                                    data={"username": username, "password": password}
-                                )
-                                findings.append(finding)
-                                # Found creds for this endpoint, no need to test more
-                                return findings
-                        except requests.RequestException:
-                            continue
         return findings
