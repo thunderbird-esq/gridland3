@@ -64,23 +64,26 @@ class ConfigScannerPlugin(ScannerPlugin):
         "config_backups": [
             "/config.bak", "/config.backup", "/config.old", "/config.orig",
             "/configuration.bak", "/settings.bak", "/web.config.bak",
-            "/config.xml.bak", "/config.json.backup"
+            "/config.xml.bak", "/config.json.backup", "/config.tmp", "/config.temp"
         ],
         
         "database_backups": [
             "/backup.sql", "/database.sql", "/dump.sql", "/export.sql",
             "/users.sql", "/accounts.sql", "/data.sql", "/schema.sql",
-            "/backup.db", "/database.db", "/data.db", "/users.db"
+            "/backup.db", "/database.db", "/data.db", "/users.db",
+            "/db.bak", "/db.sql.bak"
         ],
         
         "system_backups": [
             "/backup.zip", "/backup.tar.gz", "/backup.tar", "/system_backup.zip",
-            "/config_backup.zip", "/full_backup.tar.gz", "/export.zip"
+            "/config_backup.zip", "/full_backup.tar.gz", "/export.zip",
+            "/site.zip", "/files.zip"
         ],
         
         "log_backups": [
             "/error.log", "/access.log", "/debug.log", "/system.log",
-            "/application.log", "/security.log", "/audit.log", "/activity.log"
+            "/application.log", "/security.log", "/audit.log", "/activity.log",
+            "/error_log", "/access_log"
         ]
     }
 
@@ -114,10 +117,19 @@ class ConfigScannerPlugin(ScannerPlugin):
             r"password\s*[=:]\s*['\"]?([^'\"\s<>]+)",
             r"passwd\s*[=:]\s*['\"]?([^'\"\s<>]+)",
             r"secret\s*[=:]\s*['\"]?([^'\"\s<>]+)",
-            r"key\s*[=:]\s*['\"]?([^'\"\s<>]+)",
-            r"token\s*[=:]\s*['\"]?([^'\"\s<>]+)"
+            r"auth_token\s*[=:]\s*['\"]?([^'\"\s<>]+)",
+            r"access_token\s*[=:]\s*['\"]?([^'\"\s<>]+)"
         ],
-        
+        "api_keys": [
+            r"api_key\s*[=:]\s*['\"]?([a-zA-Z0-9_-]{16,})",
+            r"aws_access_key_id\s*[=:]\s*['\"]?(AKIA[0-9A-Z]{16})",
+            r"google_api_key\s*[=:]\s*['\"]?(AIza[0-9A-Za-z\\-_]{35})"
+        ],
+        "private_keys": [
+            r"-----BEGIN RSA PRIVATE KEY-----",
+            r"-----BEGIN EC PRIVATE KEY-----",
+            r"-----BEGIN OPENSSH PRIVATE KEY-----"
+        ],
         "network_info": [
             r"ip\s*[=:]\s*['\"]?(\d+\.\d+\.\d+\.\d+)",
             r"hostname\s*[=:]\s*['\"]?([^'\"\s<>]+)",

@@ -164,6 +164,21 @@ class ONVIFScannerPlugin(ScannerPlugin):
                                 }
                             )
                             findings.append(sensitive_finding)
+
+                        # Specifically check for unauthenticated user listing
+                        if request_name == "get_users" and parsed_data.get("users"):
+                            user_finding = Finding(
+                                category="vulnerability",
+                                description="Unauthenticated access to user list via ONVIF",
+                                severity="critical",
+                                port=port,
+                                url=base_url,
+                                data={
+                                    "vulnerability_type": "unauthenticated_user_enumeration",
+                                    "users": parsed_data.get("users")
+                                }
+                            )
+                            findings.append(user_finding)
                 
                 # Test for authentication bypass
                 elif response.status_code == 401:

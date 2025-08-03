@@ -24,12 +24,13 @@ class WebInterfaceScannerPlugin(ScannerPlugin):
         # Generic admin panels
         "/admin", "/admin/", "/admin.html", "/admin.php", "/admin.asp", "/admin.aspx",
         "/administrator", "/administrator/", "/administration", "/management",
-        "/manager", "/console", "/control", "/cp", "/panel",
+        "/manager", "/console", "/control", "/cp", "/panel", "/_admin", "/_administrator",
         
         # Camera-specific admin interfaces
         "/home.html", "/main.html", "/index.html", "/login.html", "/auth.html",
         "/setup.html", "/config.html", "/settings.html", "/system.html",
         "/network.html", "/security.html", "/users.html", "/maintenance.html",
+        "/view/view.shtml", "/view/index.shtml",
         
         # Brand-specific paths
         "/ISAPI/", "/ISAPI/System/", "/ISAPI/Security/",  # Hikvision
