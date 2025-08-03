@@ -45,14 +45,20 @@ class StreamScannerPlugin(ScannerPlugin):
 
     def _verify_http_stream(self, url: str, proxy_url: str = None) -> bool:
         """
-        Verifies if a stream URL is active and serves video/image content.
+        Verifies if a stream URL is active by reading a small chunk of the stream.
         """
         try:
-            response = requests.head(url, timeout=self.HTTP_TIMEOUT, verify=False, headers=get_request_headers(), proxies=get_proxies(proxy_url))
-            if response.status_code == 200:
-                content_type = response.headers.get('Content-Type', '').lower()
-                if any(x in content_type for x in ['video', 'image', 'mjpeg']):
-                    return True
+            with requests.get(url, timeout=self.HTTP_TIMEOUT, verify=False, stream=True, headers=get_request_headers(), proxies=get_proxies(proxy_url)) as response:
+                if response.status_code == 200:
+                    content_type = response.headers.get('Content-Type', '').lower()
+                    if 'video' in content_type or 'image' in content_type:
+                        # Attempt to read the first chunk to confirm it's a real stream
+                        try:
+                            next(response.iter_content(chunk_size=1024))
+                            return True
+                        except (requests.exceptions.ChunkedEncodingError, StopIteration):
+                            # This can happen on empty or malformed streams, not a valid stream.
+                            return False
         except requests.RequestException:
             return False
         return False

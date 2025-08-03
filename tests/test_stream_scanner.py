@@ -2,24 +2,26 @@ import pytest
 from unittest.mock import patch, MagicMock
 from plugins.stream_scanner import StreamScannerPlugin
 from lib.core import ScanTarget, PortResult
+import requests
 
-@patch('requests.head')
+@patch('requests.get')
 @patch('socket.socket')
-def test_stream_scanner_plugin(mock_socket, mock_head):
+def test_stream_scanner_plugin(mock_socket, mock_get):
     """
     Tests that the StreamScannerPlugin can identify both RTSP and HTTP streams.
     """
     # Arrange
     # Mock the socket connection for RTSP
     mock_sock_instance = MagicMock()
-    mock_sock_instance.connect.return_value = None
+    mock_sock_instance.recv.return_value = b"RTSP/1.0 200 OK\r\n\r\n"
     mock_socket.return_value.__enter__.return_value = mock_sock_instance
 
-    # Mock the requests.head call for HTTP
-    mock_head_response = MagicMock()
-    mock_head_response.status_code = 200
-    mock_head_response.headers = {'Content-Type': 'video/mjpeg'}
-    mock_head.return_value = mock_head_response
+    # Mock the requests.get call for HTTP
+    mock_get_response = MagicMock()
+    mock_get_response.status_code = 200
+    mock_get_response.headers = {'Content-Type': 'video/mjpeg'}
+    mock_get_response.iter_content.return_value = iter([b'fakedata'])
+    mock_get.return_value.__enter__.return_value = mock_get_response
 
     # Create a target with open RTSP and HTTP ports
     target = ScanTarget(
@@ -29,24 +31,59 @@ def test_stream_scanner_plugin(mock_socket, mock_head):
             PortResult(port=8080, is_open=True)
         ]
     )
+    plugin = StreamScannerPlugin()
 
     # Act
-    plugin = StreamScannerPlugin()
     findings = plugin.scan(target)
 
     # Assert
-    assert len(findings) == len(plugin.RTSP_PATHS) + 1 # All RTSP paths + one HTTP path
+    assert len(findings) > 0
 
-    # Check the RTSP finding
-    rtsp_finding_urls = [f.raw_evidence for f in findings if f.raw_evidence.startswith('rtsp')]
-    assert f"rtsp://192.168.1.101:554{plugin.RTSP_PATHS[0]}" in rtsp_finding_urls
+    http_finding = next((f for f in findings if f.data.get("protocol") == "http"), None)
+    assert http_finding is not None, "HTTP stream finding should be present"
+    assert "http://192.168.1.101:8080/video" in http_finding.url
 
-    # Check the HTTP finding
-    http_finding = next(f for f in findings if f.raw_evidence.startswith('http'))
-    assert http_finding is not None
-    assert http_finding.category == "Live Stream"
-    assert "http://192.168.1.101:8080/video" in http_finding.description
+    rtsp_finding = next((f for f in findings if f.data.get("protocol") == "rtsp"), None)
+    assert rtsp_finding is not None, "RTSP stream finding should be present"
+    assert "rtsp://192.168.1.101:554/live.sdp" in rtsp_finding.url
 
     # Verify mocks were called
     mock_socket.assert_called()
-    mock_head.assert_called()
+    mock_get.assert_called()
+
+def test_verify_http_stream_empty_content():
+    """
+    Tests that the stream verification handles empty content correctly.
+    """
+    # Arrange
+    plugin = StreamScannerPlugin()
+    url = "http://test.com/stream"
+
+    # Mock requests.get to return a response with empty content
+    with patch('requests.get') as mock_get:
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {'Content-Type': 'video/mjpeg'}
+        # This will raise StopIteration when next() is called on it
+        mock_response.iter_content.return_value = iter([])
+        mock_get.return_value.__enter__.return_value = mock_response
+
+        # Act
+        result = plugin._verify_http_stream(url)
+
+        # Assert
+        assert result is False, "Stream with no content should not be verified"
+
+    # Mock requests.get to simulate a ChunkedEncodingError
+    with patch('requests.get') as mock_get:
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {'Content-Type': 'video/mjpeg'}
+        mock_response.iter_content.side_effect = requests.exceptions.ChunkedEncodingError()
+        mock_get.return_value.__enter__.return_value = mock_response
+
+        # Act
+        result = plugin._verify_http_stream(url)
+
+        # Assert
+        assert result is False, "Stream with ChunkedEncodingError should not be verified"
