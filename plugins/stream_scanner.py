@@ -9,7 +9,7 @@ class StreamScannerPlugin(ScannerPlugin):
     A plugin that discovers common RTSP and HTTP video streams.
     """
     
-    def can_scan(self, target) -> bool:
+    def can_scan(self, target: ScanTarget, previous_findings: List[Finding] = []) -> bool:
         """Check if target has streaming ports"""
         stream_ports = [554, 8554, 80, 443, 8080, 8443, 5001]
         return any(p.port in stream_ports for p in target.open_ports)
@@ -37,7 +37,7 @@ class StreamScannerPlugin(ScannerPlugin):
         except requests.RequestException:
             return False
 
-    def scan(self, target: ScanTarget) -> List[Finding]:
+    def scan(self, target: ScanTarget, previous_findings: List[Finding] = []) -> List[Finding]:
         findings = []
         for port_result in target.open_ports:
             # Check RTSP streams

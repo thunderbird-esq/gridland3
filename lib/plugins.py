@@ -30,12 +30,13 @@ class ScannerPlugin(ABC):
         self.enabled = True
 
     @abstractmethod
-    def can_scan(self, target: ScanTarget) -> bool:
+    def can_scan(self, target: ScanTarget, previous_findings: List[Any] = []) -> bool:
         """
         Determine if this plugin can scan the given target
         
         Args:
             target: ScanTarget to evaluate
+            previous_findings: Findings from previously run plugins
             
         Returns:
             bool: True if plugin can scan this target
@@ -43,12 +44,13 @@ class ScannerPlugin(ABC):
         pass
 
     @abstractmethod
-    def scan(self, target: ScanTarget) -> List[Finding]:
+    def scan(self, target: ScanTarget, previous_findings: List[Any] = []) -> List[Finding]:
         """
         Perform the scan and return findings
         
         Args:
             target: ScanTarget to scan
+            previous_findings: Findings from previously run plugins
             
         Returns:
             List[Finding]: List of security findings

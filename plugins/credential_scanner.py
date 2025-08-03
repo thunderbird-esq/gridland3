@@ -13,10 +13,12 @@ class CredentialScannerPlugin(ScannerPlugin):
     A plugin that tests for default and common credentials on web interfaces.
     """
     
-    def can_scan(self, target) -> bool:
-        """Check if target has web ports to scan"""
-        web_ports = [80, 443, 8080, 8443, 8000, 8001, 8008, 8081, 8082, 8083, 8084, 8085, 5001]
-        return any(p.port in web_ports for p in target.open_ports)
+    def can_scan(self, target: ScanTarget, previous_findings: List[Finding] = []) -> bool:
+        """Only run if a previous plugin found an admin interface that requires authentication."""
+        for finding in previous_findings:
+            if finding.category == "web_interface" and finding.data.get("requires_auth"):
+                return True
+        return False
 
     # Ultra-comprehensive camera and IoT device credentials
     # Based on real-world penetration testing and vulnerability research
@@ -173,7 +175,7 @@ class CredentialScannerPlugin(ScannerPlugin):
                     continue
         return []
 
-    def scan(self, target: ScanTarget) -> List[Finding]:
+    def scan(self, target: ScanTarget, previous_findings: List[Finding] = []) -> List[Finding]:
         findings = []
         web_ports = [80, 443, 8080, 8443, 8000, 8001, 8008, 8081, 8082, 8083, 8084, 8085, 5001]
 

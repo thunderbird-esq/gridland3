@@ -16,7 +16,7 @@ class ONVIFScannerPlugin(ScannerPlugin):
     Tests for ONVIF services, device information disclosure, and authentication issues.
     """
     
-    def can_scan(self, target: ScanTarget) -> bool:
+    def can_scan(self, target: ScanTarget, previous_findings: List[Finding] = []) -> bool:
         """Check if target has ONVIF-capable ports"""
         # ONVIF typically runs on HTTP/HTTPS ports
         onvif_ports = [80, 443, 8080, 8443, 3702, 8000, 8001]
@@ -83,7 +83,7 @@ class ONVIFScannerPlugin(ScannerPlugin):
         "/axis-cgi/onvif/device_service"
     ]
 
-    def scan(self, target: ScanTarget) -> List[Finding]:
+    def scan(self, target: ScanTarget, previous_findings: List[Finding] = []) -> List[Finding]:
         """Perform ONVIF protocol scanning"""
         findings = []
         

@@ -197,17 +197,13 @@ def _scan_single_target(job_id: str, ip: str, aggressive: bool, threads: int) ->
     if aggressive:
         update_job_progress(job_id, 30, f"Running aggressive scans on {ip}...")
         
-        # Define progress callback
-        def progress_callback(plugin_name, plugin_progress, plugin_message):
-            # Scale plugin progress (30-90%)
-            total_progress = 30 + int(plugin_progress * 0.6)
-            update_job_progress(job_id, total_progress, f"[{plugin_name}] {plugin_message}")
-
         # Import and run plugins
         try:
             from .plugin_manager import PluginManager
+            from .analysis import analyze_results
+
             manager = PluginManager()
-            findings = manager.run_all_plugins(target, progress_callback)
+            findings = manager.run_all_plugins(target)
             
             # Process findings and add to target
             for finding in findings:
@@ -227,7 +223,15 @@ def _scan_single_target(job_id: str, ip: str, aggressive: bool, threads: int) ->
                 else:
                     # Add other findings as vulnerabilities
                     target.vulnerabilities.append(finding.description)
-                    
+
+            # Generate and log the analysis summary
+            if findings:
+                analysis_summary = analyze_results(target, findings)
+                add_job_log(job_id, "=== Analysis Summary ===")
+                for line in analysis_summary.splitlines():
+                    add_job_log(job_id, line)
+                add_job_log(job_id, "======================")
+
         except Exception as e:
             add_job_log(job_id, f"Plugin system error: {str(e)}")
         

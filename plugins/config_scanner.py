@@ -15,7 +15,7 @@ class ConfigScannerPlugin(ScannerPlugin):
     Detects exposed configuration files, database backups, and debug information.
     """
     
-    def can_scan(self, target: ScanTarget) -> bool:
+    def can_scan(self, target: ScanTarget, previous_findings: List[Finding] = []) -> bool:
         """Check if target has web ports for configuration scanning"""
         web_ports = [80, 443, 8080, 8443, 8000, 8001, 8008, 8081, 8082, 8083, 8084, 8085]
         return any(p.port in web_ports for p in target.open_ports)
@@ -126,7 +126,7 @@ class ConfigScannerPlugin(ScannerPlugin):
         ]
     }
 
-    def scan(self, target: ScanTarget) -> List[Finding]:
+    def scan(self, target: ScanTarget, previous_findings: List[Finding] = []) -> List[Finding]:
         """Perform configuration and backup file scanning"""
         findings = []
         

@@ -75,9 +75,34 @@ class PluginManager:
         """Get only enabled plugins"""
         return [p for p in self.plugins if p.is_enabled()]
 
+    def _sort_plugins_by_dependency(self, plugins: List[ScannerPlugin]) -> List[ScannerPlugin]:
+        """Sorts plugins based on a hardcoded dependency order."""
+        order = [
+            "BannerGrabberPlugin",
+            "WebInterfaceScannerPlugin",
+            "CredentialScannerPlugin",
+            "ONVIFScannerPlugin",
+            "VulnerabilityScannerPlugin",
+            "ConfigScannerPlugin",
+            "StreamScannerPlugin",
+        ]
+
+        # Create a mapping of plugin name to plugin instance
+        plugin_map = {type(p).__name__: p for p in plugins}
+
+        # Sort the plugins based on the defined order
+        sorted_plugins = [plugin_map[name] for name in order if name in plugin_map]
+
+        # Add any plugins not in the explicit order to the end
+        for plugin in plugins:
+            if type(plugin).__name__ not in order:
+                sorted_plugins.append(plugin)
+
+        return sorted_plugins
+
     def run_all_plugins(self, target: ScanTarget) -> List[Finding]:
         """
-        Run all applicable plugins against a target
+        Run all applicable plugins against a target, respecting dependencies.
         
         Args:
             target: ScanTarget to scan
@@ -85,19 +110,25 @@ class PluginManager:
         Returns:
             List[Finding]: Combined findings from all plugins
         """
-        all_findings = []
+        all_findings: List[Finding] = []
         enabled_plugins = self.get_enabled_plugins()
         
-        self.logger.info(f"Running {len(enabled_plugins)} enabled plugins against {target.ip}")
+        # Sort plugins by dependency
+        sorted_plugins = self._sort_plugins_by_dependency(enabled_plugins)
+
+        self.logger.info(f"Running {len(sorted_plugins)} enabled plugins against {target.ip}")
         
-        for plugin in enabled_plugins:
+        for plugin in sorted_plugins:
             plugin_name = type(plugin).__name__
             try:
                 self.logger.debug(f"Checking if {plugin_name} can scan {target.ip}")
                 
-                if plugin.can_scan(target):
+                # Pass previous findings to can_scan
+                if plugin.can_scan(target, previous_findings=all_findings):
                     self.logger.info(f"Running {plugin_name} against {target.ip}")
-                    findings = plugin.scan(target)
+
+                    # Pass previous findings to scan
+                    findings = plugin.scan(target, previous_findings=all_findings)
                     
                     self.logger.debug(f"{plugin_name} found {len(findings)} findings")
                     for finding in findings:
@@ -105,7 +136,7 @@ class PluginManager:
                     
                     all_findings.extend(findings)
                 else:
-                    self.logger.debug(f"{plugin_name} cannot scan {target.ip} (no applicable ports)")
+                    self.logger.debug(f"{plugin_name} cannot scan {target.ip} (requirements not met)")
                     
             except Exception as e:
                 self.logger.error(f"Plugin {plugin_name} failed: {e}")

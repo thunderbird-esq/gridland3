@@ -132,4 +132,4 @@ def get_job_status(job_id: str):
 if __name__ == '__main__':
     web_logger.info("Starting Flask development server on port 5001")
     web_logger.warning("This is a development server - not for production use")
-    app.run(debug=True, port=5001)
+    app.run(debug=True, port=5001, use_reloader=False)

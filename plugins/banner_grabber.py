@@ -17,7 +17,7 @@ class BannerGrabberPlugin(ScannerPlugin):
     Extracts detailed version information, SSL certificates, and service details.
     """
     
-    def can_scan(self, target: ScanTarget) -> bool:
+    def can_scan(self, target: ScanTarget, previous_findings: List = []) -> bool:
         """Check if target has any open ports for banner grabbing"""
         return len(target.open_ports) > 0
 
@@ -89,7 +89,7 @@ class BannerGrabberPlugin(ScannerPlugin):
         }
     }
 
-    def scan(self, target: ScanTarget) -> List[Finding]:
+    def scan(self, target: ScanTarget, previous_findings: List[Finding] = []) -> List[Finding]:
         """Perform comprehensive banner grabbing and fingerprinting"""
         findings = []
         
