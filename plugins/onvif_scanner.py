@@ -8,6 +8,8 @@ from typing import List, Dict, Optional
 from xml.etree import ElementTree as ET
 from lib.plugins import ScannerPlugin, Finding
 from lib.core import ScanTarget
+from lib.evasion import get_request_headers, get_proxies
+import os
 
 
 class ONVIFScannerPlugin(ScannerPlugin):
@@ -86,6 +88,7 @@ class ONVIFScannerPlugin(ScannerPlugin):
     def scan(self, target: ScanTarget) -> List[Finding]:
         """Perform ONVIF protocol scanning"""
         findings = []
+        proxy_url = os.environ.get('PROXY_URL')
         
         for port_result in target.open_ports:
             if port_result.port not in [80, 443, 8080, 8443, 3702, 8000, 8001]:
@@ -96,7 +99,7 @@ class ONVIFScannerPlugin(ScannerPlugin):
             # Test each potential ONVIF endpoint
             for endpoint in self.ONVIF_ENDPOINTS:
                 base_url = f"{protocol}://{target.ip}:{port_result.port}{endpoint}"
-                endpoint_findings = self._test_onvif_endpoint(base_url, target.ip, port_result.port)
+                endpoint_findings = self._test_onvif_endpoint(base_url, target.ip, port_result.port, proxy_url)
                 findings.extend(endpoint_findings)
                 
                 # If we found a working ONVIF endpoint, don't test others on this port
@@ -110,15 +113,15 @@ class ONVIFScannerPlugin(ScannerPlugin):
             
         return findings
 
-    def _test_onvif_endpoint(self, base_url: str, ip: str, port: int) -> List[Finding]:
+    def _test_onvif_endpoint(self, base_url: str, ip: str, port: int, proxy_url: str = None) -> List[Finding]:
         """Test a specific ONVIF endpoint"""
         findings = []
         
-        headers = {
+        headers = get_request_headers()
+        headers.update({
             'Content-Type': 'application/soap+xml',
-            'User-Agent': 'ONVIF Scanner',
             'SOAPAction': ''
-        }
+        })
         
         # Test different ONVIF requests
         for request_name, soap_request in self.ONVIF_REQUESTS.items():
@@ -128,7 +131,8 @@ class ONVIFScannerPlugin(ScannerPlugin):
                     data=soap_request,
                     headers=headers,
                     timeout=10,
-                    verify=False
+                    verify=False,
+                    proxies=get_proxies(proxy_url)
                 )
                 
                 if response.status_code == 200 and 'soap' in response.text.lower():
@@ -168,7 +172,7 @@ class ONVIFScannerPlugin(ScannerPlugin):
                 # Test for authentication bypass
                 elif response.status_code == 401:
                     # Try without authentication first
-                    bypass_finding = self._test_auth_bypass(base_url, soap_request, headers, port)
+                    bypass_finding = self._test_auth_bypass(base_url, soap_request, headers, port, proxy_url)
                     if bypass_finding:
                         findings.append(bypass_finding)
                         
@@ -257,7 +261,7 @@ class ONVIFScannerPlugin(ScannerPlugin):
                 
         return False
 
-    def _test_auth_bypass(self, url: str, soap_request: str, headers: Dict, port: int) -> Optional[Finding]:
+    def _test_auth_bypass(self, url: str, soap_request: str, headers: Dict, port: int, proxy_url: str = None) -> Optional[Finding]:
         """Test for ONVIF authentication bypass vulnerabilities"""
         
         # Common authentication bypass techniques
@@ -287,7 +291,8 @@ class ONVIFScannerPlugin(ScannerPlugin):
                     data=soap_request,
                     headers=auth_headers,
                     timeout=5,
-                    verify=False
+                    verify=False,
+                    proxies=get_proxies(proxy_url)
                 )
                 
                 if response.status_code == 200 and 'soap' in response.text.lower():

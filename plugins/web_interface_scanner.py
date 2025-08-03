@@ -6,6 +6,8 @@ import requests
 from typing import List, Dict, Set
 from lib.plugins import ScannerPlugin, Finding
 from lib.core import ScanTarget
+from lib.evasion import get_request_headers, get_proxies
+import os
 
 
 class WebInterfaceScannerPlugin(ScannerPlugin):
@@ -109,6 +111,7 @@ class WebInterfaceScannerPlugin(ScannerPlugin):
     def scan(self, target: ScanTarget) -> List[Finding]:
         """Perform web interface and admin panel discovery"""
         findings = []
+        proxy_url = os.environ.get('PROXY_URL')
         
         for port_result in target.open_ports:
             if port_result.port not in [80, 443, 8080, 8443, 8000, 8001, 8008, 8081, 8082, 8083, 8084, 8085]:
@@ -118,17 +121,17 @@ class WebInterfaceScannerPlugin(ScannerPlugin):
             base_url = f"{protocol}://{target.ip}:{port_result.port}"
             
             # Scan for admin panels and management interfaces
-            findings.extend(self._scan_admin_interfaces(base_url, port_result.port))
+            findings.extend(self._scan_admin_interfaces(base_url, port_result.port, proxy_url))
             
             # Scan for sensitive file exposure
-            findings.extend(self._scan_sensitive_files(base_url, port_result.port))
+            findings.extend(self._scan_sensitive_files(base_url, port_result.port, proxy_url))
             
             # Check for directory listing vulnerabilities
-            findings.extend(self._scan_directory_listings(base_url, port_result.port))
+            findings.extend(self._scan_directory_listings(base_url, port_result.port, proxy_url))
         
         return findings
 
-    def _scan_admin_interfaces(self, base_url: str, port: int) -> List[Finding]:
+    def _scan_admin_interfaces(self, base_url: str, port: int, proxy_url: str = None) -> List[Finding]:
         """Scan for admin panels and management interfaces"""
         findings = []
         
@@ -140,7 +143,8 @@ class WebInterfaceScannerPlugin(ScannerPlugin):
                     timeout=5,
                     verify=False,
                     allow_redirects=True,
-                    headers={'User-Agent': 'Mozilla/5.0 Web Scanner'}
+                    headers=get_request_headers(),
+                    proxies=get_proxies(proxy_url)
                 )
                 
                 if response.status_code == 200:
@@ -189,7 +193,7 @@ class WebInterfaceScannerPlugin(ScannerPlugin):
                 
         return findings
 
-    def _scan_sensitive_files(self, base_url: str, port: int) -> List[Finding]:
+    def _scan_sensitive_files(self, base_url: str, port: int, proxy_url: str = None) -> List[Finding]:
         """Scan for exposed sensitive files and configurations"""
         findings = []
         
@@ -200,7 +204,8 @@ class WebInterfaceScannerPlugin(ScannerPlugin):
                     url,
                     timeout=5,
                     verify=False,
-                    headers={'User-Agent': 'Mozilla/5.0 Web Scanner'}
+                    headers=get_request_headers(),
+                    proxies=get_proxies(proxy_url)
                 )
                 
                 if response.status_code == 200 and len(response.content) > 0:
@@ -232,7 +237,7 @@ class WebInterfaceScannerPlugin(ScannerPlugin):
                 
         return findings
 
-    def _scan_directory_listings(self, base_url: str, port: int) -> List[Finding]:
+    def _scan_directory_listings(self, base_url: str, port: int, proxy_url: str = None) -> List[Finding]:
         """Scan for directory listing vulnerabilities"""
         findings = []
         
@@ -250,7 +255,8 @@ class WebInterfaceScannerPlugin(ScannerPlugin):
                     url,
                     timeout=5,
                     verify=False,
-                    headers={'User-Agent': 'Mozilla/5.0 Web Scanner'}
+                    headers=get_request_headers(),
+                    proxies=get_proxies(proxy_url)
                 )
                 
                 if response.status_code == 200:

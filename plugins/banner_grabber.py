@@ -9,6 +9,8 @@ import re
 from typing import List, Dict, Optional, Tuple
 from lib.plugins import ScannerPlugin, Finding
 from lib.core import ScanTarget
+from lib.evasion import get_request_headers, get_proxies
+import os
 
 
 class BannerGrabberPlugin(ScannerPlugin):
@@ -127,6 +129,7 @@ class BannerGrabberPlugin(ScannerPlugin):
         findings = []
         
         protocols = ["https"] if port in [443, 8443] else ["http", "https"]
+        proxy_url = os.environ.get('PROXY_URL')
         
         for protocol in protocols:
             try:
@@ -135,7 +138,8 @@ class BannerGrabberPlugin(ScannerPlugin):
                     url,
                     timeout=5,
                     verify=False,
-                    headers={'User-Agent': 'Mozilla/5.0 Banner Scanner'}
+                    headers=get_request_headers(),
+                    proxies=get_proxies(proxy_url)
                 )
                 
                 # Extract server information

@@ -2,6 +2,8 @@ import requests
 from typing import List
 from lib.plugins import ScannerPlugin, Finding
 from lib.core import ScanTarget
+from lib.evasion import get_request_headers, get_proxies
+import os
 
 class CredentialScannerPlugin(ScannerPlugin):
     """
@@ -120,6 +122,7 @@ class CredentialScannerPlugin(ScannerPlugin):
 
     def scan(self, target: ScanTarget) -> List[Finding]:
         findings = []
+        proxy_url = os.environ.get('PROXY_URL')
         for port_result in target.open_ports:
             if port_result.port not in [80, 443, 8080, 8443]:
                 continue
@@ -164,8 +167,9 @@ class CredentialScannerPlugin(ScannerPlugin):
                     for password in passwords:
                         try:
                             response = requests.get(endpoint, auth=(username, password),
-                                                  headers={'User-Agent': 'Mozilla/5.0 Security Scanner'},
-                                                  timeout=3, verify=False)
+                                                  headers=get_request_headers(),
+                                                  timeout=3, verify=False,
+                                                  proxies=get_proxies(proxy_url))
                             
                             # Check for successful authentication
                             if response.status_code == 200:

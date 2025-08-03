@@ -7,6 +7,8 @@ import re
 from typing import List, Dict, Optional
 from lib.plugins import ScannerPlugin, Finding
 from lib.core import ScanTarget
+from lib.evasion import get_request_headers, get_proxies
+import os
 
 
 class ConfigScannerPlugin(ScannerPlugin):
@@ -136,6 +138,7 @@ class ConfigScannerPlugin(ScannerPlugin):
     def scan(self, target: ScanTarget) -> List[Finding]:
         """Perform configuration and backup file scanning"""
         findings = []
+        proxy_url = os.environ.get('PROXY_URL')
         
         for port_result in target.open_ports:
             if port_result.port not in [80, 443, 8080, 8443, 8000, 8001, 8008, 8081, 8082, 8083, 8084, 8085]:
@@ -145,17 +148,17 @@ class ConfigScannerPlugin(ScannerPlugin):
             base_url = f"{protocol}://{target.ip}:{port_result.port}"
             
             # Scan for configuration files
-            findings.extend(self._scan_config_files(base_url, port_result.port))
+            findings.extend(self._scan_config_files(base_url, port_result.port, proxy_url))
             
             # Scan for backup files
-            findings.extend(self._scan_backup_files(base_url, port_result.port))
+            findings.extend(self._scan_backup_files(base_url, port_result.port, proxy_url))
             
             # Scan for debug endpoints
-            findings.extend(self._scan_debug_endpoints(base_url, port_result.port))
+            findings.extend(self._scan_debug_endpoints(base_url, port_result.port, proxy_url))
         
         return findings
 
-    def _scan_config_files(self, base_url: str, port: int) -> List[Finding]:
+    def _scan_config_files(self, base_url: str, port: int, proxy_url: str = None) -> List[Finding]:
         """Scan for exposed configuration files"""
         findings = []
         
@@ -167,7 +170,8 @@ class ConfigScannerPlugin(ScannerPlugin):
                         url,
                         timeout=5,
                         verify=False,
-                        headers={'User-Agent': 'Mozilla/5.0 Config Scanner'}
+                        headers=get_request_headers(),
+                        proxies=get_proxies(proxy_url)
                     )
                     
                     if response.status_code == 200 and len(response.content) > 0:
@@ -200,7 +204,7 @@ class ConfigScannerPlugin(ScannerPlugin):
                     
         return findings
 
-    def _scan_backup_files(self, base_url: str, port: int) -> List[Finding]:
+    def _scan_backup_files(self, base_url: str, port: int, proxy_url: str = None) -> List[Finding]:
         """Scan for exposed backup files"""
         findings = []
         
@@ -212,7 +216,8 @@ class ConfigScannerPlugin(ScannerPlugin):
                         url,
                         timeout=5,
                         verify=False,
-                        headers={'User-Agent': 'Mozilla/5.0 Config Scanner'}
+                        headers=get_request_headers(),
+                        proxies=get_proxies(proxy_url)
                     )
                     
                     if response.status_code == 200 and len(response.content) > 100:  # Minimum size check
@@ -243,7 +248,7 @@ class ConfigScannerPlugin(ScannerPlugin):
                     
         return findings
 
-    def _scan_debug_endpoints(self, base_url: str, port: int) -> List[Finding]:
+    def _scan_debug_endpoints(self, base_url: str, port: int, proxy_url: str = None) -> List[Finding]:
         """Scan for debug and development endpoints"""
         findings = []
         
@@ -255,7 +260,8 @@ class ConfigScannerPlugin(ScannerPlugin):
                         url,
                         timeout=5,
                         verify=False,
-                        headers={'User-Agent': 'Mozilla/5.0 Config Scanner'}
+                        headers=get_request_headers(),
+                        proxies=get_proxies(proxy_url)
                     )
                     
                     if response.status_code == 200:

@@ -3,6 +3,8 @@ import socket
 from typing import List
 from lib.plugins import ScannerPlugin, Finding
 from lib.core import ScanTarget
+from lib.evasion import get_request_headers, get_proxies
+import os
 
 class StreamScannerPlugin(ScannerPlugin):
     """
@@ -28,24 +30,29 @@ class StreamScannerPlugin(ScannerPlugin):
         except socket.error:
             return False
 
-    def _test_http_stream(self, url: str) -> bool:
-        """Tests an HTTP URL for a valid video/image content type."""
+    def verify_stream(self, url: str, proxy_url: str = None) -> bool:
+        """
+        Verifies if a stream URL is active and serves video/image content.
+        """
         try:
-            response = requests.head(url, timeout=self.HTTP_TIMEOUT, verify=False)
-            content_type = response.headers.get('Content-Type', '').lower()
-            return response.status_code == 200 and any(x in content_type for x in ['video', 'image', 'mjpeg'])
+            response = requests.head(url, timeout=self.HTTP_TIMEOUT, verify=False, headers=get_request_headers(), proxies=get_proxies(proxy_url))
+            if response.status_code == 200:
+                content_type = response.headers.get('Content-Type', '').lower()
+                if any(x in content_type for x in ['video', 'image', 'mjpeg']):
+                    return True
         except requests.RequestException:
             return False
+        return False
 
     def scan(self, target: ScanTarget) -> List[Finding]:
         findings = []
+        proxy_url = os.environ.get('PROXY_URL')
         for port_result in target.open_ports:
-            # Check RTSP streams
+            # Check RTSP streams (we assume RTSP streams are valid if the port is open)
             if port_result.port in [554, 8554]:
                 if self._test_rtsp_stream(target.ip, port_result.port):
                     for path in self.RTSP_PATHS:
                         url = f"rtsp://{target.ip}:{port_result.port}{path}"
-                        # For RTSP, we assume any path on an open port is a potential stream
                         finding = Finding(
                             category="stream",
                             description=f"Potential RTSP stream found at {url}",
@@ -54,18 +61,17 @@ class StreamScannerPlugin(ScannerPlugin):
                             data={"protocol": "rtsp", "path": path}
                         )
                         findings.append(finding)
-                    # Don't check other paths if we found a listening RTSP port
                     break
 
-            # Check HTTP streams
+            # Check and verify HTTP streams
             elif port_result.port in [80, 443, 8080, 8443]:
                 protocol = "https" if port_result.port in [443, 8443] else "http"
                 for path in self.HTTP_PATHS:
                     url = f"{protocol}://{target.ip}:{port_result.port}{path}"
-                    if self._test_http_stream(url):
+                    if self.verify_stream(url, proxy_url):
                         finding = Finding(
                             category="stream",
-                            description=f"Potential HTTP stream found at {url}",
+                            description=f"Verified HTTP stream found at {url}",
                             severity="medium",
                             url=url,
                             data={"protocol": "http", "path": path}
