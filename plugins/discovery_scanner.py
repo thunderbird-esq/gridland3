@@ -19,19 +19,20 @@ class DiscoveryScannerPlugin(ScannerPlugin):
 
     def __init__(self):
         super().__init__()
-        self.path_groups = self._load_paths()
+        self.path_config = self._load_path_config()
         self.sensitive_patterns = self._get_sensitive_patterns()
         self.admin_indicators = self._get_admin_indicators()
         self.dir_listing_indicators = self._get_dir_listing_indicators()
 
-
-    def _load_paths(self, paths_file: str = 'data/discovery/paths.yml') -> List[Dict[str, Any]]:
-        """Loads path definitions from the YAML file."""
+    def _load_path_config(self, paths_file: str = 'data/discovery/paths.yml') -> Dict[str, Any]:
+        """Loads the structured path configuration from the YAML file."""
         if not os.path.exists(paths_file):
-            return []
+            # Assuming a logging mechanism exists on the base plugin
+            print(f"Warning: Paths file not found at {paths_file}")
+            return {}
         with open(paths_file, 'r') as f:
             data = yaml.safe_load(f)
-        return data.get('path_groups', [])
+        return data if data else {}
 
     def can_scan(self, target: ScanTarget) -> bool:
         """Check if target has web ports for discovery scanning."""
@@ -40,10 +41,74 @@ class DiscoveryScannerPlugin(ScannerPlugin):
 
     def get_description(self) -> str:
         """Get plugin description."""
-        return "Consolidated discovery scanner for web assets, configurations, and interfaces."
+        return "Optimized, context-aware discovery scanner for web assets."
+
+    def _get_server_type(self, session: requests.Session, base_url: str) -> Optional[str]:
+        """Performs a GET request to the base URL to identify the server."""
+        try:
+            response = session.get(base_url, timeout=5)
+            server_header = response.headers.get('Server', '').lower()
+            if 'nginx' in server_header:
+                return 'nginx'
+            if 'apache' in server_header:
+                return 'apache'
+        except requests.RequestException:
+            return None
+        return None
+
+    def _flatten_path_groups(self, path_groups: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+        """Converts a list of path groups into a flat list of path info dicts."""
+        flat_list = []
+        for group in path_groups:
+            category = group.get('category', 'unknown')
+            scan_type = group.get('scan_type', 'file_check')
+            for path in group.get('paths', []):
+                flat_list.append({'path': path, 'category': category, 'scan_type': scan_type})
+        return flat_list
+
+    def _build_scan_list(self, server_type: Optional[str]) -> List[Dict[str, str]]:
+        """Builds a prioritized, flat list of paths to scan."""
+        scan_list = []
+
+        # 1. Add server-specific paths first
+        if server_type and server_type in self.path_config.get('server_specific', {}):
+            specific_groups = self.path_config['server_specific'][server_type].get('path_groups', [])
+            scan_list.extend(self._flatten_path_groups(specific_groups))
+
+        # 2. Add generic paths
+        generic_groups = self.path_config.get('generic', {}).get('path_groups', [])
+        scan_list.extend(self._flatten_path_groups(generic_groups))
+
+        return scan_list
+
+    def _check_path(self, session: requests.Session, base_url: str, path_info: Dict[str, str], port: int) -> Optional[Finding]:
+        """Checks a single path and returns a Finding if successful."""
+        path = path_info['path']
+        category = path_info['category']
+        scan_type = path_info['scan_type']
+        url = f"{base_url}{path}"
+
+        try:
+            response = session.get(url, timeout=5)
+
+            if response.status_code == 200:
+                return self._handle_successful_response(response, url, port, category, scan_type, path)
+
+            elif response.status_code in [401, 403] and scan_type == 'interface_discovery':
+                return Finding(
+                    category="web_interface",
+                    description=f"Protected interface found: {path}",
+                    severity="low",
+                    port=port,
+                    url=url,
+                    data={"path": path, "status_code": response.status_code, "auth_required": True}
+                )
+        except requests.RequestException:
+            pass # This is expected for non-existent paths, so we don't log an error.
+        return None
 
     def scan(self, target: ScanTarget) -> List[Finding]:
-        """Perform discovery scan based on loaded path definitions."""
+        """Perform an intelligent discovery scan based on server type and path priority."""
         findings = []
         proxy_url = os.environ.get('PROXY_URL')
 
@@ -54,46 +119,19 @@ class DiscoveryScannerPlugin(ScannerPlugin):
             protocol = "https" if port_result.port in [443, 8443] else "http"
             base_url = f"{protocol}://{target.ip}:{port_result.port}"
 
-            for group in self.path_groups:
-                category = group.get('category', 'unknown')
-                scan_type = group.get('scan_type', 'file_check')
-                paths = group.get('paths', [])
+            with requests.Session() as session:
+                session.headers.update(get_request_headers())
+                session.proxies = get_proxies(proxy_url)
+                session.verify = False
+                session.allow_redirects = True
 
-                for path in paths:
-                    try:
-                        url = f"{base_url}{path}"
-                        response = requests.get(
-                            url,
-                            timeout=5,
-                            verify=False,
-                            allow_redirects=True,
-                            headers=get_request_headers(),
-                            proxies=get_proxies(proxy_url)
-                        )
+                server_type = self._get_server_type(session, base_url)
+                scan_list = self._build_scan_list(server_type)
 
-                        if response.status_code == 200:
-                            finding = self._handle_successful_response(response, url, port_result.port, category, scan_type, path)
-                            if finding:
-                                findings.append(finding)
-
-                        elif response.status_code in [401, 403] and scan_type == 'interface_discovery':
-                             finding = Finding(
-                                category="web_interface",
-                                description=f"Protected interface found: {path}",
-                                severity="low",
-                                port=port_result.port,
-                                url=url,
-                                data={
-                                    "path": path,
-                                    "status_code": response.status_code,
-                                    "auth_required": True
-                                }
-                            )
-                             findings.append(finding)
-
-
-                    except requests.RequestException:
-                        continue
+                for path_info in scan_list:
+                    finding = self._check_path(session, base_url, path_info, port_result.port)
+                    if finding:
+                        findings.append(finding)
         return findings
 
     def _handle_successful_response(self, response: requests.Response, url: str, port: int, category: str, scan_type: str, path: str) -> Optional[Finding]:
