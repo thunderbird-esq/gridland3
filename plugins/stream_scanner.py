@@ -21,16 +21,29 @@ class StreamScannerPlugin(ScannerPlugin):
     HTTP_TIMEOUT = 3
 
     def _test_rtsp_stream(self, ip: str, port: int) -> bool:
-        """Tests for a listening socket on an RTSP port."""
+        """
+        Tests for a valid RTSP stream by sending an OPTIONS request.
+        Returns True only if the server responds with RTSP/1.0 200 OK.
+        """
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.settimeout(self.HTTP_TIMEOUT)
                 sock.connect((ip, port))
-                return True
-        except socket.error:
+
+                # Send RTSP OPTIONS request
+                rtsp_request = f"OPTIONS rtsp://{ip}:{port}/ RTSP/1.0\r\nCSeq: 1\r\n\r\n"
+                sock.sendall(rtsp_request.encode('utf-8'))
+
+                # Read response
+                response = sock.recv(1024).decode('utf-8', errors='ignore')
+
+                # Check for a valid RTSP 200 OK response
+                return "RTSP/1.0 200 OK" in response
+
+        except (socket.error, socket.timeout):
             return False
 
-    def verify_stream(self, url: str, proxy_url: str = None) -> bool:
+    def _verify_http_stream(self, url: str, proxy_url: str = None) -> bool:
         """
         Verifies if a stream URL is active and serves video/image content.
         """
@@ -48,27 +61,28 @@ class StreamScannerPlugin(ScannerPlugin):
         findings = []
         proxy_url = os.environ.get('PROXY_URL')
         for port_result in target.open_ports:
-            # Check RTSP streams (we assume RTSP streams are valid if the port is open)
+            # Check RTSP streams
             if port_result.port in [554, 8554]:
                 if self._test_rtsp_stream(target.ip, port_result.port):
+                    # If the server responds correctly, we can assume standard paths might work
                     for path in self.RTSP_PATHS:
                         url = f"rtsp://{target.ip}:{port_result.port}{path}"
                         finding = Finding(
                             category="stream",
-                            description=f"Potential RTSP stream found at {url}",
+                            description=f"Verified RTSP service at {url}",
                             severity="medium",
                             url=url,
                             data={"protocol": "rtsp", "path": path}
                         )
                         findings.append(finding)
-                    break
+                    break # Move to next port after finding a valid RTSP server
 
             # Check and verify HTTP streams
             elif port_result.port in [80, 443, 8080, 8443]:
                 protocol = "https" if port_result.port in [443, 8443] else "http"
                 for path in self.HTTP_PATHS:
                     url = f"{protocol}://{target.ip}:{port_result.port}{path}"
-                    if self.verify_stream(url, proxy_url):
+                    if self._verify_http_stream(url, proxy_url):
                         finding = Finding(
                             category="stream",
                             description=f"Verified HTTP stream found at {url}",
