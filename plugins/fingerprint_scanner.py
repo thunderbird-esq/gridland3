@@ -7,9 +7,9 @@ import requests
 import ssl
 import re
 from typing import List, Dict, Optional, Tuple
-from ..lib.plugins import ScannerPlugin, Finding
-from ..lib.core import ScanTarget
-from ..lib.evasion import get_request_headers, get_proxies
+from lib.plugins import ScannerPlugin, Finding
+from lib.core import ScanTarget
+from lib.evasion import get_request_headers, get_proxies
 import os
 
 class FingerprintScannerPlugin(ScannerPlugin):

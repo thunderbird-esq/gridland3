@@ -6,9 +6,9 @@ import requests
 import socket
 from typing import List, Dict, Optional
 from xml.etree import ElementTree as ET
-from ..lib.plugins import ScannerPlugin, Finding
-from ..lib.core import ScanTarget
-from ..lib.evasion import get_request_headers, get_proxies
+from lib.plugins import ScannerPlugin, Finding
+from lib.core import ScanTarget
+from lib.evasion import get_request_headers, get_proxies
 import os
 
 

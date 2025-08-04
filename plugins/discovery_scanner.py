@@ -7,9 +7,9 @@ import yaml
 import os
 import re
 from typing import List, Dict, Any, Optional
-from ..lib.plugins import ScannerPlugin, Finding
-from ..lib.core import ScanTarget
-from ..lib.evasion import get_request_headers, get_proxies
+from lib.plugins import ScannerPlugin, Finding
+from lib.core import ScanTarget
+from lib.evasion import get_request_headers, get_proxies
 
 class DiscoveryScannerPlugin(ScannerPlugin):
     """

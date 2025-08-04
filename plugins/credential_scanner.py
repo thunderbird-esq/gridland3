@@ -1,8 +1,8 @@
 import requests
 from typing import List
-from ..lib.plugins import ScannerPlugin, Finding
-from ..lib.core import ScanTarget
-from ..lib.evasion import get_request_headers, get_proxies
+from lib.plugins import ScannerPlugin, Finding
+from lib.core import ScanTarget
+from lib.evasion import get_request_headers, get_proxies
 import os
 
 class CredentialScannerPlugin(ScannerPlugin):

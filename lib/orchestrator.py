@@ -5,9 +5,8 @@ import ipaddress
 from typing import List
 from .core import ScanTarget
 from .network import scan_ports
-from .identify import identify_device
 from .jobs import get_job, update_job_status, add_job_log, set_job_results
-
+from .plugin_manager import PluginManager
 
 # Comprehensive camera port list - CamXploit.py + GRIDLAND superset (685 unique ports)
 CAMERA_PORTS = [
@@ -190,9 +189,8 @@ def _scan_single_target(job_id: str, ip: str, aggressive: bool, threads: int) ->
     
     # Step 2: Fingerprint Scanning (Intelligence Gathering)
     add_job_log(job_id, f"Fingerprinting device at {ip}...")
-    from .plugin_manager import PluginManager
     manager = PluginManager()
-    
+
     # Run only the fingerprint scanner first
     fingerprint_findings = manager.run_plugin_by_name("FingerprintScannerPlugin", target)
 
@@ -258,6 +256,7 @@ def scan_single_ip(ip: str, aggressive: bool = False, threads: int = 100) -> Sca
         return None
     
     # Step 2: Device identification
+    from .identify import identify_device
     target.device_type, target.brand = identify_device(ip, target.open_ports)
     
     if aggressive:
