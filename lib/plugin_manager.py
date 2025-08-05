@@ -1,9 +1,8 @@
-"""
-Plugin management system for Gridland
-"""
 import os
 import importlib.util
 import logging
+import json
+import hashlib
 from typing import List, Dict, Any
 from .plugins import ScannerPlugin, Finding
 from .core import ScanTarget
@@ -16,7 +15,21 @@ class PluginManager:
         self.plugins: List[ScannerPlugin] = []
         self.plugin_dirs = plugin_dirs or ['plugins']
         self.logger = logging.getLogger('gridland.plugins')
+        self.hashes = self._load_hashes()
         self._load_plugins()
+
+    def _load_hashes(self) -> Dict[str, str]:
+        """Load known-good hashes from the integrity file."""
+        hashes_file = 'data/integrity.json'
+        if not os.path.exists(hashes_file):
+            self.logger.warning(f"Integrity file not found at '{hashes_file}'. Skipping plugin integrity checks.")
+            return {}
+        try:
+            with open(hashes_file, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            self.logger.error(f"Failed to load or parse integrity file '{hashes_file}': {e}. No integrity checks will be performed.")
+            return {}
 
     def _load_plugins(self):
         """Load all plugins from plugin directories"""
@@ -34,8 +47,44 @@ class PluginManager:
         
         self.logger.info(f"Loaded {len(self.plugins)} plugins: {[type(p).__name__ for p in self.plugins]}")
 
+    def _verify_integrity(self, filepath: str) -> bool:
+        """Verify the integrity of a plugin file against the known hash."""
+        if not self.hashes:
+            return True # Skip check if hashes aren't loaded
+
+        filename = os.path.basename(filepath)
+        known_hash = self.hashes.get(filename)
+
+        if not known_hash:
+            self.logger.warning(f"SECURITY: No hash found for plugin '{filename}'. Cannot verify integrity. Skipping load.")
+            return False
+
+        try:
+            with open(filepath, 'rb') as f:
+                file_content = f.read()
+                current_hash = hashlib.sha256(file_content).hexdigest()
+
+            if current_hash != known_hash:
+                self.logger.critical(f"SECURITY ALERT: Plugin '{filename}' has been modified! Hash mismatch.")
+                self.logger.critical(f"Expected hash: {known_hash}")
+                self.logger.critical(f"Current hash:  {current_hash}")
+                self.logger.critical("This plugin will NOT be loaded. Investigate this unauthorized change immediately.")
+                return False
+
+            self.logger.debug(f"Integrity check passed for {filename}")
+            return True
+
+        except IOError as e:
+            self.logger.error(f"Error reading plugin file {filepath} for integrity check: {e}")
+            return False
+
     def _load_plugin_file(self, filepath: str):
-        """Load a single plugin file"""
+        """Load a single plugin file after verifying its integrity."""
+        # Step 1: Verify integrity
+        if not self._verify_integrity(filepath):
+            return # Do not load the plugin if integrity check fails
+
+        # Step 2: Load the plugin if verification passes
         try:
             module_name = os.path.splitext(os.path.basename(filepath))[0]
             self.logger.debug(f"Loading plugin file: {filepath}")
