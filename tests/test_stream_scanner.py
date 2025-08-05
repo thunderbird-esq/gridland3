@@ -4,13 +4,19 @@ from plugins.stream_scanner import StreamScannerPlugin
 from lib.core import ScanTarget, PortResult
 import requests
 
+@patch('plugins.stream_scanner.get_proxies')
+@patch('plugins.stream_scanner.get_request_headers')
 @patch('requests.get')
 @patch('socket.socket')
-def test_stream_scanner_plugin(mock_socket, mock_get):
+def test_stream_scanner_plugin(mock_socket, mock_get, mock_get_headers, mock_get_proxies):
     """
     Tests that the StreamScannerPlugin can identify both RTSP and HTTP streams.
     """
     # Arrange
+    # Mock the helper functions from lib.evasion
+    mock_get_headers.return_value = {'User-Agent': 'Test Scanner'}
+    mock_get_proxies.return_value = None
+
     # Mock the socket connection for RTSP
     mock_sock_instance = MagicMock()
     mock_sock_instance.recv.return_value = b"RTSP/1.0 200 OK\r\n\r\n"
@@ -21,7 +27,7 @@ def test_stream_scanner_plugin(mock_socket, mock_get):
     mock_get_response.status_code = 200
     mock_get_response.headers = {'Content-Type': 'video/mjpeg'}
     mock_get_response.iter_content.return_value = iter([b'fakedata'])
-    mock_get.return_value.__enter__.return_value = mock_get_response
+    mock_get.return_value = mock_get_response
 
     # Create a target with open RTSP and HTTP ports
     target = ScanTarget(

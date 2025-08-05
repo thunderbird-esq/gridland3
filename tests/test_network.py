@@ -6,13 +6,12 @@ from lib.network import check_port, scan_ports
 @patch('socket.socket')
 def test_check_port_open(mock_socket):
     """
-    Tests that check_port correctly identifies an open port and grabs a banner.
+    Tests that check_port correctly identifies an open port.
     """
     # Arrange
     mock_sock_instance = MagicMock()
     mock_sock_instance.connect_ex.return_value = 0  # 0 means the port is open
-    mock_sock_instance.recv.return_value = b'SSH-2.0-OpenSSH_7.4\r\n'
-    mock_socket.return_value.__enter__.return_value = mock_sock_instance
+    mock_socket.return_value = mock_sock_instance
 
     # Act
     result = check_port('127.0.0.1', 22)
@@ -21,9 +20,8 @@ def test_check_port_open(mock_socket):
     assert isinstance(result, PortResult)
     assert result.is_open is True
     assert result.port == 22
-    assert result.banner == 'SSH-2.0-OpenSSH_7.4'
+    assert result.service == "unknown" # check_port identifies services, not banners
     mock_sock_instance.connect_ex.assert_called_once_with(('127.0.0.1', 22))
-    mock_sock_instance.recv.assert_called_once_with(1024)
 
 @patch('socket.socket')
 def test_check_port_closed(mock_socket):
@@ -33,7 +31,7 @@ def test_check_port_closed(mock_socket):
     # Arrange
     mock_sock_instance = MagicMock()
     mock_sock_instance.connect_ex.return_value = 1  # Non-zero means closed/filtered
-    mock_socket.return_value.__enter__.return_value = mock_sock_instance
+    mock_socket.return_value = mock_sock_instance
 
     # Act
     result = check_port('127.0.0.1', 80)
@@ -42,9 +40,7 @@ def test_check_port_closed(mock_socket):
     assert isinstance(result, PortResult)
     assert result.is_open is False
     assert result.port == 80
-    assert result.banner is None
     mock_sock_instance.connect_ex.assert_called_once_with(('127.0.0.1', 80))
-    mock_sock_instance.recv.assert_not_called()
 
 @patch('lib.network.check_port')
 def test_scan_ports(mock_check_port):

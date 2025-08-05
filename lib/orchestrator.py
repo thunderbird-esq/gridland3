@@ -196,10 +196,22 @@ def _scan_single_target(job_id: str, ip: str, aggressive: bool, threads: int) ->
 
     fingerprint = {}
     if fingerprint_findings and fingerprint_findings[0].category == 'fingerprint':
-        fingerprint = fingerprint_findings[0].data
-        target.brand = fingerprint.get('vendor')
-        target.device_type = fingerprint.get('product')
-        add_job_log(job_id, f"Fingerprint successful: {target.brand} {target.device_type or ''}")
+        raw_fingerprint = fingerprint_findings[0].data
+        confidence = raw_fingerprint.get('confidence', 0)
+        vendor = raw_fingerprint.get('vendor')
+
+        # Confidence Thresholding
+        CONFIDENCE_THRESHOLD = 3
+        if confidence > CONFIDENCE_THRESHOLD:
+            fingerprint = raw_fingerprint
+            target.brand = vendor
+            target.device_type = raw_fingerprint.get('product')
+            add_job_log(job_id, f"High-confidence fingerprint: {vendor} (Score: {confidence}). Proceeding with targeted scans.")
+        else:
+            fingerprint = {}  # Clear fingerprint for generic scanning
+            # Still record the low-confidence vendor for informational purposes
+            target.brand = vendor if vendor else "Unknown"
+            add_job_log(job_id, f"Low-confidence fingerprint: {vendor} (Score: {confidence}). Proceeding with generic, non-targeted scans.")
     else:
         add_job_log(job_id, f"Could not identify device type for {ip}")
 
@@ -207,7 +219,7 @@ def _scan_single_target(job_id: str, ip: str, aggressive: bool, threads: int) ->
     if aggressive:
         add_job_log(job_id, f"Running intelligence-led scans on {ip}...")
 
-        # Run all plugins, passing in the fingerprint intelligence
+        # Run all plugins, passing in the fingerprint intelligence (which may be empty)
         findings = manager.run_all_plugins(target, fingerprint=fingerprint)
         
         # Process findings and add to target

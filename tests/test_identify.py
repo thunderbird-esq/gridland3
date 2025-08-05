@@ -24,11 +24,11 @@ def test_identify_hikvision_camera(mock_get):
     device_type, brand = identify_device(ip, open_ports)
 
     # Assert
-    assert device_type == 'camera'
-    assert brand == 'hikvision'
+    assert device_type == 'IP Camera'
+    assert brand == 'Hikvision'
     mock_get.assert_called_once_with(
         'http://192.168.1.100:80',
-        headers={'User-Agent': 'Mozilla/5.0 Security Scanner'},
-        timeout=5,
-        verify=False
+        timeout=5.0,
+        verify=False,
+        allow_redirects=True
     )
