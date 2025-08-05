@@ -2,7 +2,7 @@
 """
 Flask server launcher for Gridland
 """
-from flask import Flask, render_template, request, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response, send_from_directory
 from flask_socketio import SocketIO
 import threading
 import logging
@@ -27,7 +27,7 @@ class ReportPDF(FPDF):
         self.multi_cell(0, 5, body)
         self.ln()
 
-app = Flask(__name__, template_folder='templates')
+app = Flask(__name__, static_folder='frontend/dist', static_url_path='/')
 app.config['SECRET_KEY'] = 'a_very_secret_key'
 socketio = SocketIO(app)
 
@@ -81,12 +81,13 @@ def setup_web_logging() -> logging.Logger:
 # Initialize web logger
 web_logger = setup_web_logging()
 
-@app.route('/')
-def index():
-    """Serves the main HTML page."""
-    web_logger.info("Serving main HTML page")
-    web_logger.debug(f"Request from {request.remote_addr}")
-    return render_template('index.html')
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve(path):
+    if path != "" and os.path.exists(app.static_folder + '/' + path):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/api/jobs', methods=['POST'])
 def submit_job():
