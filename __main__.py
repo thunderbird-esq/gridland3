@@ -30,7 +30,6 @@ except:
 # New modular imports
 from lib.core import ScanTarget
 from lib.network import scan_ports
-from lib.identify import identify_device
 
 # Configure comprehensive logging
 def setup_logging(target_name: str = None) -> logging.Logger:
@@ -207,54 +206,55 @@ def run_single_target_scan(ip: str, aggressive: bool, threads: int, logger: logg
         logger.debug(f"Port scan exception details", exc_info=True)
         return None
 
-    # Step 2: Device identification
-    logger.info(f"[📷] Identifying device at {ip}...")
-    
+    manager = PluginManager()
+    fingerprint = {}
+
+    # Step 2: Fingerprint Scanning (Intelligence Gathering)
+    logger.info(f"[📷] Fingerprinting device at {ip}...")
     try:
-        target.device_type, target.brand = identify_device(ip, target.open_ports)
-        logger.debug(f"Device identification result: type={target.device_type}, brand={target.brand}")
-        
-        if target.device_type:
-            logger.info(f"[✅] Device identified: {target.device_type} ({target.brand})")
+        fingerprint_findings = manager.run_plugin_by_name("FingerprintScannerPlugin", target)
+        if fingerprint_findings and fingerprint_findings[0].category == 'fingerprint':
+            fingerprint = fingerprint_findings[0].data
+            target.brand = fingerprint.get('vendor')
+            target.device_type = fingerprint.get('product')
+            logger.info(f"[✅] Device identified: {target.brand or 'Unknown'} {target.device_type or ''}")
+            logger.debug(f"Fingerprint successful: {fingerprint}")
         else:
             logger.info(f"[⚠️] Could not identify specific device type")
-            
+
     except Exception as e:
-        logger.error(f"Device identification failed: {str(e)}")
-        logger.debug(f"Device identification exception details", exc_info=True)
+        logger.error(f"Device fingerprinting failed: {str(e)}")
+        logger.debug(f"Device fingerprinting exception details", exc_info=True)
 
     if aggressive:
-        # Step 3: Run scanner plugins
-        logger.info(f"[🔌] Running aggressive scanner plugins on {ip}...")
-        logger.debug(f"Aggressive mode enabled - running all available plugins")
-        
+        # Step 3: Run all other plugins with intelligence
+        logger.info(f"[🔌] Running intelligence-led aggressive scans on {ip}...")
         try:
-            manager = PluginManager()
-            logger.debug(f"Plugin manager initialized")
-            
-            findings = manager.run_all_plugins(target)
+            # Run all plugins, passing in the fingerprint intelligence
+            findings = manager.run_all_plugins(target, fingerprint=fingerprint)
             logger.debug(f"Plugin execution completed. Found {len(findings)} findings")
 
             # Process findings and add to target
             for finding in findings:
+                # Skip the fingerprint finding since we already processed it
+                if finding.category == "fingerprint":
+                    continue
+
                 logger.info(f"   [+] {finding.category}: {finding.description}")
                 logger.debug(f"Finding details: {finding.__dict__}")
                 
                 if finding.category == "credential":
-                    # Extract credentials from finding
                     if finding.data and "username" in finding.data and "password" in finding.data:
                         creds_key = f"{finding.data['username']}:{finding.data['password']}"
                         target.credentials[creds_key] = finding.url or f"{ip}:{finding.port}"
                         logger.debug(f"Added credential: {creds_key}")
-                
+
                 elif finding.category == "stream":
-                    # Add discovered streams
                     if finding.url:
                         target.streams.append(finding.url)
                         logger.debug(f"Added stream: {finding.url}")
-                
+
                 else:
-                    # Add other findings as vulnerabilities
                     target.vulnerabilities.append(finding.description)
                     logger.debug(f"Added vulnerability: {finding.description}")
                     

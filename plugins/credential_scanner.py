@@ -139,32 +139,26 @@ class CredentialScannerPlugin(ScannerPlugin):
         if not priority_keywords:
             return self.DEFAULT_CREDENTIALS
 
-        # Separate credentials into priority and other
-        priority_creds = {}
-        other_creds = {}
-
+        # First, reorder passwords within each user's list
+        reordered_creds = {}
         for username, passwords in self.DEFAULT_CREDENTIALS.items():
-            # Prioritize usernames that match vendor keywords
-            if any(keyword in username.lower() for keyword in priority_keywords):
-                priority_creds[username] = passwords
+            priority_passwords = [p for p in passwords if any(keyword in p.lower() for keyword in priority_keywords)]
+            other_passwords = [p for p in passwords if p not in priority_passwords]
+            reordered_creds[username] = priority_passwords + other_passwords
+
+        # Second, reorder the users themselves
+        priority_users = {}
+        other_users = {}
+
+        # Usernames that are also keywords or contain the vendor name are priority
+        for username, passwords in reordered_creds.items():
+            if username.lower() in priority_keywords or vendor_lower in username.lower():
+                priority_users[username] = passwords
             else:
-                # Prioritize passwords that match vendor keywords
-                priority_passwords = [p for p in passwords if any(keyword in p.lower() for keyword in priority_keywords)]
-                other_passwords = [p for p in passwords if p not in priority_passwords]
+                other_users[username] = passwords
 
-                if priority_passwords:
-                    # If user is not priority, but some passwords are, create a priority entry
-                    if username not in priority_creds:
-                        priority_creds[username] = []
-                    priority_creds[username] = priority_passwords + priority_creds.get(username, [])
-
-                if other_passwords:
-                     other_creds[username] = other_passwords
-
-        # Combine the lists, with priority credentials first
-        # Return a new dictionary with priority items first
-        prioritized_dict = {**priority_creds, **other_creds}
-        return prioritized_dict
+        # Combine, with priority users first
+        return {**priority_users, **other_users}
 
     def scan(self, target: ScanTarget, fingerprint: dict = None) -> List[Finding]:
         findings = []
