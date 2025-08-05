@@ -6,7 +6,8 @@ The core philosophy of this tool is to **build things that work.** It prioritize
 
 ## Features
 
-- **Web-Based UI:** A simple, real-time web interface to run scans and view results as they are discovered.
+- **LLM-Powered Analysis:** Generates a human-readable security analysis of scan results using a Large Language Model.
+- **Real-Time Web UI:** A simple, real-time web interface to run scans and view results as they are discovered, powered by WebSockets.
 - **Powerful CLI:** A comprehensive command-line interface for advanced users and automation, based on the proven logic of `CamXploit.py`.
 - **Multi-threaded Scanning:** High-performance, multi-threaded port scanning.
 - **Device Fingerprinting:** Identifies common camera brands (Hikvision, Dahua, Axis, etc.).
@@ -20,6 +21,7 @@ The core philosophy of this tool is to **build things that work.** It prioritize
     ```bash
     pip install -r requirements.txt
     ```
+3.  **Get a Groq API Key:** This project uses the Groq API for LLM-powered analysis. Get a free API key from [groq.com](https://groq.com/) and place it in `lib/llm_client.py`.
 
 ## Usage
 
@@ -31,15 +33,16 @@ The web UI provides a simple way to run scans and see live results.
 
 1.  **Start the server:**
     ```bash
-    flask --app server run --port 5001
+    python server.py
     ```
 2.  **Access the UI:**
-    Open your web browser and navigate to `http://127.0.0.1:5001`.
+    Open your web browser and navigate to `http://localhost:5000`.
 
 3.  **Run a scan:**
     - Enter a target IP address (e.g., `192.168.1.100`) or a network range in CIDR notation (e.g., `192.168.1.0/24`).
     - Click "Start Scan".
-    - Watch the results appear in real-time in the "Results" table and the "Raw Scan Log".
+    - Watch the results appear in real-time in the "Results" table.
+    - When the scan is complete, view the "Analysis Summary" section for an AI-generated report.
 
 ### Command-Line Interface (CLI)
 

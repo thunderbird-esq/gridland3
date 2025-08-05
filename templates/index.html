@@ -29,24 +29,31 @@
         <thead>
             <tr>
                 <th>IP Address</th>
-                <th>Open Ports</th>
-                <th>Brand</th>
-                <th>Credentials</th>
-                <th>Streams</th>
-                <th>Vulnerabilities</th>
+                <th>Port</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Severity</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="results-tbody">
         </tbody>
     </table>
 
+    <h2>Analysis Summary</h2>
+    <div id="analysis-output" style="background-color: #e8f4f8; border-left: 5px solid #2196F3; padding: 15px; white-space: pre-wrap; margin-bottom: 2em;">
+        <p>Analysis will appear here when the scan is complete.</p>
+    </div>
+
     <h2>Raw Scan Log</h2>
     <pre id="scan-output"></pre>
-    <script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script type="text/javascript">
+        let currentJobId = null;
         const scanBtn = document.getElementById('start-scan-btn');
         const targetInput = document.getElementById('target-input');
         const outputEl = document.getElementById('scan-output');
-        const resultsTableBody = document.querySelector('#results-table tbody');
+        const resultsTableBody = document.getElementById('results-tbody');
+        const analysisContainer = document.getElementById('analysis-output');
 
         scanBtn.addEventListener('click', async () => {
             const target = targetInput.value;
@@ -58,6 +65,7 @@
             // Clear previous output
             outputEl.textContent = `Starting scan on ${target}...\n`;
             resultsTableBody.innerHTML = '';
+            analysisContainer.innerHTML = '<p>Analysis will appear here when the scan is complete.</p>';
             scanBtn.disabled = true;
 
             try {
@@ -75,13 +83,9 @@
                 }
 
                 const jobData = await response.json();
-                const jobId = jobData.job_id;
+                currentJobId = jobData.job_id;
                 
-                outputEl.textContent += `Job created: ${jobId}\n`;
-                outputEl.textContent += `Polling for results...\n`;
-
-                // Poll for job status
-                pollJobStatus(jobId);
+                outputEl.textContent += `Job created: ${currentJobId}\n`;
 
             } catch (error) {
                 outputEl.textContent += `Error: ${error.message}\n`;
@@ -89,87 +93,36 @@
             }
         });
 
-        async function pollJobStatus(jobId) {
-            let lastLogLength = 0;
-            const pollInterval = 1000; // 1 second
-
-            const poll = async () => {
-                try {
-                    const response = await fetch(`/api/jobs/${jobId}`);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-
-                    const job = await response.json();
-                    
-                    // Update logs (only show new ones)
-                    if (job.logs && job.logs.length > lastLogLength) {
-                        const newLogs = job.logs.slice(lastLogLength);
-                        newLogs.forEach(log => {
-                            outputEl.textContent += log + '\n';
-                        });
-                        lastLogLength = job.logs.length;
-                        outputEl.scrollTop = outputEl.scrollHeight;
-                    }
-
-                    // Update results table
-                    if (job.results && job.results.length > 0) {
-                        resultsTableBody.innerHTML = ''; // Clear existing
-                        job.results.forEach(result => {
-                            addResultToTable(result);
-                        });
-                    }
-
-                    // Check if job is complete
-                    if (job.status === 'completed' || job.status === 'failed') {
-                        outputEl.textContent += `\n[SCAN ${job.status.toUpperCase()}]\n`;
-                        scanBtn.disabled = false;
-                        return;
-                    }
-
-                    // Continue polling
-                    setTimeout(poll, pollInterval);
-
-                } catch (error) {
-                    outputEl.textContent += `Polling error: ${error.message}\n`;
-                    scanBtn.disabled = false;
-                }
-            };
-
-            poll();
-        }
-
-        function addResultToTable(result) {
-            const row = resultsTableBody.insertRow();
-            row.insertCell(0).textContent = result.ip;
-            
-            // Handle port display - extract port numbers from PortResult objects
-            const ports = result.open_ports.map(p => p.port || p).join(', ');
-            row.insertCell(1).textContent = ports;
-            
-            row.insertCell(2).textContent = result.brand || 'N/A';
-
-            const creds = result.credentials ? Object.keys(result.credentials).join(', ') : '';
-            row.insertCell(3).textContent = creds || 'None';
-
-            const streams = result.streams ? result.streams.join(', ') : '';
-            row.insertCell(4).textContent = streams || 'None';
-
-            const vulns = result.vulnerabilities ? result.vulnerabilities.join(', ') : '';
-            row.insertCell(5).textContent = vulns || 'None';
-        }
-    </script>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script type="text/javascript">
-        var socket = io();
+        const socket = io();
         socket.on('connect', function() {
             console.log('Connected to server via WebSocket.');
         });
 
-        socket.on('scan_complete', function(data) {
-            console.log('Scan complete event received:', data);
-            alert(`Scan for job ${data.job_id} is complete! Results are ready.`);
-            // In the future, we will use this to dynamically update the page.
+        socket.on('scan_complete', function(job) {
+            console.log('Scan complete event received:', job);
+            if (job.id === currentJobId) {
+                alert(`Scan for job ${job.id} is complete!`);
+                if (job.analysis) {
+                    analysisContainer.textContent = job.analysis;
+                } else {
+                    analysisContainer.textContent = "Analysis could not be generated.";
+                }
+                outputEl.textContent += `\n[SCAN COMPLETED]\n`;
+                scanBtn.disabled = false;
+                currentJobId = null;
+            }
+        });
+
+        socket.on('new_finding', function(data) {
+            if (data.job_id === currentJobId) {
+                const finding = data.finding;
+                const row = resultsTableBody.insertRow();
+                row.insertCell(0).textContent = finding.ip;
+                row.insertCell(1).textContent = finding.port || 'N/A';
+                row.insertCell(2).textContent = finding.category;
+                row.insertCell(3).textContent = finding.description;
+                row.insertCell(4).textContent = finding.severity;
+            }
         });
     </script>
 </body>

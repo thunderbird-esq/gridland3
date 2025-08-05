@@ -64,6 +64,7 @@ class Job:
     status: str = "pending"  # pending, running, completed, failed
     logs: List[str] = None
     results: List[ScanTarget] = None
+    analysis: Optional[str] = None # Add a dedicated field for the analysis
     
     def __post_init__(self):
         if self.logs is None:
@@ -84,5 +85,6 @@ class Job:
             'target': self.target,
             'status': self.status,
             'logs': self.logs,
-            'results': [r.to_dict() for r in self.results]
+            'results': [r.to_dict() for r in self.results],
+            'analysis': self.analysis,
         }

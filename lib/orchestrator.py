@@ -128,7 +128,7 @@ def run_scan(job_id: str, target: str, aggressive: bool = False, threads: int = 
 
         with ThreadPoolExecutor(max_workers=1) as executor:
             for ip in ips_to_scan:
-                future = executor.submit(_scan_single_target, job_id, ip, aggressive, threads)
+                future = executor.submit(_scan_single_target, job_id, ip, aggressive, threads, socketio)
                 try:
                     result = future.result(timeout=timeout)
                     if result:
@@ -152,20 +152,14 @@ def run_scan(job_id: str, target: str, aggressive: bool = False, threads: int = 
         # Emit event to clients
         if socketio:
             job = get_job(job_id) # Re-fetch job to get latest status
-            event_data = {
-                "job_id": job.id,
-                "status": "completed",
-                "message": f"Scan for {job.target} is complete. Analysis available.",
-                "analysis_url": f"/api/jobs/{job.id}"
-            }
-            socketio.emit('scan_complete', event_data)
+            socketio.emit('scan_complete', job.to_dict())
 
     except Exception as e:
         add_job_log(job_id, f"Scan failed: {str(e)}")
         update_job_status(job_id, "failed")
 
 
-def _scan_single_target(job_id: str, ip: str, aggressive: bool, threads: int) -> ScanTarget:
+def _scan_single_target(job_id: str, ip: str, aggressive: bool, threads: int, socketio=None) -> ScanTarget:
     """
     Scan a single target IP
     
@@ -174,6 +168,7 @@ def _scan_single_target(job_id: str, ip: str, aggressive: bool, threads: int) ->
         ip: Target IP address
         aggressive: Whether to run aggressive scans
         threads: Number of scanning threads
+        socketio: Optional SocketIO instance for real-time events
         
     Returns:
         ScanTarget: Scan results if target has open ports, None otherwise
@@ -219,6 +214,13 @@ def _scan_single_target(job_id: str, ip: str, aggressive: bool, threads: int) ->
             
             # Process findings and add to target
             for finding in findings:
+                # Emit a real-time event for the new finding
+                if socketio:
+                    # The finding needs an IP. Let's add it.
+                    finding_dict = finding.to_dict()
+                    finding_dict['ip'] = target.ip
+                    socketio.emit('new_finding', {'job_id': job_id, 'finding': finding_dict})
+
                 add_job_log(job_id, f"Found: {finding.category} - {finding.description}")
                 
                 if finding.category == "credential":
@@ -239,6 +241,12 @@ def _scan_single_target(job_id: str, ip: str, aggressive: bool, threads: int) ->
             # Generate and log the analysis summary
             if findings:
                 analysis_summary = analyze_results(target, findings)
+
+                # Store the analysis in the job object
+                job = get_job(job_id)
+                if job:
+                    job.analysis = analysis_summary
+
                 add_job_log(job_id, "=== Analysis Summary ===")
                 for line in analysis_summary.splitlines():
                     add_job_log(job_id, line)
