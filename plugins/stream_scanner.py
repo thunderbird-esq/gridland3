@@ -113,8 +113,7 @@ class StreamScannerPlugin(ScannerPlugin):
                             data={"protocol": "rtsp", "path": path}
                         )
                         findings.append(finding)
-                    # The break was causing the loop to exit before checking other ports.
-                    # It should continue to check all open ports.
+                    break # Move to next port after finding a valid RTSP server
 
             # Check and verify HTTP streams
             elif port_result.port in [80, 443, 8080, 8443]:

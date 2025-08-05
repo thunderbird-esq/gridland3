@@ -4,6 +4,8 @@ Plugin management system for Gridland
 import os
 import importlib.util
 import logging
+import json
+import hashlib
 from typing import List, Dict, Any
 from .plugins import ScannerPlugin, Finding
 from .core import ScanTarget
@@ -18,10 +20,28 @@ class PluginManager:
         self.logger = logging.getLogger('gridland.plugins')
         self._load_plugins()
 
+    def _verify_integrity(self, filepath: str, expected_hash: str) -> bool:
+        """Verify the SHA256 hash of a file."""
+        try:
+            with open(filepath, 'rb') as f:
+                file_content = f.read()
+                actual_hash = hashlib.sha256(file_content).hexdigest()
+            return actual_hash == expected_hash
+        except IOError as e:
+            self.logger.error(f"Could not read file for integrity check: {filepath}. Error: {e}")
+            return False
+
     def _load_plugins(self):
-        """Load all plugins from plugin directories"""
+        """Load all plugins from plugin directories after verifying their integrity."""
         self.logger.debug(f"Loading plugins from directories: {self.plugin_dirs}")
-        
+
+        try:
+            with open('data/integrity.json', 'r') as f:
+                known_hashes = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            self.logger.critical(f"SECURITY: Plugin integrity file 'data/integrity.json' is missing or corrupt. No plugins will be loaded. Error: {e}")
+            return
+
         for plugin_dir in self.plugin_dirs:
             if not os.path.exists(plugin_dir):
                 self.logger.warning(f"Plugin directory {plugin_dir} does not exist")
@@ -30,9 +50,20 @@ class PluginManager:
             self.logger.debug(f"Scanning plugin directory: {plugin_dir}")
             for filename in os.listdir(plugin_dir):
                 if filename.endswith('.py') and not filename.startswith('__'):
-                    self._load_plugin_file(os.path.join(plugin_dir, filename))
+                    filepath = os.path.join(plugin_dir, filename)
+
+                    expected_hash = known_hashes.get(filename)
+                    if not expected_hash:
+                        self.logger.critical(f"SECURITY: Plugin '{filename}' has no integrity hash in 'data/integrity.json'. Skipping.")
+                        continue
+
+                    if not self._verify_integrity(filepath, expected_hash):
+                        self.logger.critical(f"SECURITY: Plugin '{filename}' failed integrity check. The file has been modified and will not be loaded.")
+                        continue
+
+                    self._load_plugin_file(filepath)
         
-        self.logger.info(f"Loaded {len(self.plugins)} plugins: {[type(p).__name__ for p in self.plugins]}")
+        self.logger.info(f"Loaded {len(self.plugins)} trusted plugins: {[type(p).__name__ for p in self.plugins]}")
 
     def _load_plugin_file(self, filepath: str):
         """Load a single plugin file"""
