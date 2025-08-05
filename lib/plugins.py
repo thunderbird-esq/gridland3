@@ -21,6 +21,17 @@ class Finding:
         if self.data is None:
             self.data = {}
 
+    def to_dict(self):
+        """Convert the finding to a dictionary."""
+        return {
+            "category": self.category,
+            "description": self.description,
+            "severity": self.severity,
+            "port": self.port,
+            "url": self.url,
+            "data": self.data,
+        }
+
 
 class ScannerPlugin(ABC):
     """Base class for all scanner plugins"""

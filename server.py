@@ -3,6 +3,7 @@
 Flask server launcher for Gridland
 """
 from flask import Flask, render_template, request, jsonify
+from flask_socketio import SocketIO
 import threading
 import logging
 import os
@@ -11,6 +12,8 @@ from lib.jobs import create_job, get_job
 from lib.orchestrator import run_scan
 
 app = Flask(__name__, template_folder='templates')
+app.config['SECRET_KEY'] = 'a_very_secret_key'
+socketio = SocketIO(app)
 
 # Configure web interface logging
 def setup_web_logging() -> logging.Logger:
@@ -95,7 +98,8 @@ def submit_job():
         web_logger.info(f"Starting background scan thread for job {job.id}")
         scan_thread = threading.Thread(
             target=run_scan,
-            args=(job.id, target, True, 100)  # aggressive=True, threads=100 for now
+            args=(job.id, target),
+            kwargs={'aggressive': True, 'threads': 100, 'socketio': socketio}
         )
         scan_thread.start()
         web_logger.debug(f"Background thread started for job {job.id}")
@@ -130,6 +134,6 @@ def get_job_status(job_id: str):
         return jsonify({"error": "Internal server error"}), 500
 
 if __name__ == '__main__':
-    web_logger.info("Starting Flask development server on port 5001")
+    web_logger.info("Starting Flask development server on port 5000")
     web_logger.warning("This is a development server - not for production use")
-    app.run(debug=True, port=5001, use_reloader=False)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=True, use_reloader=False, allow_unsafe_werkzeug=True)

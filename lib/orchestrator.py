@@ -89,7 +89,7 @@ OTHER_PORTS = [
 CAMERA_PORTS = PRIORITY_PORTS + [p for p in OTHER_PORTS if p not in PRIORITY_PORTS]
 
 
-def run_scan(job_id: str, target: str, aggressive: bool = False, threads: int = 100, timeout: int = 300) -> None:
+def run_scan(job_id: str, target: str, aggressive: bool = False, threads: int = 100, timeout: int = 300, socketio=None) -> None:
     """
     Run a scan against a target and update the job with results
     
@@ -99,6 +99,7 @@ def run_scan(job_id: str, target: str, aggressive: bool = False, threads: int = 
         aggressive: Whether to run aggressive scans (credentials, streams)
         threads: Number of scanning threads
         timeout: Timeout in seconds for a single host scan
+        socketio: Optional SocketIO instance for real-time events
     """
     job = get_job(job_id)
     if not job:
@@ -148,6 +149,17 @@ def run_scan(job_id: str, target: str, aggressive: bool = False, threads: int = 
         
         update_job_status(job_id, "completed")
         
+        # Emit event to clients
+        if socketio:
+            job = get_job(job_id) # Re-fetch job to get latest status
+            event_data = {
+                "job_id": job.id,
+                "status": "completed",
+                "message": f"Scan for {job.target} is complete. Analysis available.",
+                "analysis_url": f"/api/jobs/{job.id}"
+            }
+            socketio.emit('scan_complete', event_data)
+
     except Exception as e:
         add_job_log(job_id, f"Scan failed: {str(e)}")
         update_job_status(job_id, "failed")
@@ -172,9 +184,9 @@ def _scan_single_target(job_id: str, ip: str, aggressive: bool, threads: int) ->
     update_job_progress(job_id, 5, f"Port scanning {ip}...")
     target.open_ports = scan_ports(ip, CAMERA_PORTS, max_threads=threads)
     
-    if not target.open_ports:
-        add_job_log(job_id, f"No open ports found on {ip}")
-        return None
+    # if not target.open_ports:
+    #     add_job_log(job_id, f"No open ports found on {ip}")
+    #     return None
     
     add_job_log(job_id, f"Found {len(target.open_ports)} open ports on {ip}")
     
