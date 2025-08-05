@@ -10,6 +10,9 @@ from lib.plugins import ScannerPlugin, Finding
 from lib.core import ScanTarget
 from lib.evasion import get_request_headers, get_proxies
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ONVIFScannerPlugin(ScannerPlugin):
@@ -89,28 +92,37 @@ class ONVIFScannerPlugin(ScannerPlugin):
         """Perform ONVIF protocol scanning"""
         findings = []
         proxy_url = os.environ.get('PROXY_URL')
-        
+
+        endpoints = list(self.ONVIF_ENDPOINTS)
+        if fingerprint and fingerprint.get('vendor') and 'axis' in fingerprint.get('vendor').lower():
+            logger.info(f"Axis device fingerprint detected. Prioritizing Axis-specific ONVIF endpoint for {target.ip}.")
+            if "/axis-cgi/onvif/device_service" in endpoints:
+                endpoints.remove("/axis-cgi/onvif/device_service")
+            endpoints.insert(0, "/axis-cgi/onvif/device_service")
+
         for port_result in target.open_ports:
             if port_result.port not in [80, 443, 8080, 8443, 3702, 8000, 8001]:
                 continue
-                
+
             protocol = "https" if port_result.port in [443, 8443] else "http"
-            
+
             # Test each potential ONVIF endpoint
-            for endpoint in self.ONVIF_ENDPOINTS:
+            for endpoint in endpoints:
                 base_url = f"{protocol}://{target.ip}:{port_result.port}{endpoint}"
+                logger.info(f"Testing ONVIF endpoint: {base_url}")
                 endpoint_findings = self._test_onvif_endpoint(base_url, target.ip, port_result.port, proxy_url)
                 findings.extend(endpoint_findings)
-                
+
                 # If we found a working ONVIF endpoint, don't test others on this port
                 if endpoint_findings:
+                    logger.info(f"Found working ONVIF endpoint at {base_url}. Moving to next port.")
                     break
-        
+
         # Test for ONVIF discovery via WS-Discovery (port 3702)
         if any(p.port == 3702 for p in target.open_ports):
             discovery_findings = self._test_ws_discovery(target.ip)
             findings.extend(discovery_findings)
-            
+
         return findings
 
     def _test_onvif_endpoint(self, base_url: str, ip: str, port: int, proxy_url: str = None) -> List[Finding]:
