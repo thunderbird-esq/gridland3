@@ -2,7 +2,7 @@
 """
 Flask server launcher for Gridland
 """
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response
 from flask_socketio import SocketIO
 import threading
 import logging
@@ -10,6 +10,22 @@ import os
 from datetime import datetime
 from lib.jobs import create_job, get_job
 from lib.orchestrator import run_scan
+from fpdf import FPDF
+
+class ReportPDF(FPDF):
+    def header(self):
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 10, 'Gridland Security Scan Report', 0, 1, 'C')
+
+    def chapter_title(self, title):
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 10, title, 0, 1, 'L')
+        self.ln(5)
+
+    def chapter_body(self, body):
+        self.set_font('Arial', '', 10)
+        self.multi_cell(0, 5, body)
+        self.ln()
 
 app = Flask(__name__, template_folder='templates')
 app.config['SECRET_KEY'] = 'a_very_secret_key'
@@ -132,6 +148,41 @@ def get_job_status(job_id: str):
         web_logger.error(f"Error retrieving job {job_id}: {str(e)}")
         web_logger.debug(f"Job status exception details", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+
+@app.route('/report/<job_id>')
+def generate_report(job_id):
+    job = get_job(job_id)
+    if not job:
+        return "Job not found", 404
+
+    pdf = ReportPDF()
+    pdf.add_page()
+
+    # --- Report Header ---
+    pdf.chapter_title(f"Scan Report for Target: {job.target}")
+
+    # --- LLM Analysis Summary ---
+    if job.analysis:
+        pdf.chapter_title("Intelligence Analysis")
+        pdf.chapter_body(job.analysis)
+
+    # --- Detailed Findings ---
+    pdf.chapter_title("Detailed Findings")
+    for result in job.results:
+        pdf.set_font('Arial', 'B', 10)
+        pdf.cell(0, 10, f"Device: {result.ip} ({result.brand or 'Unknown'})", 0, 1)
+
+        pdf.set_font('Arial', '', 10)
+        if result.credentials:
+            pdf.multi_cell(0, 5, f"  Credentials Found: {', '.join(result.credentials.keys())}")
+        if result.vulnerabilities:
+             pdf.multi_cell(0, 5, f"  Vulnerabilities: {len(result.vulnerabilities)} found.")
+        if result.streams:
+            pdf.multi_cell(0, 5, f"  Streams Found: {len(result.streams)}")
+
+    return Response(pdf.output(dest='S').encode('latin-1'),
+                    mimetype='application/pdf',
+                    headers={'Content-Disposition': f'attachment;filename=gridland_report_{job_id}.pdf'})
 
 if __name__ == '__main__':
     web_logger.info("Starting Flask development server on port 5000")

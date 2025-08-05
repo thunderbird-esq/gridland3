@@ -43,11 +43,12 @@ def test_stream_scanner_plugin(mock_socket, mock_head):
     findings = plugin.scan(target)
 
     # Assert
-    assert len(findings) == len(plugin.RTSP_PATHS) + 1 # All RTSP paths + one HTTP path
+    num_generic_paths = len(plugin.BRAND_SPECIFIC_PATHS["generic"])
+    assert len(findings) == num_generic_paths + 1 # All generic paths for RTSP + one successful HTTP path
 
     # Check the RTSP finding
     rtsp_finding_urls = [f.url for f in findings if f.url.startswith('rtsp')]
-    assert f"rtsp://192.168.1.101:554{plugin.RTSP_PATHS[0]}" in rtsp_finding_urls
+    assert f"rtsp://192.168.1.101:554{plugin.BRAND_SPECIFIC_PATHS['generic'][0]}" in rtsp_finding_urls
 
     # Check the HTTP finding
     http_finding = next(f for f in findings if f.url.startswith('http'))

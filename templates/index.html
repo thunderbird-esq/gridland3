@@ -23,6 +23,7 @@
     <div>
         <input type="text" id="target-input" placeholder="e.g., 192.168.1.0/24">
         <button id="start-scan-btn">Start Scan</button>
+        <a id="download-report-btn" href="#" class="button" style="display: none; margin-left: 1em; text-decoration: none; background-color: #4CAF50; color: white; padding: 10px 15px; border-radius: 5px;">Download Report</a>
     </div>
     <h2>Results</h2>
     <table id="results-table">
@@ -66,6 +67,7 @@
             outputEl.textContent = `Starting scan on ${target}...\n`;
             resultsTableBody.innerHTML = '';
             analysisContainer.innerHTML = '<p>Analysis will appear here when the scan is complete.</p>';
+            document.getElementById('download-report-btn').style.display = 'none';
             scanBtn.disabled = true;
 
             try {
@@ -109,6 +111,11 @@
                 }
                 outputEl.textContent += `\n[SCAN COMPLETED]\n`;
                 scanBtn.disabled = false;
+
+                const downloadBtn = document.getElementById('download-report-btn');
+                downloadBtn.href = `/report/${job.id}`;
+                downloadBtn.style.display = 'inline-block';
+
                 currentJobId = null;
             }
         });

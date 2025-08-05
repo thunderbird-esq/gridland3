@@ -14,8 +14,43 @@ class StreamScannerPlugin(ScannerPlugin):
         stream_ports = [554, 8554, 80, 443, 8080, 8443, 5001]
         return any(p.port in stream_ports for p in target.open_ports)
 
-    RTSP_PATHS = ['/live.sdp', '/h264.sdp', '/stream1', '/stream2', '/main', '/sub']
-    HTTP_PATHS = ['/video', '/stream', '/mjpg/video.mjpg', '/snapshot.jpg']
+    BRAND_SPECIFIC_PATHS = {
+        "hikvision": [
+            "/Streaming/Channels/101",
+            "/Streaming/Channels/1",
+            "/ch1/main/av_stream",
+            "/cgi-bin/hi3510/snap.cgi",
+        ],
+        "dahua": [
+            "/cam/realmonitor?channel=1&subtype=0",
+            "/cam/realmonitor?channel=1&subtype=1",
+            "/live",
+        ],
+        "axis": [
+            "/axis-media/media.amp?videocodec=h264",
+            "/mjpg/video.mjpg",
+            "/axis-cgi/mjpg/video.cgi",
+        ],
+        "generic": [
+            "/live.sdp",
+            "/stream1",
+            "/h264.sdp",
+            "/video.mjpg",
+            "/stream.mjpeg",
+            "/video",
+            "/stream",
+            "/cgi-bin/mjpg/video.cgi",
+            "/cgi-bin/viewer/video.jpg",
+            "/snapshot.jpg",
+            "/img/snapshot.cgi",
+            "/video/mjpg.cgi",
+            "/video.cgi",
+            "/videostream.cgi",
+            "/mjpg.cgi",
+            "/stream.cgi",
+            "/live.cgi",
+        ]
+    }
     HTTP_TIMEOUT = 3
 
     def _test_rtsp_stream(self, ip: str, port: int) -> bool:
@@ -39,11 +74,18 @@ class StreamScannerPlugin(ScannerPlugin):
 
     def scan(self, target: ScanTarget, previous_findings: List[Finding] = []) -> List[Finding]:
         findings = []
+
+        # Determine which paths to use
+        brand = (target.brand or "generic").lower()
+        specific_paths = self.BRAND_SPECIFIC_PATHS.get(brand, [])
+        generic_paths = self.BRAND_SPECIFIC_PATHS["generic"]
+        paths_to_test = list(set(specific_paths + generic_paths))
+
         for port_result in target.open_ports:
             # Check RTSP streams
             if port_result.port in [554, 8554]:
                 if self._test_rtsp_stream(target.ip, port_result.port):
-                    for path in self.RTSP_PATHS:
+                    for path in paths_to_test:
                         url = f"rtsp://{target.ip}:{port_result.port}{path}"
                         # For RTSP, we assume any path on an open port is a potential stream
                         finding = Finding(
@@ -54,12 +96,11 @@ class StreamScannerPlugin(ScannerPlugin):
                             data={"protocol": "rtsp", "path": path}
                         )
                         findings.append(finding)
-                    # NO break here. Let the loop continue to the elif.
 
             # Check HTTP streams
             elif port_result.port in [80, 443, 8080, 8443]:
                 protocol = "https" if port_result.port in [443, 8443] else "http"
-                for path in self.HTTP_PATHS:
+                for path in paths_to_test:
                     url = f"{protocol}://{target.ip}:{port_result.port}{path}"
                     if self._test_http_stream(url):
                         finding = Finding(
