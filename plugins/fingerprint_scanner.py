@@ -246,7 +246,12 @@ class FingerprintScannerPlugin(ScannerPlugin):
             with socket.create_connection((ip, port), timeout=5) as sock:
                 banner = sock.recv(1024).decode('utf-8', errors='ignore').strip()
                 if banner and len(banner) > 5:
-                    return self._analyze_content_for_vendor(banner, f"Telnet banner on {ip}:{port}")
+                    indicators = self._analyze_content_for_vendor(banner, f"Telnet banner on {ip}:{port}")
+                    # Re-classify all findings from telnet as 'telnet_banner' for low confidence scoring
+                    telnet_indicators = []
+                    for _, ind_value, ind_source in indicators:
+                        telnet_indicators.append(('telnet_banner', ind_value, ind_source))
+                    return telnet_indicators
         except (socket.error, UnicodeDecodeError):
             pass
         return []

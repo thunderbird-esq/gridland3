@@ -202,7 +202,7 @@ def _scan_single_target(job_id: str, ip: str, aggressive: bool, threads: int) ->
 
         # Confidence Thresholding
         CONFIDENCE_THRESHOLD = 3
-        if confidence > CONFIDENCE_THRESHOLD:
+        if confidence >= CONFIDENCE_THRESHOLD:
             fingerprint = raw_fingerprint
             target.brand = vendor
             target.device_type = raw_fingerprint.get('product')
