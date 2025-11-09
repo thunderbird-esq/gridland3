@@ -1,11 +1,40 @@
-requests
-ipaddress
-flask
-shodan
-python-dotenv
-click
-requests
-tabulate
-colorama
-python-vlc
+# GRIDLAND v3.0 - Complete Dependencies
+# Production dependencies verified against all Python imports
+
+# Web Framework
+flask>=2.3.0
+werkzeug>=2.3.0
+
+# HTTP Libraries
+requests>=2.31.0
+aiohttp>=3.9.0
+
+# API Integrations
+shodan>=1.31.0
+
+# CLI Framework
+click>=8.1.7
+tabulate>=0.9.0
+colorama>=0.4.6
+
+# Configuration Management
+python-dotenv>=1.0.0
+
+# Process Management
+psutil>=5.9.0
+
+# Streaming (VLC)
+python-vlc>=3.0.18121
+
+# Data Science / ML (required by gridland analyze modules)
+numpy>=1.24.0
+scikit-learn>=1.3.0
+
+# Testing dependencies
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-flask==1.3.0
+pytest-timeout==2.2.0
+requests-mock==1.11.0
 
