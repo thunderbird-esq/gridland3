@@ -16,6 +16,42 @@ import time
 # Warnings will be shown when SSL verification fails
 # Individual requests can disable verification with explicit warning
 
+
+# SECURITY FIX: Helper function for SSL-verified requests with graceful fallback
+def safe_request(method, url, **kwargs):
+    """
+    Make HTTP request with SSL verification enabled by default.
+    Falls back to unverified request with warning if SSL fails.
+    
+    Args:
+        method: HTTP method (GET, POST, HEAD, etc.)
+        url: Target URL
+        **kwargs: Additional arguments for requests
+    
+    Returns:
+        Response object or None on error
+    """
+    # First try with SSL verification enabled
+    try:
+        kwargs['verify'] = True
+        return requests.request(method, url, **kwargs)
+    except requests.exceptions.SSLError as e:
+        # SSL verification failed, show warning and retry without verification
+        print(f"  ⚠️ SSL verification failed for {url}: {str(e)[:100]}")
+        print(f"  ⚠️ Retrying without SSL verification (insecure)")
+        try:
+            kwargs['verify'] = False
+            # Suppress only this specific warning
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=InsecureRequestWarning)
+                return requests.request(method, url, **kwargs)
+        except Exception as e2:
+            print(f"  ❌ Request failed: {str(e2)[:100]}")
+            return None
+    except Exception as e:
+        print(f"  ❌ Request failed: {str(e)[:100]}")
+        return None
+
 if sys.stdout.isatty():
     R = '\033[31m'  # Red
     G = '\033[32m'  # Green
@@ -186,7 +222,7 @@ def get_ip_location_info(ip):
     """Get comprehensive IP and location information"""
     print(f"\n{C}[🌍] IP and Location Information:{W}")
     try:
-        response = requests.get(f"https://ipinfo.io/{ip}/json")
+        response = safe_request("GET", f"https://ipinfo.io/{ip}/json")
         if response.status_code == 200:
             data = response.json()
             
@@ -324,7 +360,7 @@ def check_if_camera(ip, open_ports):
         
         # Check server headers and response
         try:
-            response = requests.get(base_url, headers=HEADERS, timeout=TIMEOUT, verify=False)
+            response = safe_request("GET", base_url, headers=HEADERS, timeout=TIMEOUT)
             server_header = response.headers.get('Server', '').lower()
             content_type = response.headers.get('Content-Type', '').lower()
             
@@ -361,7 +397,7 @@ def check_if_camera(ip, open_ports):
             for endpoint in endpoints:
                 try:
                     endpoint_url = f"{base_url}{endpoint}"
-                    endpoint_response = requests.head(endpoint_url, headers=HEADERS, timeout=TIMEOUT, verify=False)
+                    endpoint_response = safe_request("HEAD", endpoint_url, headers=HEADERS, timeout=TIMEOUT)
                     if endpoint_response.status_code in [200, 401, 403]:
                         print(f"    ✅ Camera Endpoint Found: {endpoint_url} (HTTP {endpoint_response.status_code})")
                         camera_indicators = True
@@ -422,7 +458,7 @@ def check_login_pages(ip, open_ports):
         protocol = get_protocol(port)
         url = f"{protocol}://{ip}:{port}{path}"
         try:
-            response = requests.head(url, headers=HEADERS, timeout=TIMEOUT, verify=False)
+            response = safe_request("HEAD", url, headers=HEADERS, timeout=TIMEOUT)
             if response.status_code in [200, 401, 403]:
                 with lock:
                     found_urls.append(url)
@@ -477,11 +513,11 @@ def test_default_passwords(ip, open_ports):
                     return False
                 try:
                     if auth_type == "basic":
-                        response = requests.get(url, auth=(username, password), 
-                                            headers=HEADERS, timeout=TIMEOUT, verify=False)
+                        response = safe_request("GET", url, auth=(username, password), 
+                                            headers=HEADERS, timeout=TIMEOUT)
                     elif auth_type == "form":
-                        response = requests.post(url, data={'username': username, 'password': password},
-                                                headers=HEADERS, timeout=TIMEOUT, verify=False)
+                        response = safe_request("POST", url, data={'username': username, 'password': password},
+                                                headers=HEADERS, timeout=TIMEOUT)
                     
                     if response.status_code == 200:
                         with lock:
@@ -534,12 +570,11 @@ def try_default_credentials(ip, port):
     for username, passwords in DEFAULT_CREDENTIALS.items():
         for password in passwords:
             try:
-                response = requests.get(
+                response = safe_request("GET", 
                     f"http://{ip}:{port}/",
                     auth=(username, password),
                     headers=HEADERS,
-                    timeout=TIMEOUT,
-                    verify=False
+                    timeout=TIMEOUT
                 )
                 if response.status_code == 200:
                     return f"{username}:{password}"
@@ -563,7 +598,7 @@ def fingerprint_camera(ip, open_ports):
         url_base = f"{protocol}://{ip}:{port}"
         print(f"🔍 Checking {url_base}...")
         try:
-            resp = requests.get(url_base, headers=HEADERS, timeout=TIMEOUT, verify=False)
+            resp = safe_request("GET", url_base, headers=HEADERS, timeout=TIMEOUT)
             server_header = resp.headers.get("server", "").lower()
             content = resp.text.lower()
             
@@ -598,7 +633,7 @@ def fingerprint_hikvision(ip, port):
     
     for url in endpoints:
         try:
-            resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT, verify=False)
+            resp = safe_request("GET", url, headers=HEADERS, timeout=TIMEOUT)
             if resp.status_code == 401:
                 print(f"⚠️ Authentication failed for {url}")
                 continue
@@ -626,7 +661,7 @@ def fingerprint_dahua(ip, port):
     protocol = get_protocol(port)
     try:
         url = f"{protocol}://{ip}:{port}/cgi-bin/magicBox.cgi?action=getSystemInfo"
-        resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT, verify=False)
+        resp = safe_request("GET", url, headers=HEADERS, timeout=TIMEOUT)
         if resp.status_code == 200:
             print(f"✅ Found at {url}")
             print(resp.text.strip())
@@ -641,7 +676,7 @@ def fingerprint_axis(ip, port):
     protocol = get_protocol(port)
     try:
         url = f"{protocol}://{ip}:{port}/axis-cgi/admin/param.cgi?action=list"
-        resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT, verify=False)
+        resp = safe_request("GET", url, headers=HEADERS, timeout=TIMEOUT)
         if resp.status_code == 200:
             print(f"✅ Found at {url}")
             for line in resp.text.splitlines():
@@ -670,7 +705,7 @@ def fingerprint_cp_plus(ip, port):
     
     for url in endpoints:
         try:
-            resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT, verify=False)
+            resp = safe_request("GET", url, headers=HEADERS, timeout=TIMEOUT)
             if resp.status_code == 200:
                 print(f"✅ Found at {url}")
                 content = resp.text.lower()
@@ -717,7 +752,7 @@ def fingerprint_generic(ip, port):
     for path in endpoints:
         url = f"{protocol}://{ip}:{port}{path}"
         try:
-            resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT, verify=False)
+            resp = safe_request("GET", url, headers=HEADERS, timeout=TIMEOUT)
             if resp.status_code == 200:
                 print(f"✅ Found at {url}")
                 snippet = resp.text[:500]
@@ -740,7 +775,7 @@ def check_stream(url):
     """Enhanced stream detection with multiple methods"""
     try:
         # Method 1: Try HEAD request first
-        response = requests.head(url, timeout=TIMEOUT, verify=False)
+        response = safe_request("HEAD", url, timeout=TIMEOUT)
         if response.status_code == 200:
             # Check content type for video/stream indicators
             content_type = response.headers.get('Content-Type', '').lower()
@@ -754,7 +789,7 @@ def check_stream(url):
                 return True
         
         # Method 2: Try GET request for better detection
-        response = requests.get(url, timeout=TIMEOUT, verify=False, stream=True)
+        response = safe_request("GET", url, timeout=TIMEOUT, stream=True)
         if response.status_code == 200:
             # Check content type
             content_type = response.headers.get('Content-Type', '').lower()
@@ -913,7 +948,7 @@ def detect_live_streams(ip, open_ports):
     def check_stream_with_details(url):
         """Check stream and provide detailed information"""
         try:
-            response = requests.get(url, timeout=TIMEOUT, verify=False, stream=True)
+            response = safe_request("GET", url, timeout=TIMEOUT, stream=True)
             if response.status_code == 200:
                 content_type = response.headers.get('Content-Type', '').lower()
                 content_length = response.headers.get('Content-Length', '0')
