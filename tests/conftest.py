@@ -12,6 +12,17 @@ import sys
 # Add parent directory to path to import server module
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+# Mock shodan module if not available
+try:
+    import shodan
+except ImportError:
+    # Create mock shodan module
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("shodan", os.path.join(os.path.dirname(__file__), "mock_shodan.py"))
+    shodan = importlib.util.module_from_spec(spec)
+    sys.modules['shodan'] = shodan
+    spec.loader.exec_module(shodan)
+
 import server
 
 

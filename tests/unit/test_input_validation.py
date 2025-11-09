@@ -79,8 +79,10 @@ class TestStreamURLValidation:
         encoded_url = base64.urlsafe_b64encode(valid_url.encode('utf-8')).decode('utf-8')
 
         with patch('subprocess.Popen') as mock_popen:
-            mock_process = patch('subprocess.Popen').return_value
+            from unittest.mock import MagicMock
+            mock_process = MagicMock()
             mock_process.stdout.read.return_value = b''
+            mock_popen.return_value = mock_process
 
             response = client.get(f'/stream/{encoded_url}')
 
@@ -100,8 +102,10 @@ class TestStreamURLValidation:
         encoded_url = base64.urlsafe_b64encode(dangerous_url.encode('utf-8')).decode('utf-8')
 
         with patch('subprocess.Popen') as mock_popen:
-            mock_process = patch('subprocess.Popen').return_value
+            from unittest.mock import MagicMock
+            mock_process = MagicMock()
             mock_process.stdout.read.return_value = b''
+            mock_popen.return_value = mock_process
 
             response = client.get(f'/stream/{encoded_url}')
 
@@ -118,8 +122,10 @@ class TestStreamURLValidation:
 
         with patch('subprocess.Popen') as mock_popen:
             # GStreamer will fail with non-RTSP URL
-            mock_process = patch('subprocess.Popen').return_value
+            from unittest.mock import MagicMock
+            mock_process = MagicMock()
             mock_process.stdout.read.return_value = b''
+            mock_popen.return_value = mock_process
 
             response = client.get(f'/stream/{encoded_url}')
 

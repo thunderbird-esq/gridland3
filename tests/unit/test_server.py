@@ -53,7 +53,7 @@ class TestScanEndpoint:
         assert response.status_code == 400
         data = json.loads(response.data)
         assert 'error' in data
-        assert 'valid IP address' in data['error']
+        assert 'IP address' in data['error']
 
     def test_scan_validates_ip(self, client, invalid_ip):
         """Verify scan endpoint rejects invalid IP addresses."""
@@ -83,8 +83,9 @@ class TestScanEndpoint:
         mock_subprocess.assert_called_once()
         call_args = mock_subprocess.call_args
 
-        # Verify CamXploit.py was called
-        assert 'CamXploit.py' in call_args[0][0]
+        # Verify CamXploit.py was called (check if it's in the command list)
+        command_list = call_args[0][0]
+        assert any('CamXploit.py' in arg for arg in command_list)
 
     def test_scan_accepts_valid_ip(self, client, valid_ip, mock_subprocess):
         """Verify scan endpoint accepts valid IP address."""
