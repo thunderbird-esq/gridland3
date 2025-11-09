@@ -59,7 +59,7 @@
             const discoveryQueryInput = document.getElementById('discoveryQuery');
             const discoverButton = document.getElementById('discoverButton');
             const discoveryResultsPanel = document.getElementById('discovery-results');
-            let eventSource;
+            let abortController = null;
 
             discoverButton.addEventListener('click', async () => {
                 const query = discoveryQueryInput.value.trim();
@@ -107,36 +107,88 @@
                 }
             });
 
-            scanButton.addEventListener('click', () => {
+            scanButton.addEventListener('click', async () => {
                 const ip = ipAddressInput.value.trim();
                 if (!ip) { return; }
-                if (eventSource) { eventSource.close(); }
+
+                // Cancel any existing scan
+                if (abortController) {
+                    abortController.abort();
+                }
+
+                abortController = new AbortController();
                 outputContainer.innerHTML = '';
                 statusBar.textContent = `Analyzing ${ip}...`;
                 scanButton.disabled = true;
                 discoverButton.disabled = true;
-                eventSource = new EventSource('/scan', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ip: ip }),
-                });
-                eventSource.onmessage = function(event) {
-                    const line = document.createElement('div');
-                    const content = event.data;
-                    const urlRegex = /(rtsp|rtmp|http|https)?:\/\/[\S]+/gi;
-                    line.innerHTML = content.replace(urlRegex, (url) => {
-                        return `<a href="#" class="stream-link" data-url="${url}">${url}</a>`;
+
+                try {
+                    const response = await fetch('/scan', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ip: ip }),
+                        signal: abortController.signal
                     });
-                    outputContainer.appendChild(line);
-                    outputContainer.scrollTop = outputContainer.scrollHeight;
-                };
-                // **FIXED:** This handler now correctly re-enables both buttons.
-                eventSource.onerror = function() {
-                    statusBar.textContent = 'Analysis complete or connection lost.';
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+
+                        if (done) {
+                            break;
+                        }
+
+                        buffer += decoder.decode(value, { stream: true });
+
+                        // Process complete SSE messages
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const data = line.substring(6); // Remove 'data: ' prefix
+                                const lineElement = document.createElement('div');
+                                const urlRegex = /(rtsp|rtmp|http|https)?:\/\/[\S]+/gi;
+
+                                // Make URLs clickable with XSS prevention
+                                const escapedData = data.replace(/&/g, '&amp;')
+                                    .replace(/</g, '&lt;')
+                                    .replace(/>/g, '&gt;');
+
+                                lineElement.innerHTML = escapedData.replace(urlRegex, (url) => {
+                                    const safeUrl = url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                                    return `<a href="#" class="stream-link" data-url="${safeUrl}">${url}</a>`;
+                                });
+
+                                outputContainer.appendChild(lineElement);
+                                outputContainer.scrollTop = outputContainer.scrollHeight;
+                            }
+                        }
+                    }
+
+                    statusBar.textContent = 'Analysis complete.';
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        statusBar.textContent = 'Analysis cancelled.';
+                    } else {
+                        statusBar.textContent = `Error: ${error.message}`;
+                        const errorElement = document.createElement('div');
+                        errorElement.style.color = 'red';
+                        errorElement.textContent = `Error: ${error.message}`;
+                        outputContainer.appendChild(errorElement);
+                    }
+                } finally {
                     scanButton.disabled = false;
                     discoverButton.disabled = false;
-                    eventSource.close();
-                };
+                    abortController = null;
+                }
             });
 
             outputContainer.addEventListener('click', (e) => {
