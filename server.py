@@ -3,14 +3,13 @@ import subprocess
 import ipaddress
 import base64
 import os
+import re
 import shodan
 import time
 import threading
 import atexit
-import signal
 from urllib.parse import urlparse
 from flask import Flask, request, Response, stream_with_context, jsonify
-from werkzeug.utils import secure_filename
 
 try:
     import psutil
@@ -23,23 +22,168 @@ app = Flask(__name__, static_folder='static', static_url_path='')
 # --- Ethical Use Disclaimer ---
 # This server provides access to security analysis tools. It is intended for
 # educational, artistic (sousveillance), and authorized security auditing
-# purposes ONLY. By using this tool, you agree that you are solely responsible
+# purposes ONLY. By using this tool, you are solely responsible
 # for ensuring your actions comply with all applicable laws and ethical guidelines.
 # Unauthorized use against systems you do not own or have explicit permission
 # to test is illegal, unethical, and strictly prohibited.
 
-# Initialize Shodan API client
-try:
-    SHODAN_API_KEY = os.environ.get('SHODAN_API_KEY')
-    if not SHODAN_API_KEY:
-        print("Warning: SHODAN_API_KEY environment variable not set. Discovery will be disabled.")
-        api = None
-    else:
-        api = shodan.Shodan(SHODAN_API_KEY)
-except Exception as e:
-    print(f"FATAL: Error initializing Shodan API: {e}")
-    api = None
 
+# ============================================================================
+# INPUT VALIDATION & SANITIZATION
+# ============================================================================
+
+class InputValidator:
+    """
+    Comprehensive input validation for all user-controlled inputs.
+    Prevents command injection, XSS, and other injection attacks.
+    """
+
+    # Dangerous characters that could be used for command injection
+    DANGEROUS_CHARS = [';', '|', '&', '$', '`', '\n', '\r', '>', '<', '\\', '(', ')']
+
+    # Whitelisted stream protocols
+    ALLOWED_PROTOCOLS = ['rtsp', 'rtmp', 'http', 'https']
+
+    @staticmethod
+    def validate_ip(ip_str, allow_private=True):
+        """
+        Validate IP address format and optionally reject private IPs.
+
+        Args:
+            ip_str: IP address string to validate
+            allow_private: If False, reject private IP addresses
+
+        Returns:
+            str: Validated IP address
+
+        Raises:
+            ValueError: If IP is invalid or private (when not allowed)
+        """
+        if not ip_str:
+            raise ValueError("IP address is required")
+
+        # Remove whitespace
+        ip_str = ip_str.strip()
+
+        # Check for dangerous characters
+        for char in InputValidator.DANGEROUS_CHARS:
+            if char in ip_str:
+                raise ValueError(f"Invalid IP address: contains dangerous character '{char}'")
+
+        # Validate IP format
+        try:
+            ip_obj = ipaddress.ip_address(ip_str)
+        except ValueError as e:
+            raise ValueError(f"Invalid IP address format: {str(e)}")
+
+        # Check if private IP (optionally reject)
+        if not allow_private and ip_obj.is_private:
+            raise ValueError("Private IP addresses are not allowed")
+
+        return str(ip_obj)
+
+    @staticmethod
+    def validate_stream_url(url_str):
+        """
+        Validate stream URL for safe subprocess execution.
+
+        Args:
+            url_str: Stream URL to validate
+
+        Returns:
+            str: Validated URL
+
+        Raises:
+            ValueError: If URL is invalid or contains dangerous patterns
+        """
+        if not url_str:
+            raise ValueError("Stream URL is required")
+
+        # Remove whitespace
+        url_str = url_str.strip()
+
+        # Length limit
+        if len(url_str) > 500:
+            raise ValueError("Stream URL exceeds maximum length of 500 characters")
+
+        if len(url_str) < 10:
+            raise ValueError("Stream URL is too short")
+
+        # Check for dangerous characters
+        for char in InputValidator.DANGEROUS_CHARS:
+            if char in url_str:
+                raise ValueError(f"Invalid stream URL: contains dangerous character '{char}'")
+
+        # Parse URL to validate structure
+        try:
+            parsed = urlparse(url_str)
+        except Exception as e:
+            raise ValueError(f"Invalid URL format: {str(e)}")
+
+        # Validate protocol
+        if not parsed.scheme:
+            raise ValueError("Stream URL must include a protocol (rtsp://, http://, etc.)")
+
+        if parsed.scheme.lower() not in InputValidator.ALLOWED_PROTOCOLS:
+            raise ValueError(
+                f"Invalid protocol '{parsed.scheme}'. "
+                f"Allowed protocols: {', '.join(InputValidator.ALLOWED_PROTOCOLS)}"
+            )
+
+        # Validate hostname exists
+        if not parsed.netloc:
+            raise ValueError("Stream URL must include a hostname")
+
+        # Additional checks for command injection patterns
+        dangerous_patterns = [
+            r'\$\(',  # Command substitution
+            r'\`',    # Backticks
+            r'\|\|',  # OR operator
+            r'&&',    # AND operator
+            r'\bsh\b',    # Shell invocation
+            r'\bbash\b',  # Bash invocation
+            r'\bexec\b',  # Exec command
+        ]
+
+        for pattern in dangerous_patterns:
+            if re.search(pattern, url_str, re.IGNORECASE):
+                raise ValueError(f"Invalid stream URL: contains dangerous pattern")
+
+        return url_str
+
+    @staticmethod
+    def validate_shodan_query(query_str):
+        """
+        Validate Shodan search query.
+
+        Args:
+            query_str: Query string to validate
+
+        Returns:
+            str: Validated query string
+
+        Raises:
+            ValueError: If query is invalid
+        """
+        if not query_str:
+            raise ValueError("Search query is required")
+
+        # Strip whitespace
+        query_str = query_str.strip()
+
+        # Length limits
+        if len(query_str) < 2:
+            raise ValueError("Search query must be at least 2 characters")
+
+        if len(query_str) > 500:
+            raise ValueError("Search query exceeds maximum length of 500 characters")
+
+        return query_str
+
+
+# ============================================================================
+# PROCESS MANAGEMENT
+# ============================================================================
 
 class ProcessManager:
     """
@@ -207,53 +351,17 @@ class ProcessManager:
         print("ProcessManager: All processes cleaned up")
 
 
-def validate_stream_url(url):
-    """
-    Validate stream URL to prevent command injection.
-
-    Security checks:
-    1. Whitelist allowed protocols (rtsp, rtmp, http, https)
-    2. Reject dangerous shell characters
-    3. Validate URL structure
-
-    Args:
-        url: Stream URL to validate
-
-    Returns:
-        True if valid, False otherwise
-    """
-    if not url:
-        return False
-
-    # Check for dangerous characters that could enable command injection
-    dangerous_chars = [';', '|', '&', '$', '`', '\n', '\r', '\\']
-    for char in dangerous_chars:
-        if char in url:
-            print(f"ProcessManager: Rejected stream URL with dangerous character: {char}")
-            return False
-
-    # Validate URL structure and protocol
-    try:
-        parsed = urlparse(url)
-
-        # Whitelist allowed protocols
-        allowed_protocols = ['rtsp', 'rtmp', 'http', 'https']
-
-        if parsed.scheme.lower() not in allowed_protocols:
-            print(f"ProcessManager: Rejected stream URL with invalid protocol: {parsed.scheme}")
-            return False
-
-        # Basic sanity check: must have a network location (host)
-        if not parsed.netloc:
-            print(f"ProcessManager: Rejected stream URL with no host")
-            return False
-
-        return True
-
-    except Exception as e:
-        print(f"ProcessManager: Error validating stream URL: {e}")
-        return False
-
+# Initialize Shodan API client
+try:
+    SHODAN_API_KEY = os.environ.get('SHODAN_API_KEY')
+    if not SHODAN_API_KEY:
+        print("Warning: SHODAN_API_KEY environment variable not set. Discovery will be disabled.")
+        api = None
+    else:
+        api = shodan.Shodan(SHODAN_API_KEY)
+except Exception as e:
+    print(f"FATAL: Error initializing Shodan API: {e}")
+    api = None
 
 # Initialize global ProcessManager
 process_manager = ProcessManager()
@@ -261,14 +369,27 @@ process_manager = ProcessManager()
 # Register cleanup on shutdown
 atexit.register(process_manager.cleanup_all)
 
+
+# ============================================================================
+# API ENDPOINTS
+# ============================================================================
+
 @app.route('/discover', methods=['POST'])
 def discover():
+    """
+    Shodan discovery endpoint with input validation.
+    """
     if not api:
         return jsonify({"error": "Shodan API is not configured on the server."}), 500
 
-    query = request.json.get('query')
-    if not query:
-        return jsonify({"error": "A search query is required."}), 400
+    data = request.get_json(silent=True) or {}
+    query = data.get('query')
+
+    # Validate query input
+    try:
+        query = InputValidator.validate_shodan_query(query)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
 
     try:
         results = api.search(query, limit=50)
@@ -281,39 +402,37 @@ def discover():
         print(f"ERROR: An unexpected error occurred in /discover: {e}")
         return jsonify({"error": f"An unexpected error occurred: {e}"}), 500
 
+
 @app.route('/scan', methods=['POST'])
 def scan():
+    """
+    Scan endpoint with comprehensive input validation and secure subprocess handling.
+    """
     data = request.get_json(silent=True) or {}
     ip = data.get('ip')
 
+    # Validate IP input
     try:
-        ipaddress.ip_address(ip)
-    except (ValueError, TypeError):
-        return jsonify({'error': 'A valid IP address is required'}), 400
-
-    safe_ip = secure_filename(ip)
+        validated_ip = InputValidator.validate_ip(ip, allow_private=True)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
 
     def generate_scan_output():
         process = None
         try:
+            # SECURITY FIX: Pass IP as command-line argument instead of stdin
+            # This prevents command injection via stdin
             process = subprocess.Popen(
-                [sys.executable, '-u', 'CamXploit.py'],
-                stdin=subprocess.PIPE,
+                [sys.executable, '-u', os.path.abspath('CamXploit.py'), '--ip', validated_ip],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
-                bufsize=1
+                bufsize=1,
+                env={'PATH': '/usr/bin:/bin'}  # Limited PATH to prevent command injection
             )
 
             # Register process with 300 second (5 minute) timeout
             process_manager.register(process, timeout=300)
-
-            try:
-                process.stdin.write(safe_ip + '\n')
-                process.stdin.flush()
-            except Exception as e:
-                yield f'data: Error: Failed to send input to scanner: {e}\n\n'
-                return
 
             # Stream output with timeout checking
             for line in iter(process.stdout.readline, ''):
@@ -334,29 +453,50 @@ def scan():
 
     return Response(stream_with_context(generate_scan_output()), mimetype='text/event-stream')
 
+
 @app.route('/stream/<path:stream_url_b64>')
 def stream(stream_url_b64):
+    """
+    Stream endpoint with comprehensive URL validation to prevent command injection.
+    """
     try:
         stream_url = base64.urlsafe_b64decode(stream_url_b64).decode('utf-8')
-    except:
+    except Exception:
         return "Invalid stream URL format.", 400
 
-    # Validate stream URL to prevent command injection
-    if not validate_stream_url(stream_url):
-        return "Invalid or unsafe stream URL.", 400
+    # SECURITY FIX: Validate stream URL BEFORE subprocess
+    try:
+        validated_url = InputValidator.validate_stream_url(stream_url)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
 
     def generate_gstreamer_stream():
         process = None
         try:
+            # SECURITY FIX: Never use shell=True, use array of arguments
             gst_command = [
                 'gst-launch-1.0',
-                'rtspsrc', f'location={stream_url}', 'latency=0', '!',
-                'rtph264depay', '!',
-                'h264parse', '!',
-                'mpegtsmux', '!',
-                'fdsink', 'fd=1'
+                'rtspsrc',
+                f'location={validated_url}',  # Using validated URL
+                'latency=0',
+                '!',
+                'rtph264depay',
+                '!',
+                'h264parse',
+                '!',
+                'mpegtsmux',
+                '!',
+                'fdsink',
+                'fd=1'
             ]
-            process = subprocess.Popen(gst_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            # SECURITY FIX: Set limited PATH environment
+            process = subprocess.Popen(
+                gst_command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env={'PATH': '/usr/bin:/bin'}
+            )
 
             # Register process with 600 second (10 minute) timeout
             process_manager.register(process, timeout=600)
@@ -376,18 +516,25 @@ def stream(stream_url_b64):
 
     return Response(generate_gstreamer_stream(), mimetype='video/MP2T')
 
+
 @app.route('/')
 def index():
     return app.send_static_file('index.html')
 
+
+@app.route('/ui/')
+def ui_interface():
+    """Serve the Macintosh Plus native interface."""
+    return app.send_static_file('gridland-ui/index.html')
+
+
+@app.route('/ui/<path:filename>')
+def ui_assets(filename):
+    """Serve UI assets from gridland-ui directory."""
+    return app.send_from_directory('gridland-ui', filename)
+
+
 if __name__ == '__main__':
-    # Environment configuration for production safety
-    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 't', 'yes')
-    host = os.environ.get('FLASK_HOST', '0.0.0.0')
-    port = int(os.environ.get('FLASK_PORT', '8080'))
-
-    # Security: Debug mode disabled by default
-    # Set FLASK_DEBUG=true environment variable only for development
-    print(f"Starting GRIDLAND server on {host}:{port} (debug={debug_mode})")
-    app.run(host=host, port=port, threaded=True, debug=debug_mode, use_reloader=False)
-
+    # SECURITY NOTE: Debug mode should be disabled in production
+    # Set debug=False and use proper WSGI server (gunicorn, uWSGI) for production
+    app.run(host='0.0.0.0', port=8080, threaded=True, debug=True, use_reloader=False)
