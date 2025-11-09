@@ -4,7 +4,6 @@ import ipaddress
 import base64
 import os
 import re
-import shodan
 import time
 import threading
 import atexit
@@ -15,7 +14,15 @@ try:
     import psutil
 except ImportError:
     psutil = None
-    print("Warning: psutil not installed. Process cleanup will be limited.")
+    print("⚠️  Warning: psutil not installed. Process cleanup will be limited.")
+
+try:
+    import shodan
+    SHODAN_AVAILABLE = True
+except ImportError:
+    SHODAN_AVAILABLE = False
+    shodan = None
+    print("⚠️  Warning: shodan not installed. Discovery endpoint will be disabled.")
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 
@@ -352,16 +359,18 @@ class ProcessManager:
 
 
 # Initialize Shodan API client
-try:
-    SHODAN_API_KEY = os.environ.get('SHODAN_API_KEY')
-    if not SHODAN_API_KEY:
-        print("Warning: SHODAN_API_KEY environment variable not set. Discovery will be disabled.")
+api = None
+if SHODAN_AVAILABLE:
+    try:
+        SHODAN_API_KEY = os.environ.get('SHODAN_API_KEY')
+        if not SHODAN_API_KEY:
+            print("⚠️  Warning: SHODAN_API_KEY environment variable not set. Discovery will be disabled.")
+        else:
+            api = shodan.Shodan(SHODAN_API_KEY)
+            print("✅ Shodan API initialized successfully")
+    except Exception as e:
+        print(f"❌ Error initializing Shodan API: {e}")
         api = None
-    else:
-        api = shodan.Shodan(SHODAN_API_KEY)
-except Exception as e:
-    print(f"FATAL: Error initializing Shodan API: {e}")
-    api = None
 
 # Initialize global ProcessManager
 process_manager = ProcessManager()
@@ -395,12 +404,15 @@ def discover():
         results = api.search(query, limit=50)
         ips = [result['ip_str'] for result in results['matches']]
         return jsonify(ips)
-    except shodan.APIError as e:
-        print(f"ERROR: Shodan API error: {e}")
-        return jsonify({"error": f"Shodan API error: {e}"}), 500
+    except AttributeError as e:
+        # Shodan not available
+        print(f"ERROR: Shodan module not available: {e}")
+        return jsonify({"error": "Shodan API is not available. Install 'shodan' package."}), 500
     except Exception as e:
-        print(f"ERROR: An unexpected error occurred in /discover: {e}")
-        return jsonify({"error": f"An unexpected error occurred: {e}"}), 500
+        # Handle both shodan.APIError and other exceptions
+        error_msg = str(e)
+        print(f"ERROR: Error in /discover: {error_msg}")
+        return jsonify({"error": f"Discovery error: {error_msg}"}), 500
 
 
 @app.route('/scan', methods=['POST'])
