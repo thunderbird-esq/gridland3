@@ -301,6 +301,9 @@ local_*
 dev_*
 development/
 
+# Archived legacy code
+archive/
+
 # Sensitive data that should never be committed
 passwords.txt
 credentials.txt
