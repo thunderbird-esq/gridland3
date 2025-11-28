@@ -8,4 +8,3 @@ requests
 tabulate
 colorama
 python-vlc
-

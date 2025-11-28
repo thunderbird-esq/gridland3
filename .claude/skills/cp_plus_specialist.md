@@ -1,11 +1,13 @@
 # CP Plus Vulnerability Scanner Specialist Skill
 
 ## Skill Purpose
+
 Expert in creating brand-specific vulnerability scanner plugins for IP cameras. Specializes in CVE research, default credential testing, authentication bypass detection, and plugin architecture integration.
 
 ## Core Competencies
 
 ### 1. Vulnerability Scanner Plugin Development
+
 - Extend VulnerabilityPlugin base class
 - Implement async scan_vulnerabilities() method
 - Use memory pool for VulnerabilityResult allocation
@@ -13,6 +15,7 @@ Expert in creating brand-specific vulnerability scanner plugins for IP cameras. 
 - Register plugins correctly
 
 ### 2. CVE Research & Implementation
+
 - Research CP Plus specific CVEs
 - Understand vulnerability exploitation methods
 - Implement CVE detection logic
@@ -20,6 +23,7 @@ Expert in creating brand-specific vulnerability scanner plugins for IP cameras. 
 - Document CVE references
 
 ### 3. Credential Testing
+
 - Implement non-invasive authentication testing
 - Rate-limited credential attempts
 - Support multiple authentication schemes (Basic, Digest, Form-based)
@@ -27,6 +31,7 @@ Expert in creating brand-specific vulnerability scanner plugins for IP cameras. 
 - Audit trail logging
 
 ### 4. Brand Detection
+
 - HTTP banner analysis
 - Server header inspection
 - Path-based detection
@@ -36,6 +41,7 @@ Expert in creating brand-specific vulnerability scanner plugins for IP cameras. 
 ## Implementation Guidelines
 
 ### File Structure
+
 ```
 gridland/analyze/plugins/builtin/cp_plus_scanner.py
 ├── CPPlusScanner (extends VulnerabilityPlugin)
@@ -51,6 +57,7 @@ gridland/analyze/plugins/builtin/cp_plus_scanner.py
 ```
 
 ### Plugin Metadata Template
+
 ```python
 PluginMetadata(
     name="CP Plus Vulnerability Scanner",
@@ -64,7 +71,9 @@ PluginMetadata(
 ```
 
 ### Default Credentials Research
+
 CP Plus cameras commonly use:
+
 - admin:admin
 - admin:12345
 - admin:admin123
@@ -75,19 +84,21 @@ CP Plus cameras commonly use:
 - supervisor:supervisor
 
 **IMPORTANT**: Research additional credentials from:
+
 - Default password databases
 - Security advisories
 - Manufacturer documentation
 - Public vulnerability disclosures
 
 ### CVE Research Strategy
+
 1. Search CVE databases:
-   - https://nvd.nist.gov/vuln/search
-   - https://cve.mitre.org/cve/search_cve_list.html
+   - <https://nvd.nist.gov/vuln/search>
+   - <https://cve.mitre.org/cve/search_cve_list.html>
    - Search terms: "CP Plus", "CPPlus", "CP-Plus camera"
 
 2. Search exploit databases:
-   - https://www.exploit-db.com/
+   - <https://www.exploit-db.com/>
    - Search terms: "CP Plus"
 
 3. Minimum 3 CVEs required:
@@ -96,6 +107,7 @@ CP Plus cameras commonly use:
    - At least 1 information disclosure
 
 ### Testing Requirements
+
 ```
 tests/analyze/plugins/builtin/test_cp_plus_scanner.py
 ├── TestCPPlusDetection (5 tests)
@@ -108,6 +120,7 @@ tests/analyze/plugins/builtin/test_cp_plus_scanner.py
 ### Mock HTTP Response Examples
 
 **CP Plus Login Page**:
+
 ```html
 <!DOCTYPE html>
 <html>
@@ -125,6 +138,7 @@ tests/analyze/plugins/builtin/test_cp_plus_scanner.py
 ```
 
 **CP Plus System Info Response**:
+
 ```
 DeviceType=CP-PLUS-IPC-HDBW
 Model=CP-UNC-TA10L2-V3
@@ -135,6 +149,7 @@ SerialNumber=CPPLUS123456789
 ## Code Quality Requirements
 
 ### Error Handling Pattern
+
 ```python
 try:
     async with self.session.get(url, timeout=10) as response:
@@ -155,6 +170,7 @@ except Exception as e:
 ```
 
 ### VulnerabilityResult Template
+
 ```python
 vuln = self.memory_pool.acquire_vulnerability_result()
 vuln.ip = target_ip
@@ -181,6 +197,7 @@ results.append(vuln)
 ## Success Criteria
 
 ### Functionality
+
 - [ ] Plugin detects CP Plus devices with 95%+ accuracy
 - [ ] Tests 15+ default credential combinations
 - [ ] Implements 3+ specific CVE checks
@@ -188,18 +205,21 @@ results.append(vuln)
 - [ ] Integrates with memory pool correctly
 
 ### Testing
+
 - [ ] 25+ unit tests passing
 - [ ] All HTTP calls mocked
 - [ ] CVE detection accuracy validated
 - [ ] Credential testing logic validated
 
 ### Integration
+
 - [ ] Registered in BUILTIN_PLUGINS
 - [ ] Imports correctly in plugin manager
 - [ ] Metadata returned correctly
 - [ ] Works in analysis engine workflow
 
 ### Documentation
+
 - [ ] CVE references documented
 - [ ] Credential sources cited
 - [ ] Method docstrings complete
@@ -254,6 +274,7 @@ async def _test_cve_XXXX_YYYY(self, base_url: str, target_ip: str, target_port: 
 ## Common Pitfalls to Avoid
 
 ❌ **DO NOT**:
+
 - Perform destructive testing
 - Brute-force credentials (rate limit!)
 - Skip brand detection (waste resources)
@@ -262,6 +283,7 @@ async def _test_cve_XXXX_YYYY(self, base_url: str, target_ip: str, target_port: 
 - Leave TODOs in code
 
 ✅ **DO**:
+
 - Non-invasive testing only
 - Rate limit: max 1 attempt per second
 - Check _is_cp_plus_device() first
@@ -271,7 +293,8 @@ async def _test_cve_XXXX_YYYY(self, base_url: str, target_ip: str, target_port: 
 
 ## Plugin Registration
 
-### Update __init__.py
+### Update **init**.py
+
 ```python
 from .cp_plus_scanner import cp_plus_scanner
 
@@ -299,12 +322,14 @@ BUILTIN_PLUGINS = [
 ```
 
 ### Create Plugin Instance
+
 ```python
 # At bottom of cp_plus_scanner.py
 cp_plus_scanner = CPPlusScanner()
 ```
 
 ## Ready for Deployment
+
 - Agent can work independently
 - CVE research process defined
 - Testing requirements clear

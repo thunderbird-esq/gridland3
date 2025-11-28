@@ -6,23 +6,23 @@ scanning and analysis capabilities with custom tools and scanners.
 """
 
 from .manager import (
-    PluginManager,
-    PluginRegistry,
     AnalysisPlugin,
-    VulnerabilityPlugin,
-    StreamPlugin,
+    PluginManager,
     PluginMetadata,
+    PluginRegistry,
+    StreamPlugin,
+    VulnerabilityPlugin,
     get_plugin_manager,
-    initialize_plugin_manager
+    initialize_plugin_manager,
 )
 
 __all__ = [
-    'PluginManager',
-    'PluginRegistry', 
-    'AnalysisPlugin',
-    'VulnerabilityPlugin',
-    'StreamPlugin',
-    'PluginMetadata',
-    'get_plugin_manager',
-    'initialize_plugin_manager'
+    "PluginManager",
+    "PluginRegistry",
+    "AnalysisPlugin",
+    "VulnerabilityPlugin",
+    "StreamPlugin",
+    "PluginMetadata",
+    "get_plugin_manager",
+    "initialize_plugin_manager",
 ]

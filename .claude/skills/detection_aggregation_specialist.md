@@ -1,11 +1,13 @@
 # Detection Confidence Aggregation Specialist Skill
 
 ## Skill Purpose
+
 Expert in multi-method detection correlation and confidence scoring systems. Specializes in weighted voting algorithms, conflict resolution, evidence aggregation, and statistical confidence calculation.
 
 ## Core Competencies
 
 ### 1. Confidence Scoring Algorithms
+
 - Weighted averaging with normalization
 - Bayesian probability updating
 - Multi-source evidence aggregation
@@ -13,6 +15,7 @@ Expert in multi-method detection correlation and confidence scoring systems. Spe
 - Threshold-based decision making
 
 ### 2. Conflict Resolution
+
 - Weighted voting mechanisms
 - Evidence strength comparison
 - Tie-breaking strategies
@@ -20,6 +23,7 @@ Expert in multi-method detection correlation and confidence scoring systems. Spe
 - Uncertainty quantification
 
 ### 3. Detection Method Integration
+
 - Banner analysis integration
 - HTTP header extraction
 - Fingerprint module integration
@@ -27,6 +31,7 @@ Expert in multi-method detection correlation and confidence scoring systems. Spe
 - SSL certificate analysis
 
 ### 4. Statistical Validation
+
 - Accuracy measurement
 - False positive rate calculation
 - Precision and recall metrics
@@ -36,6 +41,7 @@ Expert in multi-method detection correlation and confidence scoring systems. Spe
 ## Implementation Guidelines
 
 ### File Structure
+
 ```
 gridland/analyze/core/detection_aggregator.py
 ├── DetectionMethod (Enum)
@@ -51,6 +57,7 @@ gridland/analyze/core/detection_aggregator.py
 ```
 
 ### DetectionMethod Enum
+
 ```python
 from enum import Enum, auto
 
@@ -65,6 +72,7 @@ class DetectionMethod(Enum):
 ```
 
 ### DetectionResult Dataclass
+
 ```python
 @dataclass
 class DetectionResult:
@@ -83,6 +91,7 @@ class DetectionResult:
 ```
 
 ### AggregatedDetection Dataclass
+
 ```python
 @dataclass
 class AggregatedDetection:
@@ -97,6 +106,7 @@ class AggregatedDetection:
 ```
 
 ### Weight Configuration
+
 ```python
 METHOD_WEIGHTS = {
     DetectionMethod.FINGERPRINT: 0.9,      # Highest trust
@@ -113,6 +123,7 @@ CONFIDENCE_THRESHOLD = 0.7  # Minimum confidence for positive verdict
 ## Algorithm Specifications
 
 ### Weighted Confidence Calculation
+
 ```
 Formula:
   overall_confidence = Σ(method_confidence_i × method_weight_i) / Σ(method_weight_i)
@@ -124,6 +135,7 @@ Where:
 ```
 
 ### Conflict Resolution Algorithm
+
 ```
 1. Group detections by brand
 2. For each brand:
@@ -137,6 +149,7 @@ Where:
 ```
 
 ### Evidence Aggregation
+
 ```
 Combine evidence strings from all methods:
 "Brand detected via: FINGERPRINT (conf=0.95, 'Model: DS-2CD2032'),
@@ -160,6 +173,7 @@ tests/analyze/core/test_detection_aggregator.py
 ### Test Scenarios
 
 **Scenario 1: Single Brand, Multiple Methods**
+
 ```python
 detections = [
     DetectionResult(DetectionMethod.FINGERPRINT, "Hikvision", 0.95, "Model: DS-2CD2032", "fingerprinter"),
@@ -175,6 +189,7 @@ detections = [
 ```
 
 **Scenario 2: Conflicting Brands**
+
 ```python
 detections = [
     DetectionResult(DetectionMethod.BANNER, "Hikvision", 0.7, "Hikvision", "banner"),
@@ -189,6 +204,7 @@ detections = [
 ```
 
 **Scenario 3: Tie-Breaking by Method Count**
+
 ```python
 detections = [
     DetectionResult(DetectionMethod.PATTERN_MATCH, "Hikvision", 0.6, "Pattern", "scanner"),
@@ -205,6 +221,7 @@ detections = [
 ## Integration Points
 
 ### Analysis Engine Integration
+
 ```python
 # In analysis_engine.py
 
@@ -258,24 +275,28 @@ class AnalysisEngine:
 ## Success Criteria
 
 ### Functionality
+
 - [ ] Aggregates 6+ detection methods
 - [ ] Weighted confidence calculation accurate to 0.01
 - [ ] Conflict resolution deterministic
 - [ ] Evidence aggregation comprehensive
 
 ### Testing
+
 - [ ] 40+ unit tests passing
 - [ ] Edge cases covered (0 detections, all conflicts, etc.)
 - [ ] Statistical validation on test dataset
 - [ ] Performance benchmarks met
 
 ### Integration
+
 - [ ] Analysis engine uses aggregator
 - [ ] Detection results flow from plugins
 - [ ] Brand-specific scanners use aggregated brand
 - [ ] No circular dependencies
 
 ### Documentation
+
 - [ ] Algorithm documented with examples
 - [ ] Weight tuning guide provided
 - [ ] Integration guide complete
@@ -284,6 +305,7 @@ class AnalysisEngine:
 ## Common Pitfalls to Avoid
 
 ❌ **DO NOT**:
+
 - Divide by zero (check weight sum > 0)
 - Assume detections list is non-empty
 - Ignore confidence out of range
@@ -292,6 +314,7 @@ class AnalysisEngine:
 - Return None on edge cases
 
 ✅ **DO**:
+
 - Validate all inputs
 - Handle empty detections list (return default)
 - Clamp confidences to [0.0, 1.0]
@@ -302,6 +325,7 @@ class AnalysisEngine:
 ## Advanced Features (Optional)
 
 ### Bayesian Update Formula
+
 ```python
 def bayesian_update(prior: float, likelihood: float, evidence_strength: float) -> float:
     """
@@ -323,6 +347,7 @@ def bayesian_update(prior: float, likelihood: float, evidence_strength: float) -
 ```
 
 ### Temporal Decay
+
 ```python
 def apply_temporal_decay(confidence: float, age_seconds: int, half_life: int = 3600) -> float:
     """
@@ -341,6 +366,7 @@ def apply_temporal_decay(confidence: float, age_seconds: int, half_life: int = 3
 ```
 
 ## Ready for Deployment
+
 - Agent can work independently
 - Algorithms mathematically specified
 - Test scenarios comprehensive

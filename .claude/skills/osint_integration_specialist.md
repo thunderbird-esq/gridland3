@@ -1,11 +1,13 @@
 # OSINT Integration Specialist Skill
 
 ## Skill Purpose
+
 Expert in OSINT (Open Source Intelligence) platform integration for IP reconnaissance. Specializes in API integration, rate limiting, passive DNS queries, Google dorking automation, and multi-source intelligence aggregation.
 
 ## Core Competencies
 
 ### 1. API Integration
+
 - RESTful API client implementation
 - Authentication header construction (Basic, API Key)
 - Rate limit handling and exponential backoff
@@ -13,6 +15,7 @@ Expert in OSINT (Open Source Intelligence) platform integration for IP reconnais
 - Error handling and retry logic
 
 ### 2. OSINT Platform Knowledge
+
 - Shodan API (device discovery)
 - Censys API (certificate intelligence)
 - ZoomEye API (Chinese infrastructure)
@@ -21,12 +24,14 @@ Expert in OSINT (Open Source Intelligence) platform integration for IP reconnais
 - CIRCL Passive DNS (historical domains)
 
 ### 3. Google Dorking
+
 - Camera-specific dork patterns
 - Query encoding and URL generation
 - Multi-search engine support (Google, Bing, DuckDuckGo)
 - Result aggregation
 
 ### 4. Security & Privacy
+
 - API key management
 - Credential encryption
 - Query logging (audit trail)
@@ -36,6 +41,7 @@ Expert in OSINT (Open Source Intelligence) platform integration for IP reconnais
 ## Implementation Guidelines
 
 ### File Structure
+
 ```
 gridland/analyze/plugins/builtin/osint_integration_scanner.py
 ├── OSINTResult (dataclass)
@@ -55,6 +61,7 @@ gridland/analyze/plugins/builtin/osint_integration_scanner.py
 ```
 
 ### OSINTResult Dataclass
+
 ```python
 @dataclass
 class OSINTResult:
@@ -75,6 +82,7 @@ class OSINTResult:
 ```
 
 ### OSINT Platform Configuration
+
 ```python
 OSINT_PLATFORMS = {
     "shodan": {
@@ -104,6 +112,7 @@ OSINT_PLATFORMS = {
 ```
 
 ### Google Dork Patterns
+
 ```python
 CAMERA_DORKS = [
     "site:{ip} inurl:view/view.shtml",
@@ -131,6 +140,7 @@ SEARCH_ENGINES = {
 ## API Integration Implementations
 
 ### Shodan API Integration
+
 ```python
 async def _query_shodan(self, target_ip: str, api_key: str) -> Optional[OSINTResult]:
     """
@@ -203,6 +213,7 @@ async def _query_shodan(self, target_ip: str, api_key: str) -> Optional[OSINTRes
 ```
 
 ### Censys API Integration (Basic Auth)
+
 ```python
 async def _query_censys(self, target_ip: str, api_id: str, api_secret: str) -> Optional[OSINTResult]:
     """
@@ -255,6 +266,7 @@ async def _query_censys(self, target_ip: str, api_id: str, api_secret: str) -> O
 ```
 
 ### Passive DNS (CIRCL - Free)
+
 ```python
 async def _query_passive_dns(self, target_ip: str) -> List[OSINTResult]:
     """
@@ -319,6 +331,7 @@ tests/analyze/plugins/builtin/test_osint_integration_scanner.py
 ### Mock API Responses
 
 **Shodan Success Response**:
+
 ```json
 {
   "ip_str": "192.168.1.100",
@@ -336,6 +349,7 @@ tests/analyze/plugins/builtin/test_osint_integration_scanner.py
 ```
 
 **Censys Success Response**:
+
 ```json
 {
   "result": {
@@ -366,6 +380,7 @@ tests/analyze/plugins/builtin/test_osint_integration_scanner.py
 ## Success Criteria
 
 ### Functionality
+
 - [ ] Generates search URLs for 5+ OSINT platforms
 - [ ] Implements 13+ Google dork patterns
 - [ ] Shodan API integration functional (when key available)
@@ -375,18 +390,21 @@ tests/analyze/plugins/builtin/test_osint_integration_scanner.py
 - [ ] Graceful degradation without API keys
 
 ### Testing
+
 - [ ] 30+ unit tests passing
 - [ ] All API responses mocked
 - [ ] No actual API calls in tests
 - [ ] Edge cases covered (rate limits, timeouts, invalid keys)
 
 ### Integration
+
 - [ ] Registered in BUILTIN_PLUGINS
 - [ ] Returns INFO severity VulnerabilityResults
 - [ ] Metadata includes all OSINT data
 - [ ] No performance impact on analysis pipeline
 
 ### Documentation
+
 - [ ] API key setup instructions
 - [ ] Platform descriptions documented
 - [ ] Privacy considerations documented
@@ -395,6 +413,7 @@ tests/analyze/plugins/builtin/test_osint_integration_scanner.py
 ## API Key Management
 
 ### Environment Variables
+
 ```bash
 export SHODAN_API_KEY="your_shodan_key_here"
 export CENSYS_API_ID="your_censys_id_here"
@@ -403,6 +422,7 @@ export ZOOMEYE_API_KEY="your_zoomeye_key_here"
 ```
 
 ### Configuration File (Alternative)
+
 ```python
 # ~/.gridland/osint_config.json
 {
@@ -440,6 +460,7 @@ class RateLimiter:
 ## Common Pitfalls to Avoid
 
 ❌ **DO NOT**:
+
 - Make API calls without rate limiting
 - Store API keys in code
 - Skip error handling for network failures
@@ -448,6 +469,7 @@ class RateLimiter:
 - Expose raw API keys in logs
 
 ✅ **DO**:
+
 - Implement exponential backoff
 - Load API keys from environment
 - Handle all HTTP status codes
@@ -458,6 +480,7 @@ class RateLimiter:
 ## Security Considerations
 
 ### API Key Protection
+
 ```python
 def mask_api_key(key: str) -> str:
     """Mask API key for logging."""
@@ -470,12 +493,14 @@ logger.info(f"Using Shodan API key: {mask_api_key(api_key)}")
 ```
 
 ### Query Logging
+
 ```python
 # Log all OSINT queries for audit trail
 logger.info(f"OSINT query: {platform} for {target_ip} at {timestamp}")
 ```
 
 ### Terms of Service Compliance
+
 - Respect API rate limits (critical!)
 - Use official APIs, not scraping
 - Include User-Agent header
@@ -483,6 +508,7 @@ logger.info(f"OSINT query: {platform} for {target_ip} at {timestamp}")
 - Document intended use case
 
 ## Ready for Deployment
+
 - Agent can work independently
 - All APIs documented
 - Security considerations addressed

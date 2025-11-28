@@ -16,6 +16,7 @@ GRIDLAND is a modular, CLI-first security toolkit designed for authorized reconn
 ## 🚀 Features
 
 ### Discovery Module (`gl-discover`)
+
 - **Masscan Integration**: High-speed port scanning across large IP ranges
 - **ShodanSpider v2**: Leverage Shodan data without API limitations
 - **Censys Integration**: Professional search engine integration
@@ -23,6 +24,7 @@ GRIDLAND is a modular, CLI-first security toolkit designed for authorized reconn
 - **Multiple Input Formats**: CIDR, ranges, files, single IPs
 
 ### Analysis Module (`gl-analyze`)
+
 - **Camera Brand Detection**: Identify Hikvision, Dahua, Axis, and 20+ brands
 - **Vulnerability Assessment**: CVE database integration
 - **Authentication Testing**: Smart credential testing with rate limiting
@@ -30,6 +32,7 @@ GRIDLAND is a modular, CLI-first security toolkit designed for authorized reconn
 - **Stream Discovery**: Automatic RTSP/HTTP stream detection
 
 ### Streaming Module (`gl-stream`)
+
 - **Multi-Protocol Support**: RTSP, HTTP, RTMP stream handling
 - **Player Integration**: VLC, FFplay, MPV support
 - **Stream Recording**: Save streams to file
@@ -38,6 +41,7 @@ GRIDLAND is a modular, CLI-first security toolkit designed for authorized reconn
 ## 📦 Installation
 
 ### Quick Install
+
 ```bash
 git clone https://github.com/gridland/gridland.git
 cd gridland
@@ -45,6 +49,7 @@ pip install -e .
 ```
 
 ### Development Install
+
 ```bash
 git clone https://github.com/gridland/gridland.git
 cd gridland
@@ -52,6 +57,7 @@ pip install -e .[dev]
 ```
 
 ### Dependencies
+
 - **Python 3.8+**
 - **Optional**: masscan (for high-speed discovery)
 - **Optional**: VLC/FFplay (for stream viewing)
@@ -59,6 +65,7 @@ pip install -e .[dev]
 ## 🎯 Quick Start
 
 ### Discover Targets
+
 ```bash
 # Scan local network for cameras
 gl-discover --range 192.168.1.0/24 --engine masscan
@@ -71,6 +78,7 @@ gl-discover --range 10.0.0.0/16 --ports 80,443,554,8080
 ```
 
 ### Analyze Targets
+
 ```bash
 # Full analysis of single target
 gl-analyze 192.168.1.100
@@ -83,6 +91,7 @@ gl-analyze --batch targets.txt --output results.json
 ```
 
 ### View Streams
+
 ```bash
 # Play discovered stream
 gl-stream rtsp://192.168.1.100:554/live
@@ -97,6 +106,7 @@ gl-stream rtsp://192.168.1.100:554/live --player vlc
 ## ⚙️ Configuration
 
 ### Environment Variables
+
 ```bash
 export GL_SCAN_TIMEOUT=10          # Scan timeout in seconds
 export GL_MAX_THREADS=100          # Maximum concurrent threads
@@ -108,6 +118,7 @@ export GL_CENSYS_API_SECRET=xxx
 ```
 
 ### Configuration File
+
 ```bash
 # Create config directory
 mkdir ~/.gridland
@@ -119,6 +130,7 @@ gl-config --edit
 ## 🔧 Advanced Usage
 
 ### Pipeline Integration
+
 ```bash
 # Discovery -> Analysis -> Streaming pipeline
 gl-discover --range 192.168.1.0/24 --output targets.json | \
@@ -128,6 +140,7 @@ xargs -I {} gl-stream {}
 ```
 
 ### Custom Port Lists
+
 ```bash
 # Common camera ports
 gl-discover --range 192.168.1.0/24 --ports 80,443,554,8080,8081,8000,8888,81,8443
@@ -137,6 +150,7 @@ gl-discover --range 192.168.1.0/24 --ports 1-1000,8000-9000
 ```
 
 ### Output Formats
+
 ```bash
 # JSON output for automation
 gl-analyze 192.168.1.100 --output-format json > results.json
@@ -183,6 +197,7 @@ pytest tests/test_discovery.py
 5. Open a Pull Request
 
 ### Development Guidelines
+
 - Follow PEP 8 style guidelines
 - Add tests for new functionality
 - Update documentation as needed
@@ -190,14 +205,15 @@ pytest tests/test_discovery.py
 
 ## 📖 Documentation
 
-- **Full Documentation**: https://gridland.readthedocs.io/
-- **API Reference**: https://gridland.readthedocs.io/api/
-- **Examples**: https://github.com/gridland/gridland-examples
+- **Full Documentation**: <https://gridland.readthedocs.io/>
+- **API Reference**: <https://gridland.readthedocs.io/api/>
+- **Examples**: <https://github.com/gridland/gridland-examples>
 
 ## 🔒 Security
 
 Found a security vulnerability? Please report it responsibly:
-- Email: security@gridland.dev
+
+- Email: <security@gridland.dev>
 - Use GitHub's private vulnerability reporting
 - Allow 90 days for coordinated disclosure
 

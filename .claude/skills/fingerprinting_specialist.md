@@ -1,17 +1,20 @@
 # Fingerprinting Specialist Skill
 
 ## Skill Purpose
+
 Expert in implementing device fingerprinting systems for IP cameras. Specializes in parsing vendor-specific API responses, extracting device metadata, and aggregating fingerprint data with confidence scoring.
 
 ## Core Competencies
 
 ### 1. XML/JSON Response Parsing
+
 - Parse Hikvision ISAPI XML responses (deviceInfo, configurationFile, capabilities)
 - Parse Dahua key=value format responses (magicBox.cgi)
 - Parse Axis VAPIX param.cgi responses
 - Extract nested data from complex structures
 
 ### 2. HTTP Client Implementation
+
 - Async HTTP requests with aiohttp
 - Authentication header construction (Basic, Digest)
 - SSL certificate verification handling
@@ -19,12 +22,14 @@ Expert in implementing device fingerprinting systems for IP cameras. Specializes
 - Connection pooling
 
 ### 3. Regex Pattern Extraction
+
 - Model number extraction from various formats
 - Firmware version parsing (x.y.z, vX.Y.Z, etc.)
 - Serial number identification
 - MAC address extraction
 
 ### 4. Confidence Scoring Algorithms
+
 - Data completeness scoring (0.0-1.0)
 - Multi-source aggregation
 - Weighted confidence from different endpoints
@@ -33,6 +38,7 @@ Expert in implementing device fingerprinting systems for IP cameras. Specializes
 ## Implementation Guidelines
 
 ### File Structure
+
 ```
 gridland/analyze/core/fingerprinting.py
 ├── DeviceFingerprint (dataclass)
@@ -48,6 +54,7 @@ gridland/analyze/core/fingerprinting.py
 ```
 
 ### Code Quality Requirements
+
 - ✅ Type hints on ALL functions
 - ✅ Docstrings with Args/Returns/Raises
 - ✅ Error handling for every HTTP call
@@ -56,6 +63,7 @@ gridland/analyze/core/fingerprinting.py
 - ✅ No placeholders or TODO comments
 
 ### Testing Requirements
+
 ```
 tests/analyze/core/test_fingerprinting.py
 ├── TestDeviceFingerprint (10+ tests)
@@ -69,9 +77,11 @@ tests/analyze/core/test_fingerprinting.py
 ```
 
 ### Mock HTTP Responses
+
 Every test MUST use realistic mock responses. Examples:
 
 **Hikvision ISAPI deviceInfo**:
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <DeviceInfo>
@@ -86,6 +96,7 @@ Every test MUST use realistic mock responses. Examples:
 ```
 
 **Dahua magicBox.cgi**:
+
 ```
 DeviceType=IPC-HDBW1XXX
 HardwareVersion=1.00
@@ -104,24 +115,28 @@ ProcessorType=ARM
 ## Success Criteria
 
 ### Functionality
+
 - [ ] Extracts DeviceFingerprint for 6 major brands
 - [ ] Confidence scores accurate (0.0-1.0 range)
 - [ ] Handles missing endpoints gracefully
 - [ ] Aggregates multiple sources correctly
 
 ### Testing
+
 - [ ] 50+ unit tests passing
 - [ ] 100% code coverage on new module
 - [ ] All HTTP calls mocked
 - [ ] Edge cases covered (empty responses, timeouts, invalid XML)
 
 ### Integration
+
 - [ ] Imports cleanly in plugin manager
 - [ ] No circular dependencies
 - [ ] Memory pool integration working
 - [ ] Logging integrated with core logger
 
 ### Documentation
+
 - [ ] Every class has comprehensive docstring
 - [ ] Every method documents parameters and returns
 - [ ] README.md example usage provided
@@ -130,6 +145,7 @@ ProcessorType=ARM
 ## Common Pitfalls to Avoid
 
 ❌ **DO NOT**:
+
 - Use synchronous HTTP requests (use aiohttp)
 - Hardcode URLs without protocol detection
 - Ignore SSL verification errors (handle gracefully)
@@ -139,6 +155,7 @@ ProcessorType=ARM
 - Leave TODO comments in code
 
 ✅ **DO**:
+
 - Use async/await throughout
 - Detect HTTP/HTTPS from port (443/8443 = HTTPS)
 - Handle SSLError, Timeout, ConnectionError separately
@@ -191,6 +208,7 @@ class HikvisionFingerprinter(BaseFingerprinter):
 ```
 
 ## Ready for Deployment
+
 - Agent can work independently
 - All requirements specified
 - Success is measurable

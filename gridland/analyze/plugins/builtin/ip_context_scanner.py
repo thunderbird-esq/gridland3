@@ -6,11 +6,12 @@ target IP address, such as geolocation and ISP, using the ipinfo.io API.
 """
 
 import asyncio
-import aiohttp
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
-from gridland.analyze.plugins.manager import VulnerabilityPlugin, PluginMetadata
+import aiohttp
+
 from gridland.analyze.memory import get_memory_pool
+from gridland.analyze.plugins.manager import PluginMetadata, VulnerabilityPlugin
 from gridland.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -18,12 +19,12 @@ logger = get_logger(__name__)
 
 class IPContextScanner(VulnerabilityPlugin):
     """Enriches results with IP geolocation and ISP data."""
-    
+
     def __init__(self):
         super().__init__()
         self.memory_pool = get_memory_pool()
         self.session = None
-    
+
     def get_metadata(self) -> PluginMetadata:
         """Return plugin metadata."""
         return PluginMetadata(
@@ -31,11 +32,11 @@ class IPContextScanner(VulnerabilityPlugin):
             version="1.0.0",
             author="GRIDLAND Security Team",
             plugin_type="enrichment",  # Custom type for enrichment plugins
-            supported_ports=list(range(1, 65536)), # Applicable to all ports
-            supported_services=[], # Service agnostic
-            description="Adds IP geolocation and ISP context to analysis results."
+            supported_ports=list(range(1, 65536)),  # Applicable to all ports
+            supported_services=[],  # Service agnostic
+            description="Adds IP geolocation and ISP context to analysis results.",
         )
-    
+
     async def _init_session(self):
         """Initialize HTTP session if not already done."""
         if not self.session:
@@ -44,26 +45,27 @@ class IPContextScanner(VulnerabilityPlugin):
             self.session = aiohttp.ClientSession(
                 timeout=timeout,
                 connector=connector,
-                headers={'User-Agent': 'GRIDLAND Security Scanner v3.0'}
+                headers={"User-Agent": "GRIDLAND Security Scanner v3.0"},
             )
-    
+
     async def _cleanup_session(self):
         """Clean up HTTP session."""
         if self.session:
             await self.session.close()
             self.session = None
-    
-    async def scan_vulnerabilities(self, target_ip: str, target_port: int, 
-                                 service: str, banner: str) -> List[Any]:
+
+    async def scan_vulnerabilities(
+        self, target_ip: str, target_port: int, service: str, banner: str
+    ) -> list[Any]:
         """
         Fetches context for the target IP and returns it as an INFO vulnerability.
-        
+
         Args:
             target_ip: Target IP address
             target_port: Target port (unused, as context is per-IP)
             service: Service type (unused)
             banner: Service banner (unused)
-            
+
         Returns:
             List containing a single VulnerabilityResult with context, or empty list.
         """
@@ -75,17 +77,17 @@ class IPContextScanner(VulnerabilityPlugin):
 
         await self._init_session()
         results = []
-        
+
         try:
             api_url = f"https://ipinfo.io/{target_ip}/json"
             async with self.session.get(api_url) as response:
                 if response.status == 200:
                     data = await response.json()
                     description = self._format_context(data)
-                    
+
                     vuln = self.memory_pool.acquire_vulnerability_result()
                     vuln.ip = target_ip
-                    vuln.port = 0 # Port is not relevant for this info
+                    vuln.port = 0  # Port is not relevant for this info
                     vuln.service = "global"
                     vuln.vulnerability_id = "IP-CONTEXT"
                     vuln.severity = "INFO"
@@ -93,30 +95,30 @@ class IPContextScanner(VulnerabilityPlugin):
                     vuln.description = description
                     vuln.exploit_available = False
                     results.append(vuln)
-                    
+
                     # Mark this IP as fetched
                     setattr(self, f'_context_fetched_{target_ip.replace(".", "_")}', True)
 
         except Exception as e:
             logger.warning(f"Could not fetch IP context for {target_ip}: {e}")
-        
+
         finally:
             await self._cleanup_session()
-        
+
         return results
 
-    def _format_context(self, data: Dict[str, Any]) -> str:
+    def _format_context(self, data: dict[str, Any]) -> str:
         """Format the ipinfo.io data into a readable string."""
         parts = []
-        if 'org' in data:
+        if "org" in data:
             parts.append(f"ISP: {data['org']}")
-        if 'city' in data and 'region' in data and 'country' in data:
+        if "city" in data and "region" in data and "country" in data:
             parts.append(f"Location: {data['city']}, {data['region']}, {data['country']}")
-        if 'loc' in data:
+        if "loc" in data:
             parts.append(f"Coords: {data['loc']}")
-            lat, lon = data['loc'].split(',')
+            lat, lon = data["loc"].split(",")
             parts.append(f"Map: https://www.google.com/maps?q={lat},{lon}")
-        
+
         return " | ".join(parts)
 
 
