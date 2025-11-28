@@ -1,0 +1,52 @@
+[flake8]
+# Maximum line length
+max-line-length = 100
+
+# Ignore specific errors
+extend-ignore =
+    # E203: whitespace before ':' (conflicts with black)
+    E203,
+    # W503: line break before binary operator (conflicts with black)
+    W503,
+    # E501: line too long (handled by black)
+    E501,
+    # F401: module imported but unused (too strict for __init__.py)
+    # Commented out - we want to catch these
+
+# Exclude directories
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    build,
+    dist,
+    *.egg-info,
+    .tox,
+    .pytest_cache,
+    .mypy_cache,
+    static,
+    gridland-ui
+
+# Maximum complexity
+max-complexity = 15
+
+# Enable specific plugins
+# flake8-docstrings (D)
+# flake8-bugbear (B)
+# flake8-comprehensions (C4)
+select = B,C,D,E,F,W,T4,B9
+
+# Per-file ignores
+per-file-ignores =
+    # __init__.py files can have unused imports
+    __init__.py:F401,D104
+    # Test files don't need docstrings
+    tests/*:D100,D101,D102,D103,D104
+
+# Docstring conventions
+docstring-convention = google
+
+# Statistics
+statistics = True
+count = True

@@ -1,0 +1,58 @@
+# Development dependencies for GRIDLAND v3.0
+# Install: pip install -r requirements-dev.txt
+
+# Code formatting
+black==24.1.1
+isort==5.13.2
+
+# Linting
+flake8==7.0.0
+flake8-docstrings==1.7.0
+flake8-bugbear==24.1.17
+flake8-comprehensions==3.14.0
+pylint==3.0.3
+
+# Type checking
+mypy==1.8.0
+types-requests==2.31.0.20240125
+types-aiohttp==3.1.0.20240106
+
+# Security scanning
+bandit[toml]==1.7.6
+safety==3.0.1
+detect-secrets==1.4.0
+
+# Testing
+pytest==8.0.0
+pytest-cov==4.1.0
+pytest-asyncio==0.23.4
+pytest-mock==3.12.0
+pytest-timeout==2.2.0
+pytest-xdist==3.5.0
+coverage[toml]==7.4.1
+
+# Code quality
+pre-commit==3.6.0
+autopep8==2.0.4
+pyupgrade==3.15.0
+
+# Documentation
+pydocstyle==6.3.0
+interrogate==1.5.0
+
+# Build tools
+build==1.0.3
+twine==5.0.0
+setuptools>=45
+wheel>=0.40
+
+# Debugging
+ipython==8.21.0
+ipdb==0.13.13
+
+# License checking
+pip-licenses==4.3.4
+
+# Performance profiling
+py-spy==0.3.14
+memory-profiler==0.61.0

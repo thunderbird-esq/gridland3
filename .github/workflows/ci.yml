@@ -1,0 +1,208 @@
+---
+name: CI/CD Pipeline
+
+'on':
+  push:
+    branches: [main, develop, 'claude/**']
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  # Code quality and linting
+  lint:
+    name: Lint and Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install black isort flake8 pylint mypy bandit
+          pip install -r requirements.txt
+
+      - name: Run Black (formatting check)
+        run: black --check --line-length=100 gridland/ tests/
+        continue-on-error: false
+
+      - name: Run isort (import sorting check)
+        run: isort --check-only --profile black gridland/ tests/
+        continue-on-error: false
+
+      - name: Run Flake8
+        run: flake8 gridland/ tests/ --max-line-length=100 --extend-ignore=E203,W503 --statistics
+        continue-on-error: true
+
+      - name: Run Pylint
+        run: pylint gridland/ --max-line-length=100 --disable=C,R,W --fail-under=7.0
+        continue-on-error: true
+
+      - name: Run MyPy
+        run: mypy gridland/ --ignore-missing-imports
+        continue-on-error: true
+
+      - name: Run Bandit (security check)
+        run: bandit -r gridland/ -f json -o bandit-report.json
+        continue-on-error: true
+
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-security-report
+          path: bandit-report.json
+
+  # Unit and integration tests
+  test:
+    name: Test Suite
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ['3.9', '3.10', '3.11']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y masscan
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov pytest-asyncio pytest-mock pytest-timeout
+          pip install -r requirements.txt
+
+      - name: Run pytest with coverage
+        run: |
+          pytest tests/ -v \
+            --cov=gridland \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-report=term-missing \
+            --cov-fail-under=70 \
+            --timeout=300 \
+            --tb=short
+        continue-on-error: false
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        if: matrix.python-version == '3.9'
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+      - name: Upload coverage HTML report
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.python-version == '3.9'
+        with:
+          name: coverage-report-html
+          path: htmlcov/
+
+  # Integration tests (requires specific setup)
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio
+          pip install -r requirements.txt
+
+      - name: Run integration tests
+        run: |
+          pytest tests/ -v -m integration --tb=short || true
+        continue-on-error: true
+
+  # Validate package installation
+  package:
+    name: Package Installation Test
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Test package installation
+        run: |
+          cd gridland
+          pip install -e .
+          python -c "from gridland.core.config import get_config; print('Import OK')"
+          python -c "from gridland.analyze.memory import get_memory_pool; print('Memory pool OK')"
+          which gl-discover || echo "gl-discover not found"
+          which gl-analyze || echo "gl-analyze not found"
+
+  # Documentation check
+  docs:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for missing docstrings
+        run: |
+          find gridland -name "*.py" -type f | while read file; do
+            if ! grep -q '"""' "$file" && ! grep -q "'''" "$file"; then
+              echo "⚠️  Missing docstring: $file"
+            fi
+          done
+
+      - name: Check README files exist
+        run: |
+          test -f README.md || echo "❌ Missing README.md"
+          test -f CONTRIBUTING.md || echo "⚠️  Missing CONTRIBUTING.md"
+          test -f gridland/README.md || echo "⚠️  Missing gridland/README.md"
+
+  # Overall status check
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [lint, test, package]
+    if: always()
+    steps:
+      - name: Check CI results
+        run: |
+          echo "Lint: ${{ needs.lint.result }}"
+          echo "Test: ${{ needs.test.result }}"
+          echo "Package: ${{ needs.package.result }}"
+
+          if [[ "${{ needs.lint.result }}" == "failure" ]] || \
+             [[ "${{ needs.test.result }}" == "failure" ]] || \
+             [[ "${{ needs.package.result }}" == "failure" ]]; then
+            echo "❌ CI Pipeline Failed"
+            exit 1
+          else
+            echo "✅ CI Pipeline Passed"
+          fi
