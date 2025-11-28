@@ -104,6 +104,65 @@ ENV/
 env.bak/
 venv.bak/
 
+# ============================================================================
+# GRIDLAND v3.0 Specific
+# ============================================================================
+
+# API Keys and Secrets (CRITICAL - NEVER COMMIT)
+.secrets.baseline
+*.key
+*_key.txt
+credentials.json
+secrets.json
+**/credentials.*
+**/secrets.*
+**/*_key
+**/*_secret
+**/*_token
+**/*.pem
+**/*.p12
+**/*.pfx
+
+# Configuration files with sensitive data
+config_local.py
+.gridland/osint_config.json
+
+# Test and validation output
+test_*.json
+analysis_test.json
+discovery_test.json
+*.test.json
+gridland_validation_*.log
+gridland_validation_report_*.json
+
+# Security scan reports
+bandit-report.json
+safety-report.json
+semgrep-report.json
+secrets-report.json
+licenses.json
+licenses.md
+
+# Scan result files
+masscan_*.json
+shodanspider_*.json
+discovery.json
+analysis.json
+
+# Database files
+*.db
+*.sqlite
+
+# Temporary files
+/tmp/
+*.tmp
+*.temp
+
+# Agent status files
+/tmp/agent*_status.txt
+/tmp/coverage_summary.txt
+/tmp/test_results.txt
+
 # Spyder project settings
 .spyderproject
 .spyproject
