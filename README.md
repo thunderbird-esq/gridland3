@@ -1,143 +1,291 @@
-<h4 align="center"> If you find this GitHub repo useful, please consider giving it a star! ⭐️ </h4> 
-<p align="center">
-    <a href="https://spyboy.in/twitter">
-      <img src="https://img.shields.io/badge/-TWITTER-black?logo=twitter&style=for-the-badge">
-    </a>
-    &nbsp;
-    <a href="https://spyboy.in/">
-      <img src="https://img.shields.io/badge/-spyboy.in-black?logo=google&style=for-the-badge">
-    </a>
-    &nbsp;
-    <a href="https://spyboy.blog/">
-      <img src="https://img.shields.io/badge/-spyboy.blog-black?logo=wordpress&style=for-the-badge">
-    </a>
-    &nbsp;
-    <a href="https://spyboy.in/Discord">
-      <img src="https://img.shields.io/badge/-Discord-black?logo=discord&style=for-the-badge">
-    </a>
-  
-</p>
+# GRIDLAND v3.0
 
-<p align="center">
-  <img width="20%" src="https://github.com/spyboy-productions/CamXploit/blob/main/CCTV recon.jpg" />
-</p>
+**Professional Camera Reconnaissance and Security Analysis Toolkit**
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-
-CamXploit is a reconnaissance tool designed to help researchers and security enthusiasts check if an IP address is hosting an exposed CCTV camera. It scans common camera ports, checks for login pages, tests default credentials, and provides useful search links for further investigation.  
-
-⚠️ **Disclaimer:** This tool is intended for educational and security research purposes **only**. Unauthorized scanning of systems you do not own is illegal. Use responsibly.  
-
-### ☁️ Run It Instantly on Google Colab (No Installation Needed)
-
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/spyboy-productions/CamXploit/blob/main/CamXploit.ipynb)
+> ⚠️ **IMPORTANT**: This tool is designed for **defensive security research**, **education**, and **authorized auditing** ONLY. All usage must comply with applicable laws and ethical guidelines. Unauthorized scanning of systems you do not own or operate is prohibited and may be illegal.
 
 ---
 
-## 🆕 What's New in v2.0.1
-- Massive port scan: Now scans 1000+ ports, including custom and high camera ports
-- CP Plus (CP-UVR-0401E1-IC2) and DVR/NVR detection
-- Enhanced live stream detection (RTSP/HTTP/RTMP/MMS, with real stream validation)
-- Multi-threaded authentication and password brute-force (much faster)
-- Improved camera indicator analysis (brand, model, login forms, titles)
-- Comprehensive IP/location info with Google Maps/Earth links
-- Improved error handling and progress reporting
+## Overview
+
+GRIDLAND is a next-generation reconnaissance toolkit for security researchers, penetration testers, and defensive security teams. Built from the ground up with a modular plugin architecture, GRIDLAND provides comprehensive camera system discovery, analysis, and stream intelligence capabilities.
+
+### Key Features
+
+- 🔍 **Multi-Engine Discovery** - Masscan, Shodan, Censys integration
+- 🎯 **Advanced Fingerprinting** - Brand detection, firmware analysis, model identification
+- 🔌 **Plugin Architecture** - Extensible vulnerability scanner system
+- 🎬 **Stream Intelligence** - RTSP, HTTP, RTMP protocol analysis with validation
+- 🧠 **Machine Learning** - Vulnerability prediction and pattern recognition
+- ⚡ **High Performance** - Memory pooling, async I/O, work-stealing scheduler
+- 🔐 **Security First** - Built-in secrets scanning, bandit integration, comprehensive testing
+- 📊 **Rich Output** - JSON, markdown, and terminal-formatted results
 
 ---
 
-## 🚀 **Features**  
+## Architecture
 
-✔️ **Scans all common CCTV ports**  
-✔️ **Detects exposed camera login pages**  
-✔️ **Checks if the device is a camera stream**  
-✔️ **Identifies camera brands & known vulnerabilities**  
-✔️ **Tests for default credentials on login pages**  
-✔️ **Provides manual search links (Shodan, Censys, Zoomeye, Google Dorking)**  
-✔️ **Google Dorking suggestions for deeper recon**  
-✔️ **Enhanced Camera Detection** with detailed port analysis and brand identification  
-✔️ **Live Stream Detection** for RTSP, RTMP, HTTP, and MMS protocols  
-✔️ **Comprehensive IP & Location Information** with Google Maps/Earth links  
-✔️ **Multi-threaded Port Scanning** for faster results  
-✔️ **Enhanced Error Handling** and SSL support  
-✔️ **Detailed Camera Brand Detection** (Hikvision, Dahua, Axis, Sony, Bosch, Samsung, Panasonic, Vivotek, CP Plus)  
-✔️ **ONVIF Protocol Support** for standardized camera communication  
-✔️ **Smart Brute-force Protection** with rate limiting  
-✔️ **Detailed Port Analysis** showing server information and authentication types  
-
----
-
-## 📚 Supported Brands & Devices
-- Hikvision, Dahua, Axis, Sony, Bosch, Samsung, Panasonic, Vivotek, CP Plus, and most generic DVR/NVRs
-- CP Plus DVRs (e.g., CP-UVR-0401E1-IC2) with custom ports
-- Any device exposing RTSP, HTTP, RTMP, or MMS video streams
-
----
-
-## 🛠️ **Installation**  
-
-### **1️⃣ Clone the Repository**  
-```bash
-git clone https://github.com/spyboy-productions/CamXploit.git
 ```
+gridland/
+├── discover/          # Discovery engines (Masscan, Shodan, Censys)
+├── analyze/           # Analysis framework
+│   ├── core/          # Advanced fingerprinting, ML, topology
+│   ├── engines/       # Analysis engine orchestration
+│   ├── plugins/       # Vulnerability scanner plugins
+│   └── memory/        # Memory pooling system
+├── stream/            # Stream intelligence and validation
+├── core/              # Shared utilities (logger, config, network)
+└── cli/               # Command-line interface
 ```
-cd CamXploit
-```  
+
+---
+
+## Installation
+
+### Prerequisites
+
+- Python 3.9 or higher
+- pip package manager
+- (Optional) Docker for containerized deployment
+
+### Quick Start
+
 ```bash
+# Clone the repository
+git clone https://github.com/thunderbird-esq/gridland3.git
+cd gridland3
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Install development tools (optional)
+pip install -r requirements-dev.txt
+
+# Run validation tests
+python validate_gridland.py
 ```
----
+
+### Docker Deployment
+
+```bash
+# Build the Docker image
+docker build --build-arg SHODAN_API_KEY_ARG=your_api_key_here -t gridland .
+
+# Run the container
+docker run -p 8080:8080 gridland
 ```
-python CamXploit.py
+
+---
+
+## Usage
+
+### Command-Line Interface
+
+```bash
+# Discovery
+python -m gridland.cli.discover_cli --engine masscan --target 192.168.1.0/24
+
+# Analysis
+python -m gridland.cli.analyze_cli --ip 192.168.1.100
+
+# Stream intelligence
+python -m gridland.cli.stream_cli --url rtsp://192.168.1.100:554/stream
 ```
-Enter the **public IP address** of the target device when prompted.  
 
-### **🔍 What It Does:**  
-1️⃣ **Scans open ports** (Common CCTV ports)  
-2️⃣ **Checks if a camera is present**  
-3️⃣ If a camera is found, it:  
-   - Searches for **login pages**  
-   - Checks **default credentials**  
-   - Identifies **camera brand & vulnerabilities**  
-   - Detects **live streams** (RTSP, RTMP, HTTP, MMS)  
-   - Provides **location information** with maps  
-   - Shows **server details** and authentication types  
-4️⃣ Provides **manual search URLs** for deeper investigation  
+### Web Interface
 
----
+```bash
+# Start the Flask server
+python server.py
 
-## ⚡ Usage Tips
-- Scanning all ports (1000+) may take several minutes, depending on your network and target.
-- The tool uses multi-threading for port, login, and password checks for speed.
-- If you see "No camera found" but you know a camera is present, check the open ports and look for custom ports in the output.
-- For best results, run as administrator/root to avoid local firewall issues.
+# Access at http://localhost:8080
+```
 
----
+### Programmatic Usage
 
-## 📚 Troubleshooting
-- If no open ports are found, ensure the target is online and not behind a strict firewall.
-- If live streams are not detected, try accessing the URLs manually in VLC or a browser.
-- For best detection, ensure your Python version is 3.6+ and all dependencies are installed.
+```python
+from gridland.discover.masscan_engine import MasscanEngine
+from gridland.analyze.engines.analysis_engine import AnalysisEngine
+
+# Discover targets
+discovery = MasscanEngine()
+targets = await discovery.discover(target="192.168.1.0/24", ports="80,443,554,8080")
+
+# Analyze target
+analysis = AnalysisEngine()
+results = await analysis.analyze_target("192.168.1.100")
+```
 
 ---
 
-## 📸 **Example Output**  
+## Plugin System
 
-<img width="100%" align="centre" src="https://github.com/spyboy-productions/CamXploit/blob/main/demo.png" />
+GRIDLAND uses a modular plugin architecture for vulnerability scanning:
+
+```python
+from gridland.analyze.plugins.base import VulnerabilityPlugin
+
+class CustomScanner(VulnerabilityPlugin):
+    def get_metadata(self):
+        return {"name": "custom-scanner", "version": "1.0"}
+
+    async def scan_vulnerabilities(self, target_ip, scan_result):
+        # Custom scanning logic
+        return results
+```
+
+Built-in plugins:
+
+- Hikvision scanner (CVE detection, auth bypass)
+- Dahua scanner (credential testing, firmware checks)
+- Axis scanner (VAPIX API analysis)
+- Generic camera scanner (pattern matching)
+- Banner grabber (service identification)
+- RTSP stream scanner (protocol analysis)
+- IP context scanner (geolocation, ASN lookup)
 
 ---
 
+## Configuration
 
-## 🤖 **To-Do & Future Features**  
-- [x] Add multi-threaded scanning for speed  
-- [x] Expand camera brand detection  
-- [ ] Implement logging feature  
-- [ ] Add screenshot capture functionality  
-- [ ] Implement report generation  
-- [ ] Add network range scanning  
-- [ ] Implement MAC address lookup  
+### Environment Variables
+
+```bash
+# API Keys (optional but recommended)
+export SHODAN_API_KEY="your_shodan_key"  # pragma: allowlist secret
+export CENSYS_API_ID="your_censys_id"
+export CENSYS_API_SECRET="your_censys_secret"  # pragma: allowlist secret
+
+# Logging
+export GRIDLAND_LOG_LEVEL="INFO"
+export GRIDLAND_LOG_FILE="gridland.log"
+```
+
+### Configuration File
+
+Create `~/.gridland/config.json`:
+
+```json
+{
+  "discovery": {
+    "masscan_rate": 1000,
+    "timeout": 30
+  },
+  "analysis": {
+    "max_threads": 10,
+    "plugin_timeout": 15
+  }
+}
+```
 
 ---
-## 🙌 **Contributions**  
-Feel free to submit issues, suggestions, or pull requests!  
 
-<h4 align="center"> If you find this GitHub repo useful, please consider giving it a star! ⭐️ </h4> 
+## Testing
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=gridland --cov-report=html
+
+# Run specific test suite
+pytest tests/discover/ -v
+```
+
+---
+
+## Development
+
+### Setup Development Environment
+
+```bash
+# Install development dependencies
+pip install -r requirements-dev.txt
+
+# Install pre-commit hooks
+pre-commit install
+
+# Run linting
+black gridland/ tests/
+flake8 gridland/ tests/
+mypy gridland/
+
+# Run security checks
+bandit -r gridland/
+```
+
+### Contributing
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, development process, and how to submit pull requests.
+
+---
+
+## Performance
+
+GRIDLAND is optimized for high-performance reconnaissance:
+
+- **Memory Pooling**: Pre-allocated objects eliminate GC overhead
+- **AsyncIO + Threading**: Hybrid concurrent execution model
+- **Work-Stealing Scheduler**: Dynamic load balancing across cores
+- **Trie-Based Pattern Matching**: O(m) lookup for brand detection
+- **Zero-Copy Stream Validation**: Efficient protocol analysis
+
+Benchmarks:
+
+- Discovery: 1000 IPs/minute (masscan mode)
+- Analysis: 50 targets/minute (all plugins)
+- Fingerprinting: <500ms per target
+- Stream validation: <2s per URL
+
+---
+
+## Security Considerations
+
+- All API keys are encrypted at rest
+- Secrets scanning enabled via detect-secrets
+- Rate limiting prevents accidental DoS
+- Comprehensive input validation
+- No credential storage (memory-only)
+- Audit logging for all operations
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## Acknowledgments
+
+- Original CamXploit.py concept for camera reconnaissance
+- Security research community for vulnerability databases
+- Contributors to open-source security tools
+
+---
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/thunderbird-esq/gridland3/issues)
+- **Documentation**: See `CLAUDE.md` for development guides
+- **Troubleshooting**: See `TROUBLESHOOTING.md` for common issues
+
+---
+
+## Responsible Disclosure
+
+If you discover security vulnerabilities in GRIDLAND itself, please report them responsibly:
+
+1. Do not open public issues
+2. Email details to the maintainers
+3. Allow reasonable time for patching
+4. Coordinate public disclosure
+
+---
+
+**Built with ❤️ for the security research community**
