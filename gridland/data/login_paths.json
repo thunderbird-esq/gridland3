@@ -1,0 +1,102 @@
+{
+  "version": "1.0",
+  "last_updated": "2025-12-04",
+  "source": "CamXploit.py intelligence extraction with brand categorization",
+  "description": "Comprehensive login and authentication paths for camera reconnaissance",
+  "total_paths": 72,
+  "categories": {
+    "generic": [
+      {"path": "/", "auth_type": "basic", "description": "Root path"},
+      {"path": "/admin", "auth_type": "basic", "description": "Admin panel"},
+      {"path": "/login", "auth_type": "form", "description": "Login page"},
+      {"path": "/viewer", "auth_type": "basic", "description": "Viewer interface"},
+      {"path": "/webadmin", "auth_type": "basic", "description": "Web admin panel"},
+      {"path": "/video", "auth_type": "basic", "description": "Video interface"},
+      {"path": "/stream", "auth_type": "basic", "description": "Stream interface"},
+      {"path": "/live", "auth_type": "basic", "description": "Live view"},
+      {"path": "/snapshot", "auth_type": "basic", "description": "Snapshot interface"},
+      {"path": "/onvif-http/snapshot", "auth_type": "digest", "description": "ONVIF snapshot"},
+      {"path": "/system.ini", "auth_type": "basic", "description": "System config file"},
+      {"path": "/config", "auth_type": "basic", "description": "Configuration page"},
+      {"path": "/setup", "auth_type": "basic", "description": "Setup page"},
+      {"path": "/cgi-bin/", "auth_type": "basic", "description": "CGI directory"},
+      {"path": "/api/", "auth_type": "basic", "description": "API endpoint"},
+      {"path": "/camera", "auth_type": "basic", "description": "Camera interface"},
+      {"path": "/img/main.cgi", "auth_type": "basic", "description": "Main CGI interface"},
+      {"path": "/index.html", "auth_type": "form", "description": "Index page"},
+      {"path": "/admin/login", "auth_type": "form", "description": "Admin login"},
+      {"path": "/cgi-bin/login", "auth_type": "form", "description": "CGI login"},
+      {"path": "/cgi-bin/admin/admin.cgi", "auth_type": "basic", "description": "Admin CGI interface"}
+    ],
+    "hikvision": [
+      {"path": "/ISAPI/System/deviceInfo", "auth_type": "digest", "description": "Device information API"},
+      {"path": "/ISAPI/Security/userCheck", "auth_type": "digest", "description": "User authentication check"},
+      {"path": "/ISAPI/System/capabilities", "auth_type": "digest", "description": "System capabilities"},
+      {"path": "/ISAPI/Streaming/channels/1/picture", "auth_type": "digest", "description": "Channel 1 snapshot"},
+      {"path": "/ISAPI/Streaming/channels/101/picture", "auth_type": "digest", "description": "Channel 101 snapshot"},
+      {"path": "/System/configurationFile", "auth_type": "digest", "description": "Configuration file"},
+      {"path": "/cgi-bin/hi3510/param.cgi?cmd=getuser", "auth_type": "basic", "description": "Get user info"},
+      {"path": "/cgi-bin/hi3510/param.cgi?cmd=getserverinfo", "auth_type": "basic", "description": "Get server info"},
+      {"path": "/cgi-bin/hi3510/snap.cgi", "auth_type": "basic", "description": "Snapshot CGI"},
+      {"path": "/PSIA/System/deviceInfo", "auth_type": "digest", "description": "PSIA device info"},
+      {"path": "/PSIA/streaming/channels/1", "auth_type": "digest", "description": "PSIA stream channel"},
+      {"path": "/doc/page/login.asp", "auth_type": "form", "description": "Login ASP page"},
+      {"path": "/ISAPI/Security/AAA/users", "auth_type": "digest", "description": "User management"},
+      {"path": "/ISAPI/Security/sessionLogin/capabilities", "auth_type": "digest", "description": "Session login capabilities"},
+      {"path": "/ISAPI/Security/sessionLogin", "auth_type": "digest", "description": "Session login endpoint"}
+    ],
+    "dahua": [
+      {"path": "/cgi-bin/magicBox.cgi?action=getSystemInfo", "auth_type": "digest", "description": "System information"},
+      {"path": "/cgi-bin/magicBox.cgi?action=getDeviceType", "auth_type": "digest", "description": "Device type"},
+      {"path": "/cgi-bin/magicBox.cgi?action=getSoftwareVersion", "auth_type": "digest", "description": "Software version"},
+      {"path": "/cgi-bin/configManager.cgi?action=getConfig", "auth_type": "digest", "description": "Configuration manager"},
+      {"path": "/cgi-bin/snapshot.cgi", "auth_type": "digest", "description": "Snapshot CGI"},
+      {"path": "/cgi-bin/deviceManager.cgi?action=getConfig", "auth_type": "digest", "description": "Device manager"},
+      {"path": "/cgi-bin/userManager.cgi?action=getUsers", "auth_type": "digest", "description": "User manager"},
+      {"path": "/doc/page/login.asp", "auth_type": "form", "description": "Login ASP page"},
+      {"path": "/RPC2_Login", "auth_type": "digest", "description": "RPC2 login"},
+      {"path": "/current_config/System.cfg", "auth_type": "basic", "description": "System config file"},
+      {"path": "/current_config/Network.cfg", "auth_type": "basic", "description": "Network config file"}
+    ],
+    "axis": [
+      {"path": "/axis-cgi/admin/param.cgi?action=list", "auth_type": "digest", "description": "VAPIX parameter list"},
+      {"path": "/axis-cgi/basicdeviceinfo.cgi", "auth_type": "digest", "description": "Basic device info"},
+      {"path": "/axis-cgi/usergroup.cgi", "auth_type": "digest", "description": "User group management"},
+      {"path": "/axis-cgi/pwdgrp.cgi", "auth_type": "digest", "description": "Password group"},
+      {"path": "/axis-cgi/admin/systemlog.cgi", "auth_type": "digest", "description": "System log"},
+      {"path": "/axis-cgi/param.cgi", "auth_type": "digest", "description": "VAPIX parameters"},
+      {"path": "/axis-cgi/view/viewer_index.shtml", "auth_type": "digest", "description": "Viewer index"},
+      {"path": "/view/viewer_index.shtml", "auth_type": "digest", "description": "Viewer index alt"},
+      {"path": "/view/view.shtml", "auth_type": "digest", "description": "View page"}
+    ],
+    "sony": [
+      {"path": "/command/inquiry.cgi?inq=system", "auth_type": "basic", "description": "System inquiry"},
+      {"path": "/command/inquiry.cgi?inq=camera", "auth_type": "basic", "description": "Camera inquiry"},
+      {"path": "/command/inquiry.cgi?inq=lens", "auth_type": "basic", "description": "Lens inquiry"},
+      {"path": "/sony/system", "auth_type": "basic", "description": "Sony system interface"},
+      {"path": "/sony/camera", "auth_type": "basic", "description": "Sony camera interface"}
+    ],
+    "bosch": [
+      {"path": "/rcp.xml?command=0x0a10", "auth_type": "digest", "description": "RCP device info"},
+      {"path": "/rcp.xml?command=0x0a09", "auth_type": "digest", "description": "RCP system info"},
+      {"path": "/rcp.xml?command=0x0a12", "auth_type": "digest", "description": "RCP network info"},
+      {"path": "/rcp.xml", "auth_type": "digest", "description": "RCP interface"}
+    ],
+    "panasonic": [
+      {"path": "/cgi-bin/view/view.cgi", "auth_type": "basic", "description": "View CGI"},
+      {"path": "/cgi-bin/admin/admin.cgi", "auth_type": "basic", "description": "Admin CGI"},
+      {"path": "/cgi-bin/camera", "auth_type": "basic", "description": "Camera CGI"},
+      {"path": "/nphControlCamera?Direction=", "auth_type": "basic", "description": "Camera control"}
+    ],
+    "cp_plus": [
+      {"path": "/cgi-bin/viewer/video.jpg", "auth_type": "basic", "description": "Video viewer"},
+      {"path": "/web/index.html", "auth_type": "form", "description": "Web interface"},
+      {"path": "/web/login.html", "auth_type": "form", "description": "Web login"}
+    ]
+  },
+  "auth_types": {
+    "basic": "HTTP Basic Authentication",
+    "digest": "HTTP Digest Authentication",
+    "form": "HTML Form-based Authentication"
+  }
+}
