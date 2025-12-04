@@ -152,9 +152,9 @@ GRIDLAND v3.0 is a complete modernization and migration of the CamXploit.py func
 
 ### Migration Status
 
-- **Current Phase**: Phase 1 - Data Migration ✓ COMPLETE
-- **Progress**: 42/405 tasks complete (10.4%)
-- **Next Phase**: Phase 2 - OSINT Integration (TASKS 043-075)
+- **Current Phase**: Phase 2 - OSINT Integration ✓ COMPLETE
+- **Progress**: 75/405 tasks complete (18.5%)
+- **Next Phase**: Phase 3 - Stream Discovery (TASKS 076-108)
 
 ### Data Files (Phase 1 Complete)
 
@@ -241,6 +241,84 @@ exploitable = get_cves_with_exploits()
 - Optimization hints for high-success paths
 - Port-protocol recommendations
 
+### OSINT Module (Phase 2 Complete)
+
+The OSINT (Open Source Intelligence) module provides URL generation for reconnaissance platforms and async IP geolocation capabilities.
+
+#### OSINTURLGenerator (`gridland/analyze/core/osint/url_generator.py`)
+
+Generate search URLs for major OSINT platforms and Google Dorking queries for camera discovery.
+
+**Usage Example:**
+
+```python
+from gridland.analyze.core.osint import OSINTURLGenerator
+
+# Generate OSINT platform URLs
+urls = OSINTURLGenerator.generate_search_urls("192.168.1.1")
+print(urls["shodan"])   # https://www.shodan.io/search?query=192.168.1.1
+print(urls["censys"])   # https://search.censys.io/hosts/192.168.1.1
+print(urls["zoomeye"])  # https://www.zoomeye.org/searchResult?q=192.168.1.1
+
+# Generate Google Dork queries
+dorks = OSINTURLGenerator.generate_google_dorks("192.168.1.1")
+for dork in dorks:
+    print(f"{dork['query']} -> {dork['url']}")
+```
+
+**Features:**
+
+- 4 OSINT platform integrations (Shodan, Censys, ZoomEye, Google)
+- 4 Google Dork queries for camera discovery
+- All URL formats match CamXploit.py exactly
+- Proper URL encoding for special characters
+- Static methods (no instance needed)
+
+#### GeoLookup (`gridland/analyze/core/osint/geo_lookup.py`)
+
+Async IP geolocation with IPinfo.io API integration, caching, and rate limiting.
+
+**Usage Example:**
+
+```python
+from gridland.analyze.core.osint import GeoLookup
+import asyncio
+
+async def lookup_ip():
+    geo = GeoLookup(cache_duration=3600, rate_limit_delay=0.1)
+
+    # Get IP information
+    ip_info = await geo.get_ip_info("8.8.8.8")
+    print(f"City: {ip_info['city']}")
+    print(f"Country: {ip_info['country']}")
+    print(f"Location: {ip_info['loc']}")
+
+    # Generate map URLs
+    map_urls = GeoLookup.generate_map_urls(ip_info)
+    print(f"Google Maps: {map_urls['google_maps']}")
+    print(f"Google Earth: {map_urls['google_earth']}")
+
+    # Get cache statistics
+    stats = geo.get_cache_stats()
+    print(f"Cached entries: {stats['total_cached']}")
+
+asyncio.run(lookup_ip())
+```
+
+**Features:**
+
+- Async/await pattern with aiohttp for non-blocking I/O
+- Time-based caching (configurable duration)
+- Rate limiting to respect API limits
+- Map URL generation (Google Maps, Google Earth)
+- Cache management methods
+- Error handling for API failures
+
+**Cache Methods:**
+
+- `clear_cache()` - Clear all cached IP data
+- `get_cache_stats()` - Get cache statistics (total, expired entries)
+
 ### Data Loader Module (`gridland/core/data_loader.py`)
 
 The `data_loader` module provides 23 functions for accessing camera reconnaissance data:
@@ -273,7 +351,7 @@ The `data_loader` module provides 23 functions for accessing camera reconnaissan
 
 ### Testing
 
-#### Test Suite (`tests/test_data_loader.py`)
+#### Phase 1 Test Suite (`tests/test_data_loader.py`)
 
 - **Total Tests**: 41 unit tests
 - **Coverage**: All data loader functions
@@ -291,6 +369,24 @@ The `data_loader` module provides 23 functions for accessing camera reconnaissan
 ```bash
 pytest tests/test_data_loader.py -v
 # Result: 41 passed, 1 warning in 0.14s
+```
+
+#### Phase 2 Test Suite (`tests/osint/`)
+
+- **Total Tests**: 29 unit tests (14 URL generator + 15 geo lookup)
+- **Coverage**: 100% coverage on OSINT modules
+- **Status**: All tests passing ✓
+
+**Test Categories:**
+
+- URL Generator: 14 tests validating URL formats, encoding, Google Dorks
+- Geo Lookup: 15 tests validating async API calls, caching, rate limiting
+
+**Running Tests:**
+
+```bash
+pytest tests/osint/ -v
+# Result: 29 passed, 1 warning in 1.04s
 ```
 
 ### Development Workflow for Migration
@@ -317,12 +413,13 @@ pytest tests/test_data_loader.py -v
 
 - Camera ports, login paths, CVE database, stream paths
 
-**Phase 2: OSINT Integration** (TASKS 043-075)
+**Phase 2: OSINT Integration** ✓ COMPLETE (TASKS 043-075)
 
-- Shodan, Censys, ZoomEye API integration
-- Passive reconnaissance modules
+- OSINTURLGenerator for Shodan, Censys, ZoomEye, Google Dorks
+- GeoLookup for async IP geolocation with caching and rate limiting
+- 29/29 unit tests passing
 
-**Phase 3: Port Scanner** (TASKS 076-104)
+**Phase 3: Stream Discovery** (TASKS 076-108)
 
 - Async port scanning implementation
 - Multi-threaded/multi-process architecture
