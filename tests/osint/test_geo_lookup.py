@@ -202,15 +202,20 @@ class TestGeoLookup:
 
         urls = GeoLookup.generate_map_urls(ip_info)
 
-        assert "google_maps" in urls
-        assert "google_earth" in urls
+        assert "openstreetmap" in urls
+        assert "latitude" in urls
+        assert "longitude" in urls
 
-        # Verify exact format from CamXploit.py line 891
-        assert urls["google_maps"] == "https://www.google.com/maps?q=37.4056,-122.0775"
+        # Verify OSM URL format (public instance)
+        expected_osm = (
+            "https://www.openstreetmap.org/?mlat=37.4056&mlon=-122.0775"
+            "#map=12/37.4056/-122.0775"
+        )
+        assert urls["openstreetmap"] == expected_osm
 
-        # Verify exact format from CamXploit.py line 893
-        expected_earth = "https://earth.google.com/web/@37.4056,-122.0775,0a,1000d,35y,0h,0t,0r"
-        assert urls["google_earth"] == expected_earth
+        # Verify separate lat/lon values
+        assert urls["latitude"] == "37.4056"
+        assert urls["longitude"] == "-122.0775"
 
     def test_generate_map_urls_without_coordinates(self):
         """Test map URL generation when no coordinates available."""
@@ -226,8 +231,13 @@ class TestGeoLookup:
 
         urls = GeoLookup.generate_map_urls(ip_info)
 
-        assert "51.5074,-0.1278" in urls["google_maps"]
-        assert "51.5074,-0.1278" in urls["google_earth"]
+        # Check OSM URL contains coordinates
+        assert "51.5074" in urls["openstreetmap"]
+        assert "-0.1278" in urls["openstreetmap"]
+
+        # Check separate lat/lon fields
+        assert urls["latitude"] == "51.5074"
+        assert urls["longitude"] == "-0.1278"
 
     def test_clear_cache(self):
         """Test cache clearing."""
@@ -290,5 +300,22 @@ class TestGeoLookup:
 
         urls = GeoLookup.generate_map_urls(ip_info)
 
-        assert "google_maps" in urls
-        assert "google_earth" in urls
+        assert "openstreetmap" in urls
+        assert "latitude" in urls
+        assert "longitude" in urls
+
+    def test_generate_map_urls_local_osm_instance(self):
+        """Test map URL generation with local OSM instance."""
+        ip_info = {"loc": "48.8566,2.3522"}  # Paris
+
+        urls = GeoLookup.generate_map_urls(ip_info, osm_base_url="http://localhost:8080")
+
+        # Verify local instance URL
+        expected_osm = (
+            "http://localhost:8080/?mlat=48.8566&mlon=2.3522" "#map=12/48.8566/2.3522"
+        )
+        assert urls["openstreetmap"] == expected_osm
+
+        # Lat/lon should still be present
+        assert urls["latitude"] == "48.8566"
+        assert urls["longitude"] == "2.3522"

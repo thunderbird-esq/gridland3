@@ -123,28 +123,38 @@ class GeoLookup:
         return data
 
     @staticmethod
-    def generate_map_urls(ip_info: dict[str, str]) -> dict[str, str]:
+    def generate_map_urls(
+        ip_info: dict[str, str], osm_base_url: str = "https://www.openstreetmap.org"
+    ) -> dict[str, str]:
         """Generate map visualization URLs from IP geolocation data.
 
-        Creates Google Maps and Google Earth URLs using coordinates from
-        IP lookup results. Formats match CamXploit.py lines 891-894.
+        Creates OpenStreetMap URLs using coordinates from IP lookup results.
+        Supports both public OSM and local hosted instances for privacy.
 
         Args:
             ip_info: IP info dict from get_ip_info() containing 'loc' key.
+            osm_base_url: Base URL for OpenStreetMap instance. Defaults to
+                         public OSM. Use "http://localhost:PORT" for local.
 
         Returns:
-            Dict[str, str]: Dictionary with 'google_maps' and 'google_earth'
-                            keys mapping to URLs. Returns empty dict if no
-                            coordinates are available.
+            Dict[str, str]: Dictionary with 'openstreetmap' URL and separate
+                           'latitude'/'longitude' values. Returns empty dict
+                           if no coordinates are available.
 
         Example:
             >>> async def example():
             ...     geo = GeoLookup()
             ...     info = await geo.get_ip_info("8.8.8.8")
-            ...     return GeoLookup.generate_map_urls(info)
+            ...     # Public OSM
+            ...     urls = GeoLookup.generate_map_urls(info)
+            ...     # Local OSM instance
+            ...     urls_local = GeoLookup.generate_map_urls(
+            ...         info, osm_base_url="http://localhost:8080"
+            ...     )
+            ...     return urls
             >>> urls = asyncio.run(example())
-            >>> print(urls['google_maps'])
-            https://www.google.com/maps?q=37.4056,-122.0775
+            >>> print(urls['openstreetmap'])
+            https://www.openstreetmap.org/?mlat=37.4056&mlon=-122.0775#map=12/37.4056/-122.0775
         """
         if "loc" not in ip_info:
             return {}
@@ -152,8 +162,9 @@ class GeoLookup:
         lat, lon = ip_info["loc"].split(",")
 
         return {
-            "google_maps": f"https://www.google.com/maps?q={lat},{lon}",
-            "google_earth": f"https://earth.google.com/web/@{lat},{lon},0a,1000d,35y,0h,0t,0r",
+            "openstreetmap": f"{osm_base_url}/?mlat={lat}&mlon={lon}#map=12/{lat}/{lon}",
+            "latitude": lat,
+            "longitude": lon,
         }
 
     def clear_cache(self) -> None:

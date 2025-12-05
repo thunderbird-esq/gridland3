@@ -293,10 +293,15 @@ async def lookup_ip():
     print(f"Country: {ip_info['country']}")
     print(f"Location: {ip_info['loc']}")
 
-    # Generate map URLs
+    # Generate map URLs (OpenStreetMap)
     map_urls = GeoLookup.generate_map_urls(ip_info)
-    print(f"Google Maps: {map_urls['google_maps']}")
-    print(f"Google Earth: {map_urls['google_earth']}")
+    print(f"OSM: {map_urls['openstreetmap']}")
+    print(f"Lat: {map_urls['latitude']}, Lon: {map_urls['longitude']}")
+
+    # For local hosted OSM instance
+    local_urls = GeoLookup.generate_map_urls(
+        ip_info, osm_base_url="http://localhost:8080"
+    )
 
     # Get cache statistics
     stats = geo.get_cache_stats()
@@ -310,7 +315,8 @@ asyncio.run(lookup_ip())
 - Async/await pattern with aiohttp for non-blocking I/O
 - Time-based caching (configurable duration)
 - Rate limiting to respect API limits
-- Map URL generation (Google Maps, Google Earth)
+- OpenStreetMap URL generation (supports local hosted instances)
+- Separate latitude/longitude extraction
 - Cache management methods
 - Error handling for API failures
 
@@ -318,6 +324,11 @@ asyncio.run(lookup_ip())
 
 - `clear_cache()` - Clear all cached IP data
 - `get_cache_stats()` - Get cache statistics (total, expired entries)
+
+**Map URL Generation:**
+
+- `generate_map_urls(ip_info)` - Generate public OSM URLs
+- `generate_map_urls(ip_info, osm_base_url="http://localhost:PORT")` - Use local OSM instance
 
 ### Data Loader Module (`gridland/core/data_loader.py`)
 
@@ -373,20 +384,20 @@ pytest tests/test_data_loader.py -v
 
 #### Phase 2 Test Suite (`tests/osint/`)
 
-- **Total Tests**: 29 unit tests (14 URL generator + 15 geo lookup)
+- **Total Tests**: 30 unit tests (14 URL generator + 16 geo lookup)
 - **Coverage**: 100% coverage on OSINT modules
 - **Status**: All tests passing ✓
 
 **Test Categories:**
 
 - URL Generator: 14 tests validating URL formats, encoding, Google Dorks
-- Geo Lookup: 15 tests validating async API calls, caching, rate limiting
+- Geo Lookup: 16 tests validating async API calls, caching, rate limiting, OSM URLs
 
 **Running Tests:**
 
 ```bash
 pytest tests/osint/ -v
-# Result: 29 passed, 1 warning in 1.04s
+# Result: 30 passed in 0.86s
 ```
 
 ### Development Workflow for Migration

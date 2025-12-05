@@ -86,12 +86,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `get_ip_info()` - Async IP lookup using IPinfo.io API
   - Configurable caching layer (default 3600 seconds)
   - Rate limiting support (default 0.1 seconds between calls)
-  - `generate_map_urls()` - Generate Google Maps and Google Earth URLs
+  - `generate_map_urls()` - Generate OpenStreetMap URLs (supports local instances)
+  - Separate latitude/longitude extraction for flexibility
   - Cache management methods: `clear_cache()`, `get_cache_stats()`
 - Comprehensive test suite: `tests/osint/`
   - 14 tests for URL generator (100% coverage)
-  - 15 tests for geo lookup with async mocking (100% coverage)
-  - All 29 tests passing with empirical validation
+  - 16 tests for geo lookup with async mocking (100% coverage)
+  - All 30 tests passing with empirical validation
 
 #### Migration Progress
 
@@ -147,8 +148,9 @@ Initial alpha release with Phase 1 & 2 completed.
 - 4 OSINT platform integrations: Shodan, Censys, ZoomEye, Google
 - 4 Google Dork queries for camera discovery
 - Async IP geolocation with IPinfo.io API
+- OpenStreetMap integration (supports local hosted instances)
 - Caching and rate limiting support
-- 29/29 unit tests passing (14 URL generator + 15 geo lookup)
+- 30/30 unit tests passing (14 URL generator + 16 geo lookup)
 - 100% code coverage on OSINT modules
 
 **Next Phase:** Stream Discovery (TASKS 076-108)
