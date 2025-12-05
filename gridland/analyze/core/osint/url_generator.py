@@ -45,10 +45,7 @@ class OSINTURLGenerator:
             >>> print(urls['censys'])
             https://search.censys.io/hosts/203.0.113.1
         """
-        google_query = (
-            f"site:{ip}+inurl:view/view.shtml+OR+"
-            f"inurl:admin.html+OR+inurl:login"
-        )
+        google_query = f"site:{ip}+inurl:view/view.shtml+OR+" f"inurl:admin.html+OR+inurl:login"
         return {
             "shodan": f"https://www.shodan.io/search?query={ip}",
             "censys": f"https://search.censys.io/hosts/{ip}",
