@@ -152,9 +152,9 @@ GRIDLAND v3.0 is a complete modernization and migration of the CamXploit.py func
 
 ### Migration Status
 
-- **Current Phase**: Phase 2 - OSINT Integration ✓ COMPLETE
-- **Progress**: 75/405 tasks complete (18.5%)
-- **Next Phase**: Phase 3 - Stream Discovery (TASKS 076-108)
+- **Current Phase**: Phase 3 - Port Scanner ✓ COMPLETE
+- **Progress**: 109/405 tasks complete (26.9%)
+- **Next Phase**: Phase 4 - Brand Detection (TASKS 110-132)
 
 ### Data Files (Phase 1 Complete)
 
@@ -330,6 +330,97 @@ asyncio.run(lookup_ip())
 - `generate_map_urls(ip_info)` - Generate public OSM URLs
 - `generate_map_urls(ip_info, osm_base_url="http://localhost:PORT")` - Use local OSM instance
 
+### Port Scanner Module (Phase 3 Complete)
+
+The Port Scanner module provides network discovery capabilities for camera reconnaissance through multi-threaded port scanning and intelligent port selection.
+
+#### PythonPortScanner (`gridland/discover/python_scanner.py`)
+
+Multi-threaded TCP port scanner with configurable concurrency and timeouts.
+
+**Usage Example:**
+
+```python
+from gridland.discover import PythonPortScanner
+import threading
+
+# Initialize scanner (matches CamXploit.py defaults)
+scanner = PythonPortScanner(max_threads=100, timeout=1.5)
+
+# Define progress callback
+def progress(scanned, total):
+    print(f"Progress: {scanned}/{total} ports scanned")
+
+# Optional early termination flag
+termination_flag = threading.Event()
+
+# Scan ports
+ports_to_scan = [80, 443, 554, 8080, 8554]
+open_ports = scanner.scan_ports(
+    "192.168.1.100",
+    ports_to_scan,
+    progress_callback=progress,
+    termination_flag=termination_flag
+)
+
+print(f"Open ports: {open_ports}")  # [80, 8080]
+```
+
+**Features:**
+- Multi-threaded scanning (default 100 concurrent threads)
+- Configurable timeout per port (default 1.5 seconds)
+- Progress reporting callback (invoked every 50 ports)
+- Early termination support via threading.Event()
+- Thread-safe result collection with locks
+- Returns sorted list of open ports
+- Comprehensive input validation (IP addresses, port ranges)
+- 100% feature parity with CamXploit.py check_ports()
+
+**Methods:**
+- `__init__(max_threads=100, timeout=1.5)` - Initialize scanner
+- `scan_ports(ip, ports, progress_callback=None, termination_flag=None)` - Scan specified ports
+
+#### PortSelector (`gridland/discover/port_selector.py`)
+
+Port selection utility for retrieving camera-specific ports by category.
+
+**Usage Example:**
+
+```python
+from gridland.discover import PortSelector
+
+# Get all camera ports (685 unique ports)
+all_ports = PortSelector.get_camera_ports()
+
+# Get RTSP-specific ports
+rtsp_ports = PortSelector.get_camera_ports(category='rtsp')  # [554, 1554, ...]
+
+# Get web ports
+web_ports = PortSelector.get_camera_ports(category='web')  # [80, 443, 8080, ...]
+
+# Get ONVIF ports
+onvif_ports = PortSelector.get_camera_ports(category='onvif')  # [80, 8080, ...]
+```
+
+**Supported Categories:**
+- `all` - All 685 unique camera ports (default)
+- `web` - HTTP/HTTPS ports for web interfaces
+- `rtsp` - Real Time Streaming Protocol ports
+- `rtmp` - Real Time Messaging Protocol ports
+- `mms` - Microsoft Media Server ports
+- `onvif` - ONVIF protocol ports
+- `custom` - Custom/proprietary camera ports
+
+**Features:**
+- Static method (no instance required)
+- Integrates with Phase 1 data loader
+- Port range validation (1-65535)
+- Raises ValueError for invalid categories
+- Deterministic results (consistent ordering)
+
+**Methods:**
+- `get_camera_ports(category='all')` - Retrieve ports by category
+
 ### Data Loader Module (`gridland/core/data_loader.py`)
 
 The `data_loader` module provides 23 functions for accessing camera reconnaissance data:
@@ -400,6 +491,24 @@ pytest tests/osint/ -v
 # Result: 30 passed in 0.86s
 ```
 
+#### Phase 3 Test Suite (`tests/discover/`)
+
+- **Total Tests**: 41 unit tests (22 scanner + 19 selector)
+- **Coverage**: ~97% average coverage
+- **Status**: All tests passing ✓
+
+**Test Categories:**
+
+- PythonPortScanner: 22 tests validating scanning, threading, progress, termination
+- PortSelector: 19 tests validating category selection, port validation, integration
+
+**Running Tests:**
+
+```bash
+pytest tests/discover/ -v
+# Result: 41 passed in 0.32s
+```
+
 ### Development Workflow for Migration
 
 #### When Adding New Features
@@ -428,14 +537,15 @@ pytest tests/osint/ -v
 
 - OSINTURLGenerator for Shodan, Censys, ZoomEye, Google Dorks
 - GeoLookup for async IP geolocation with caching and rate limiting
-- 29/29 unit tests passing
+- 30/30 unit tests passing
 
-**Phase 3: Stream Discovery** (TASKS 076-108)
+**Phase 3: Port Scanner** ✓ COMPLETE (TASKS 080-109)
 
-- Async port scanning implementation
-- Multi-threaded/multi-process architecture
+- PythonPortScanner for multi-threaded port scanning
+- PortSelector for category-based port selection
+- 41/41 unit tests passing
 
-**Phase 4: Brand Detection** (TASKS 105-128)
+**Phase 4: Brand Detection** (TASKS 110-132)
 
 - Camera manufacturer identification
 - Fingerprinting and heuristics
