@@ -367,6 +367,7 @@ print(f"Open ports: {open_ports}")  # [80, 8080]
 ```
 
 **Features:**
+
 - Multi-threaded scanning (default 100 concurrent threads)
 - Configurable timeout per port (default 1.5 seconds)
 - Progress reporting callback (invoked every 50 ports)
@@ -377,6 +378,7 @@ print(f"Open ports: {open_ports}")  # [80, 8080]
 - 100% feature parity with CamXploit.py check_ports()
 
 **Methods:**
+
 - `__init__(max_threads=100, timeout=1.5)` - Initialize scanner
 - `scan_ports(ip, ports, progress_callback=None, termination_flag=None)` - Scan specified ports
 
@@ -403,6 +405,7 @@ onvif_ports = PortSelector.get_camera_ports(category='onvif')  # [80, 8080, ...]
 ```
 
 **Supported Categories:**
+
 - `all` - All 685 unique camera ports (default)
 - `web` - HTTP/HTTPS ports for web interfaces
 - `rtsp` - Real Time Streaming Protocol ports
@@ -412,6 +415,7 @@ onvif_ports = PortSelector.get_camera_ports(category='onvif')  # [80, 8080, ...]
 - `custom` - Custom/proprietary camera ports
 
 **Features:**
+
 - Static method (no instance required)
 - Integrates with Phase 1 data loader
 - Port range validation (1-65535)
@@ -419,7 +423,162 @@ onvif_ports = PortSelector.get_camera_ports(category='onvif')  # [80, 8080, ...]
 - Deterministic results (consistent ordering)
 
 **Methods:**
+
 - `get_camera_ports(category='all')` - Retrieve ports by category
+
+### Brand Detection & Analysis Module (Phase 4 Complete)
+
+The Brand Detection module provides camera manufacturer identification and vulnerability lookup capabilities.
+
+#### BrandDetector (`gridland/analyze/core/brand_detector.py`)
+
+Camera brand identification through multi-source analysis (server headers, content-type, response body).
+
+**Usage Example:**
+
+```python
+from gridland.analyze.core import BrandDetector
+
+# Initialize detector
+detector = BrandDetector()
+
+# Analyze single port response
+port_data = {
+    'server_header': 'hikvision-dvr',
+    'content_type': 'image/mjpeg',
+    'response_body': '<html>Camera Login</html>'
+}
+result = detector.detect_brand(port_data)
+print(f"Brand: {result['brand']}")           # 'hikvision'
+print(f"Confidence: {result['confidence']}")  # 0.7
+print(f"Evidence: {result['evidence']}")      # ['Server header...', 'Content-type...']
+
+# Analyze multiple ports (aggregated detection)
+ports_data = [
+    {'port': 80, 'server_header': 'camera', 'content_type': 'text/html', 'response_body': 'surveillance'},
+    {'port': 8080, 'server_header': 'hikvision-dvr', 'content_type': 'image/jpeg', 'response_body': ''}
+]
+result = detector.analyze_all_ports(ports_data)
+print(f"Brand: {result['brand']}")  # 'hikvision' (specific brand wins over generic)
+```
+
+**Features:**
+
+- 10 supported brands: Hikvision, Dahua, Axis, Sony, Bosch, Samsung, Panasonic, Vivotek, CP Plus, Generic
+- Multi-source detection: server headers, content-type headers, response body keywords
+- Confidence scoring system (0.0-1.0 range)
+- Evidence tracking with source attribution
+- Conflict resolution prioritizing specific brands over generic
+- Special CP Plus detection (uvr, cpplus, 0401e1 indicators)
+- 100% feature parity with CamXploit.py (lines 989-1079)
+
+**Methods:**
+
+- `detect_brand(port_data)` - Analyze single port HTTP response
+- `analyze_all_ports(ports_data)` - Aggregate brand detections across multiple ports
+
+#### CVELookup (`gridland/analyze/core/cve_lookup.py`)
+
+CVE database integration with filtering and NVD URL generation.
+
+**Usage Example:**
+
+```python
+from gridland.analyze.core import CVELookup
+
+# Initialize lookup
+lookup = CVELookup()
+
+# Get all CVEs for a brand
+hik_cves = lookup.get_cves('hikvision')
+print(f"Found {len(hik_cves)} Hikvision CVEs")  # 12 CVEs
+
+# Filter by severity
+critical_cves = lookup.get_cves('hikvision', min_severity='critical')
+print(f"Critical CVEs: {len(critical_cves)}")  # CVEs with severity >= critical
+
+# Get only CVEs with public exploits
+exploitable = lookup.get_cves('dahua', exploits_only=True)
+
+# Generate NVD URLs
+urls = lookup.generate_nvd_urls(hik_cves)
+# ['https://nvd.nist.gov/vuln/detail/CVE-2021-36260', ...]
+
+# Get specific CVE by ID
+cve = lookup.get_cve_by_id('CVE-2021-36260')
+print(f"CVSS: {cve['cvss_score']}, Severity: {cve['severity']}")
+
+# Get available brands
+brands = lookup.get_available_brands()  # ['hikvision', 'dahua', 'axis', 'cp_plus']
+
+# Get statistics
+stats = lookup.get_cve_statistics()  # Global stats
+hik_stats = lookup.get_cve_statistics(brand='hikvision')  # Brand-specific stats
+```
+
+**Features:**
+
+- Integrates with Phase 1 CVE database (39 CVEs across 4 brands)
+- CVSS score filtering and severity categorization
+- Exploit availability filtering
+- NVD URL generation (format: <https://nvd.nist.gov/vuln/detail/{cve_id}>)
+- Brand-specific and global statistics
+- 100% feature parity with CamXploit.py (line 1309)
+
+**Methods:**
+
+- `get_cves(brand, min_severity=None, exploits_only=False)` - Retrieve CVEs with filtering
+- `generate_nvd_urls(cves)` - Generate NVD URLs for CVE list
+- `get_cve_by_id(cve_id)` - Lookup specific CVE
+- `get_available_brands()` - List all brands in database
+- `get_cve_statistics(brand=None)` - Get aggregate statistics
+
+#### IPValidator (`gridland/core/validators.py`)
+
+IP address validation with private IP detection.
+
+**Usage Example:**
+
+```python
+from gridland.core import IPValidator
+
+# Validate public IP
+is_valid, warning = IPValidator.validate_ip('8.8.8.8')
+# is_valid=True, warning=None
+
+# Validate private IP
+is_valid, warning = IPValidator.validate_ip('192.168.1.1')
+# is_valid=True, warning='Warning: Private IP address detected. This tool is meant for public IPs.'
+
+# Validate invalid IP
+is_valid, warning = IPValidator.validate_ip('999.999.999.999')
+# is_valid=False, warning=None
+
+# Additional utilities
+IPValidator.is_ipv4('8.8.8.8')         # True
+IPValidator.is_ipv6('2001:db8::1')     # True
+IPValidator.is_public_ip('8.8.8.8')    # True
+IPValidator.is_private_ip('10.0.0.1')  # True
+IPValidator.get_ip_type('8.8.8.8')     # 'public_ipv4'
+```
+
+**Features:**
+
+- IPv4 and IPv6 support
+- Private IP range detection (RFC 1918 for IPv4, fc00::/7 and fe80::/10 for IPv6)
+- Exact warning message from CamXploit.py (lines 917-918)
+- Static methods (no instance required)
+- Comprehensive validation utilities
+- 100% feature parity with CamXploit.py
+
+**Methods:**
+
+- `validate_ip(ip_str)` - Validate IP and detect private addresses
+- `is_ipv4(ip_str)` - Check if string is valid IPv4
+- `is_ipv6(ip_str)` - Check if string is valid IPv6
+- `is_public_ip(ip_str)` - Check if IP is public
+- `is_private_ip(ip_str)` - Check if IP is private
+- `get_ip_type(ip_str)` - Get detailed IP type info
 
 ### Data Loader Module (`gridland/core/data_loader.py`)
 
@@ -509,6 +668,25 @@ pytest tests/discover/ -v
 # Result: 41 passed in 0.32s
 ```
 
+#### Phase 4 Test Suite (`tests/analyze/core/` and `tests/core/`)
+
+- **Total Tests**: 108 unit tests (38 brand detector + 30 CVE lookup + 40 IP validator)
+- **Coverage**: ~95% average coverage
+- **Status**: All tests passing ✓
+
+**Test Categories:**
+
+- BrandDetector: 38 tests validating brand detection, conflict resolution, aggregation, CP Plus special indicators
+- CVELookup: 30 tests validating CVE retrieval, filtering, URL generation, statistics, data validation
+- IPValidator: 40 tests validating public/private IPs, IPv4/IPv6, validation, edge cases, consistency
+
+**Running Tests:**
+
+```bash
+pytest tests/analyze/core/ tests/core/test_validators.py -v
+# Result: 108 passed in 0.65s
+```
+
 ### Development Workflow for Migration
 
 #### When Adding New Features
@@ -545,12 +723,14 @@ pytest tests/discover/ -v
 - PortSelector for category-based port selection
 - 41/41 unit tests passing
 
-**Phase 4: Brand Detection** (TASKS 110-132)
+**Phase 4: Brand Detection & CVE Lookup** ✓ COMPLETE (TASKS 110-161)
 
-- Camera manufacturer identification
-- Fingerprinting and heuristics
+- BrandDetector for camera manufacturer identification
+- CVELookup for vulnerability database integration
+- IPValidator for IP address validation with private detection
+- 108/108 unit tests passing
 
-**Phase 5: Credential Testing** (TASKS 129-156)
+**Phase 5: Credential Testing** (TASKS 162-192)
 
 - Default credential validation
 - Authentication bypass testing
@@ -595,7 +775,7 @@ pytest tests/discover/ -v
 **Testing:**
 
 - CamXploit.py: No automated tests
-- GRIDLAND v3.0: Comprehensive test suite (41+ tests)
+- GRIDLAND v3.0: Comprehensive test suite (220+ tests across 4 phases)
 
 **Security Data:**
 
