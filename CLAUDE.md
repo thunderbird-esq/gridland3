@@ -580,6 +580,117 @@ IPValidator.get_ip_type('8.8.8.8')     # 'public_ipv4'
 - `is_private_ip(ip_str)` - Check if IP is private
 - `get_ip_type(ip_str)` - Get detailed IP type info
 
+### Authentication Testing Plugins (Phase 5 Complete)
+
+The Authentication Testing module provides vulnerability scanning plugins for detecting login endpoints and testing default credentials.
+
+#### LoginPageScanner (`gridland/analyze/plugins/builtin/login_scanner.py`)
+
+Multi-threaded authentication endpoint discovery plugin.
+
+**Usage Example:**
+
+```python
+from gridland.analyze.plugins.builtin import LoginPageScanner
+
+# Initialize scanner
+scanner = LoginPageScanner()
+
+# Define progress callback (optional)
+def progress(completed, total):
+    print(f"Scanned {completed}/{total} endpoints")
+
+# Scan for login pages
+result = scanner.scan_login_pages(
+    ip="192.168.1.100",
+    open_ports=[80, 443, 8080],
+    progress_callback=progress
+)
+
+# Result structure
+print(f"Found {len(result['login_pages'])} login pages")
+for page in result['login_pages']:
+    print(f"  {page['url']} - {page['auth_type']} (HTTP {page['status_code']})")
+# Output:
+#   http://192.168.1.100:80/admin - basic (HTTP 401)
+#   https://192.168.1.100:443/login - form (HTTP 200)
+```
+
+**Features:**
+- Multi-threaded login page detection (max 50 concurrent threads)
+- Loads 72 authentication paths from login_paths.json
+- Detects Basic, Digest, and Form authentication types
+- Parses WWW-Authenticate headers for auth type identification
+- Detects HTML form fields (username, password, login)
+- Checks HTTP status codes: 200, 401, 403
+- Progress callback support for real-time updates
+- Thread-safe result collection with locks
+- HTTP/HTTPS protocol auto-detection
+- 100% feature parity with CamXploit.py check_login_pages() (lines 1155-1199)
+
+**Methods:**
+- `scan_login_pages(ip, open_ports, progress_callback=None)` - Scan for login pages
+- `scan_vulnerabilities(ip, open_ports, **kwargs)` - Async interface for plugin framework
+- `get_metadata()` - Return plugin metadata
+
+#### CredentialTester (`gridland/analyze/plugins/builtin/credential_tester.py`)
+
+Multi-threaded default credential testing plugin.
+
+**Usage Example:**
+
+```python
+from gridland.analyze.plugins.builtin import CredentialTester
+
+# Initialize tester
+tester = CredentialTester()
+
+# Test default credentials
+result = tester.test_default_credentials(
+    ip="192.168.1.100",
+    open_ports=[80, 8080]
+)
+
+# Check if credentials were found
+if result['success']:
+    creds = result['credentials']
+    print(f"Valid credentials found!")
+    print(f"  Username: {creds['username']}")
+    print(f"  Password: {creds['password']}")
+    print(f"  URL: {creds['url']}")
+    print(f"  Auth Type: {creds['auth_type']}")
+else:
+    print("No default credentials found")
+```
+
+**Features:**
+- Multi-threaded credential testing (max 20 concurrent threads)
+- Loads 30 credential combinations from default_credentials.json
+- Tests 4 endpoints per port: /, /login, /admin/login, /cgi-bin/login
+- Supports Basic, Digest, and Form authentication
+- Early termination when credentials found (thread-safe)
+- HTTP/HTTPS protocol auto-detection
+- Thread-safe credential discovery with locks
+- Progress callback support
+- 100% feature parity with CamXploit.py test_default_passwords() (lines 1201-1283)
+
+**Methods:**
+- `test_default_credentials(ip, open_ports, progress_callback=None)` - Test credentials
+- `scan_vulnerabilities(ip, open_ports, **kwargs)` - Async interface for plugin framework
+- `get_metadata()` - Return plugin metadata
+
+**Credential Database Format:**
+```python
+{
+    "admin": ["admin", "1234", "admin123", "password", "12345", "123456", "1111", "default"],
+    "root": ["root", "toor", "1234", "pass", "root123"],
+    "user": ["user", "user123", "password"],
+    "guest": ["guest", "guest123"],
+    "operator": ["operator", "operator123"]
+}
+# Total: 30 username/password combinations
+```
+
 ### Data Loader Module (`gridland/core/data_loader.py`)
 
 The `data_loader` module provides 23 functions for accessing camera reconnaissance data:
@@ -687,6 +798,24 @@ pytest tests/analyze/core/ tests/core/test_validators.py -v
 # Result: 108 passed in 0.65s
 ```
 
+#### Phase 5 Test Suite (`tests/plugins/`)
+
+- **Total Tests**: 51 unit tests (24 login scanner + 27 credential tester)
+- **Coverage**: ~90% average coverage
+- **Status**: All tests passing ✓
+
+**Test Categories:**
+
+- LoginPageScanner: 24 tests validating auth detection, threading, progress callbacks, HTML form detection
+- CredentialTester: 27 tests validating basic/form/digest auth, early termination, thread safety, multi-endpoint testing
+
+**Running Tests:**
+
+```bash
+pytest tests/plugins/ -v
+# Result: 51 passed in 2.66s
+```
+
 ### Development Workflow for Migration
 
 #### When Adding New Features
@@ -730,7 +859,14 @@ pytest tests/analyze/core/ tests/core/test_validators.py -v
 - IPValidator for IP address validation with private detection
 - 108/108 unit tests passing
 
-**Phase 5: Credential Testing** (TASKS 162-192)
+**Phase 5: Login Scanner & Credential Tester** ✓ COMPLETE (TASKS 162-192)
+
+- LoginPageScanner for authentication endpoint discovery
+- CredentialTester for default credential testing
+- VulnerabilityPlugin base class for plugin architecture
+- 51/51 unit tests passing
+
+**Phase 6: Stream Discovery** (TASKS 193-228)
 
 - Default credential validation
 - Authentication bypass testing
@@ -775,7 +911,7 @@ pytest tests/analyze/core/ tests/core/test_validators.py -v
 **Testing:**
 
 - CamXploit.py: No automated tests
-- GRIDLAND v3.0: Comprehensive test suite (220+ tests across 4 phases)
+- GRIDLAND v3.0: Comprehensive test suite (271+ tests across 5 phases)
 
 **Security Data:**
 
