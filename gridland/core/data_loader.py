@@ -547,3 +547,54 @@ def get_cve_statistics() -> dict[str, Any]:
     """
     cve_data = load_cve_database()
     return cve_data.get("statistics", {})
+
+
+def load_stream_paths() -> dict[str, Any]:
+    """Load stream paths from stream_paths.json.
+
+    This function loads the comprehensive list of stream discovery paths
+    categorized by protocol (rtsp, rtmp, http, websocket, webrtc). The path data
+    is used for live stream enumeration and discovery operations.
+
+    Returns:
+        Dict[str, Any]: Dictionary containing:
+            - version: Version of the stream paths data
+            - last_updated: Last update date
+            - source: Source of the data
+            - protocols: Dictionary of protocol-specific stream paths
+            - content_types: Expected content-type headers for stream validation
+            - detection_patterns: Patterns for successful stream detection
+            - port_protocols: Mapping of ports to their typical protocols
+            - optimization: High-success paths and brand indicators
+
+    Raises:
+        FileNotFoundError: If stream_paths.json does not exist.
+        json.JSONDecodeError: If stream_paths.json is not valid JSON.
+        KeyError: If required keys are missing from the JSON structure.
+
+    Example:
+        >>> stream_data = load_stream_paths()
+        >>> print(stream_data['version'])
+        2.1
+        >>> rtsp_paths = stream_data['protocols']['rtsp']['generic']
+        >>> print(len(rtsp_paths))
+        29
+        >>> print(rtsp_paths[0])
+        /live.sdp
+    """
+    data_dir = get_data_dir()
+    stream_file = data_dir / "stream_paths.json"
+
+    if not stream_file.exists():
+        raise FileNotFoundError(f"Stream paths file not found: {stream_file}")
+
+    with open(stream_file, encoding="utf-8") as f:
+        stream_data = json.load(f)
+
+    # Validate the structure
+    if "protocols" not in stream_data:
+        raise KeyError("Missing 'protocols' key in stream_paths.json")
+    if "version" not in stream_data:
+        raise KeyError("Missing 'version' key in stream_paths.json")
+
+    return stream_data

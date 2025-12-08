@@ -13,6 +13,7 @@ from .generic_camera_scanner import generic_camera_scanner
 from .hikvision_scanner import hikvision_scanner
 from .ip_context_scanner import ip_context_scanner
 from .rtsp_stream_scanner import rtsp_stream_scanner
+from .stream_discovery import stream_discovery_plugin
 
 # Export all built-in plugins for automatic discovery
 __all__ = [
@@ -24,6 +25,7 @@ __all__ = [
     "generic_camera_scanner",
     "banner_grabber",
     "ip_context_scanner",
+    "stream_discovery_plugin",
 ]
 
 # Plugin registry for automatic loading
@@ -36,4 +38,5 @@ BUILTIN_PLUGINS = [
     generic_camera_scanner,
     banner_grabber,
     ip_context_scanner,
+    stream_discovery_plugin,
 ]

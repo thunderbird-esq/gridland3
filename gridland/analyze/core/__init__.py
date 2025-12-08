@@ -15,6 +15,7 @@ from .scheduler import (
     get_scheduler,
     initialize_scheduler,
 )
+from .stream import StreamDetector
 
 __all__ = [
     "AdaptiveTaskScheduler",
@@ -24,4 +25,5 @@ __all__ = [
     "initialize_scheduler",
     "BrandDetector",
     "CVELookup",
+    "StreamDetector",
 ]
