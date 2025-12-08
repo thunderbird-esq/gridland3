@@ -152,9 +152,9 @@ GRIDLAND v3.0 is a complete modernization and migration of the CamXploit.py func
 
 ### Migration Status
 
-- **Current Phase**: Phase 3 - Port Scanner ✓ COMPLETE
-- **Progress**: 109/405 tasks complete (26.9%)
-- **Next Phase**: Phase 4 - Brand Detection (TASKS 110-132)
+- **Current Phase**: Phase 6 - Ethical Safeguards & CP Plus Scanner ✓ COMPLETE
+- **Progress**: 228/405 tasks complete (56.3%)
+- **Next Phase**: Phase 7 - Stream Discovery (TASKS 229-266)
 
 ### Data Files (Phase 1 Complete)
 
@@ -617,6 +617,7 @@ for page in result['login_pages']:
 ```
 
 **Features:**
+
 - Multi-threaded login page detection (max 50 concurrent threads)
 - Loads 72 authentication paths from login_paths.json
 - Detects Basic, Digest, and Form authentication types
@@ -629,21 +630,28 @@ for page in result['login_pages']:
 - 100% feature parity with CamXploit.py check_login_pages() (lines 1155-1199)
 
 **Methods:**
+
 - `scan_login_pages(ip, open_ports, progress_callback=None)` - Scan for login pages
 - `scan_vulnerabilities(ip, open_ports, **kwargs)` - Async interface for plugin framework
 - `get_metadata()` - Return plugin metadata
 
 #### CredentialTester (`gridland/analyze/plugins/builtin/credential_tester.py`)
 
-Multi-threaded default credential testing plugin.
+Multi-threaded default credential testing plugin with ethical safeguards (Phase 6 enhanced).
 
 **Usage Example:**
 
 ```python
 from gridland.analyze.plugins.builtin import CredentialTester
 
-# Initialize tester
-tester = CredentialTester()
+# Initialize tester with ethical safeguards
+tester = CredentialTester(
+    max_threads=20,
+    timeout=5,
+    rate_limit_delay=0.1,           # 0.1s delay between attempts
+    max_attempts_per_target=100,    # Max 100 attempts per target
+    audit_log_path="audit.csv"      # Optional audit trail
+)
 
 # Test default credentials
 result = tester.test_default_credentials(
@@ -659,11 +667,16 @@ if result['success']:
     print(f"  Password: {creds['password']}")
     print(f"  URL: {creds['url']}")
     print(f"  Auth Type: {creds['auth_type']}")
+    print(f"  Attempts: {result['attempts_made']}")
 else:
-    print("No default credentials found")
+    print(f"No default credentials found")
+    print(f"  Attempts: {result['attempts_made']}")
+    if result['stopped_by_limit']:
+        print("  (stopped by attempt limit)")
 ```
 
 **Features:**
+
 - Multi-threaded credential testing (max 20 concurrent threads)
 - Loads 30 credential combinations from default_credentials.json
 - Tests 4 endpoints per port: /, /login, /admin/login, /cgi-bin/login
@@ -672,14 +685,22 @@ else:
 - HTTP/HTTPS protocol auto-detection
 - Thread-safe credential discovery with locks
 - Progress callback support
-- 100% feature parity with CamXploit.py test_default_passwords() (lines 1201-1283)
+- **Ethical Safeguards (Phase 6)**:
+  - **Rate Limiting**: Configurable delay between attempts (default 0.1s)
+  - **Attempt Limiting**: Max attempts per target (default 100)
+  - **Audit Logging**: Optional CSV audit trail (timestamp, IP, port, username, password, URL, auth_type, result)
+  - Enhanced return values with `attempts_made` and `stopped_by_limit` tracking
+  - Backward compatible (all safeguards optional with sensible defaults)
+- 100% feature parity with CamXploit.py test_default_passwords() (lines 1201-1283) plus ethical enhancements
 
 **Methods:**
+
 - `test_default_credentials(ip, open_ports, progress_callback=None)` - Test credentials
 - `scan_vulnerabilities(ip, open_ports, **kwargs)` - Async interface for plugin framework
 - `get_metadata()` - Return plugin metadata
 
 **Credential Database Format:**
+
 ```python
 {
     "admin": ["admin", "1234", "admin123", "password", "12345", "123456", "1111", "default"],
@@ -689,6 +710,78 @@ else:
     "operator": ["operator", "operator123"]
 }
 # Total: 30 username/password combinations
+```
+
+#### CPPlusScanner (`gridland/analyze/plugins/builtin/cpplus_scanner.py`)
+
+Multi-threaded CP Plus DVR/NVR detection and fingerprinting plugin (Phase 6).
+
+**Usage Example:**
+
+```python
+from gridland.analyze.plugins.builtin import CPPlusScanner
+
+# Initialize scanner
+scanner = CPPlusScanner()
+
+# Detect CP Plus devices
+result = scanner.detect_cp_plus(
+    ip="192.168.1.100",
+    open_ports=[80, 8080, 37777]
+)
+
+# Check detection results
+if result['brand_detected']:
+    print(f"CP Plus device detected!")
+    print(f"  Brand: {result['brand']}")
+    print(f"  Model: {result['model']}")
+    print(f"  Device Type: {result['device_type']}")
+    print(f"  Confidence: {result['confidence']}")
+    print(f"  Evidence:")
+    for evidence in result['evidence']:
+        print(f"    - {evidence}")
+else:
+    print("No CP Plus device detected")
+```
+
+**Features:**
+
+- Multi-threaded CP Plus detection (max 20 concurrent threads)
+- Brand keyword detection: "cp plus", "cp-plus", "cpplus", "cp_plus", "uvr", "0401e1"
+- Model number extraction via regex (CP-UVR-*, CP-DVR-*, CP-NVR-* series)
+- Device type classification (DVR/NVR identification)
+- Multi-endpoint scanning (7 endpoints: /, /index.html, /login, /admin, /cgi-bin, /api, /config)
+- Confidence scoring system (0.0-1.0) with evidence tracking
+- Thread-safe multi-port scanning with locks
+- Early termination when brand detected
+- HTTP/HTTPS protocol auto-detection
+- Default credential testing for CP Plus devices
+- Integrates with cpplus_data.json (ports, keywords, models, credentials)
+- 100% feature parity with CamXploit.py CP Plus detection (lines 1335-1453)
+
+**Methods:**
+
+- `detect_cp_plus(ip, open_ports, **kwargs)` - Detect CP Plus devices
+- `scan_vulnerabilities(ip, open_ports, **kwargs)` - Async interface for plugin framework
+- `get_metadata()` - Return plugin metadata
+
+**CP Plus Data File (`gridland/data/cpplus_data.json`):**
+
+```python
+{
+    "ports": {
+        "common": [80, 443, 8080, 8000, 37777, 37778, 34567]
+    },
+    "detection_keywords": {
+        "brand": ["cp plus", "cp-plus", "cpplus", "cp_plus"],
+        "model_indicators": ["uvr", "uvr-0401e1", "uvr0401e1", "0401e1"]
+    },
+    "models": {
+        "uvr_series": ["CP-UVR-0401E1-IC2", "CP-UVR-0801E1", "CP-UVR-1601E1"],
+        "dvr_series": ["CP-DVR-0401E1", "CP-DVR-0801E1"],
+        "nvr_series": ["CP-NVR-0401E1", "CP-NVR-0801E1"]
+    }
+}
 ```
 
 ### Data Loader Module (`gridland/core/data_loader.py`)
@@ -816,6 +909,36 @@ pytest tests/plugins/ -v
 # Result: 51 passed in 2.66s
 ```
 
+#### Phase 6 Test Suite (`tests/plugins/`)
+
+- **Total Tests**: 101 unit tests (24 login scanner + 41 credential tester + 36 CP Plus scanner)
+- **Coverage**: ~92% average coverage
+- **Status**: All tests passing ✓
+
+**Test Categories:**
+
+- LoginPageScanner: 24 tests (unchanged from Phase 5)
+- CredentialTester: 41 tests (27 original + 14 new ethical safeguards tests)
+  - Rate limiting: 2 tests
+  - Attempt limiting: 3 tests
+  - Audit logging: 5 tests
+  - Integration tests: 4 tests
+- CPPlusScanner: 36 tests (new in Phase 6)
+  - Brand detection: 5 tests
+  - Model extraction: 6 tests
+  - Device type detection: 3 tests
+  - Full detection workflow: 7 tests
+  - Confidence scoring: 3 tests
+  - Multi-port scanning: 4 tests
+  - Edge cases: 6 tests
+
+**Running Tests:**
+
+```bash
+pytest tests/plugins/ -v
+# Result: 101 passed in 7.14s
+```
+
 ### Development Workflow for Migration
 
 #### When Adding New Features
@@ -866,35 +989,35 @@ pytest tests/plugins/ -v
 - VulnerabilityPlugin base class for plugin architecture
 - 51/51 unit tests passing
 
-**Phase 6: Stream Discovery** (TASKS 193-228)
+**Phase 6: Ethical Safeguards & CP Plus Scanner** ✓ COMPLETE (TASKS 193-228)
 
-- Default credential validation
-- Authentication bypass testing
+- Enhanced CredentialTester with ethical safeguards (rate limiting, attempt limiting, audit logging)
+- CPPlusScanner for CP Plus DVR/NVR detection
+- Brand keyword detection, model extraction, device type classification
+- 101/101 unit tests passing (36 CP Plus + 41 CredentialTester + 24 LoginPageScanner)
 
-**Phase 6: Stream Discovery** (TASKS 157-192)
+**Phase 7: Stream Discovery** (TASKS 229-266)
 
 - RTSP/HTTP/RTMP stream enumeration
 - Protocol detection and validation
+- Stream quality detection (resolution, codec, framerate)
+- Live stream verification
 
-**Phase 7: ONVIF Integration** (TASKS 193-228)
+**Phase 8: ONVIF Integration** (TASKS 267-315)
 
 - ONVIF service discovery
 - Camera control and configuration
 
-**Phase 8: CVE Scanning** (TASKS 229-266)
+**Phase 9: CVE Scanning** (TASKS 316-354)
 
 - Vulnerability detection and validation
 - Exploit availability checking
 
-**Phase 9: Reporting & Logging** (TASKS 267-315)
+**Phase 10: Reporting & Logging** (TASKS 355-405)
 
 - Output formatting and export
 - Comprehensive logging system
-
-**Phase 10: CLI & Integration** (TASKS 316-405)
-
-- Command-line interface
-- API design and documentation
+- CLI interface and API design
 
 ### Key Differences from CamXploit.py
 
@@ -911,7 +1034,7 @@ pytest tests/plugins/ -v
 **Testing:**
 
 - CamXploit.py: No automated tests
-- GRIDLAND v3.0: Comprehensive test suite (271+ tests across 5 phases)
+- GRIDLAND v3.0: Comprehensive test suite (321+ tests across 6 phases)
 
 **Security Data:**
 

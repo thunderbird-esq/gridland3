@@ -1,0 +1,75 @@
+{
+  "metadata": {
+    "description": "CP Plus DVR/NVR camera system detection data",
+    "source": "CamXploit.py lines 1335-1453 + security research",
+    "last_updated": "2025-12-07",
+    "version": "1.0.0"
+  },
+  "ports": {
+    "common": [80, 443, 8080, 8000, 37777, 37778, 34567],
+    "description": "CP Plus DVR/NVR typically use ports 37777/37778 for proprietary protocol, 34567 for TCP/IP"
+  },
+  "models": {
+    "uvr_series": [
+      "CP-UVR-0401E1-IC2",
+      "CP-UVR-0801E1",
+      "CP-UVR-1601E1",
+      "CP-UVR-0401E1",
+      "CP-UVR-0404E1"
+    ],
+    "dvr_series": [
+      "CP-DVR-0404E1-S",
+      "CP-DVR-0804E1",
+      "CP-DVR-1604E1"
+    ],
+    "nvr_series": [
+      "CP-NVR-0404E1-S",
+      "CP-NVR-1604E1",
+      "CP-NVR-0801E1"
+    ]
+  },
+  "detection_keywords": {
+    "brand": [
+      "cp plus",
+      "cp-plus",
+      "cpplus",
+      "cp_plus"
+    ],
+    "model_indicators": [
+      "uvr",
+      "uvr-0401e1",
+      "uvr0401e1",
+      "0401e1"
+    ],
+    "device_types": [
+      "dvr",
+      "nvr",
+      "recorder",
+      "surveillance"
+    ]
+  },
+  "endpoints": {
+    "detection": [
+      "/",
+      "/index.html",
+      "/login",
+      "/admin",
+      "/cgi-bin",
+      "/api",
+      "/config"
+    ],
+    "description": "Common endpoints for CP Plus device detection (from CamXploit.py lines 1422-1430)"
+  },
+  "default_credentials": {
+    "admin": [
+      "admin",
+      "admin123",
+      "12345"
+    ],
+    "user": [
+      "user",
+      "user123"
+    ]
+  },
+  "cves": []
+}

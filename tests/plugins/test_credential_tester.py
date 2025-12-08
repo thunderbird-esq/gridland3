@@ -5,9 +5,13 @@ Tests the CredentialTester plugin for IP camera default credential testing.
 """
 
 import json
-import pytest
-from unittest.mock import Mock, MagicMock, patch, call
+import tempfile
 import threading
+import time
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, call, patch
+
+import pytest
 
 from gridland.analyze.plugins.builtin.credential_tester import CredentialTester
 
@@ -215,7 +219,12 @@ class TestCredentialTester:
             mock_resp = Mock()
             # Check if auth is HTTPBasicAuth with admin:admin
             auth = kwargs.get("auth")
-            if auth and hasattr(auth, "username") and auth.username == "admin" and auth.password == "admin":
+            if (
+                auth
+                and hasattr(auth, "username")
+                and auth.username == "admin"
+                and auth.password == "admin"
+            ):
                 mock_resp.status_code = 200
             else:
                 mock_resp.status_code = 401
@@ -250,6 +259,7 @@ class TestCredentialTester:
     @patch("gridland.analyze.plugins.builtin.credential_tester.requests.post")
     def test_test_default_credentials_multiple_ports(self, mock_post, mock_get, tester):
         """Test credential testing across multiple ports."""
+
         # Mock success on port 8080 only
         def mock_get_side_effect(*args, **kwargs):
             url = args[0]
@@ -273,6 +283,7 @@ class TestCredentialTester:
     @patch("gridland.analyze.plugins.builtin.credential_tester.requests.post")
     def test_test_default_credentials_form_auth(self, mock_post, tester):
         """Test credential testing finds Form auth credentials."""
+
         # Mock successful Form auth on /login endpoint
         def mock_post_side_effect(*args, **kwargs):
             url = args[0]
@@ -498,3 +509,244 @@ class TestCredentialTester:
         results = tester.test_default_credentials("192.168.1.1", [80])
 
         assert results is not None
+
+    # ===== ETHICAL SAFEGUARDS TESTS (Phase 6) =====
+
+    def test_initialization_with_rate_limiting(self):
+        """Test tester initializes with custom rate limiting."""
+        tester = CredentialTester(rate_limit_delay=0.5, max_attempts_per_target=50)
+        assert tester.rate_limit_delay == 0.5
+        assert tester.max_attempts_per_target == 50
+        assert tester.audit_log_path is None
+
+    def test_initialization_with_audit_log(self):
+        """Test tester initializes with audit logging."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log_path = Path(tmpdir) / "audit.csv"
+            tester = CredentialTester(audit_log_path=str(log_path))
+
+            assert tester.audit_log_path == log_path
+            # Audit log should be created with headers
+            assert log_path.exists()
+
+            # Check CSV headers
+            with open(log_path) as f:
+                headers = f.readline().strip()
+                assert headers == "timestamp,ip,port,username,password,url,auth_type,result"
+
+    @patch("gridland.analyze.plugins.builtin.credential_tester.requests.get")
+    def test_rate_limiting_delays_requests(self, mock_get):
+        """Test rate limiting adds delays between credential attempts."""
+        mock_get.return_value = Mock(status_code=401)
+
+        # Use small rate limit for testing
+        tester = CredentialTester(rate_limit_delay=0.05)
+        tester.credentials = {"admin": ["admin", "1234"]}
+
+        start_time = time.time()
+        results = tester.test_default_credentials("192.168.1.1", [80])
+        end_time = time.time()
+
+        # Should have taken at least some time due to rate limiting
+        # With 2 passwords and rate_limit_delay=0.05, should take at least 0.1s
+        elapsed = end_time - start_time
+        assert elapsed >= 0.05  # At least one delay occurred
+
+    @patch("gridland.analyze.plugins.builtin.credential_tester.requests.get")
+    @patch("gridland.analyze.plugins.builtin.credential_tester.requests.post")
+    def test_max_attempts_per_target_enforced(self, mock_post, mock_get):
+        """Test max attempts per target is enforced."""
+        mock_get.return_value = Mock(status_code=401)
+        mock_post.return_value = Mock(status_code=401)
+
+        # Set very low attempt limit
+        tester = CredentialTester(max_attempts_per_target=5, rate_limit_delay=0)
+        tester.credentials = {
+            "admin": ["admin", "1234", "password", "12345"],
+            "root": ["root", "toor", "pass"],
+            "user": ["user", "user123"],
+        }
+
+        results = tester.test_default_credentials("192.168.1.1", [80])
+
+        # Should have stopped due to attempt limit
+        assert results["attempts_made"] <= 5
+        assert results["stopped_by_limit"] is True
+        assert results["success"] is False
+
+    @patch("gridland.analyze.plugins.builtin.credential_tester.requests.get")
+    def test_attempts_made_tracked(self, mock_get):
+        """Test that attempts are correctly tracked."""
+        mock_get.return_value = Mock(status_code=401)
+
+        tester = CredentialTester(rate_limit_delay=0)
+        tester.credentials = {"admin": ["admin", "1234"]}
+
+        results = tester.test_default_credentials("192.168.1.1", [80])
+
+        # Should track attempts made
+        assert "attempts_made" in results
+        assert results["attempts_made"] > 0
+
+    @patch("gridland.analyze.plugins.builtin.credential_tester.requests.get")
+    def test_audit_logging_success(self, mock_get):
+        """Test audit logging for successful credential test."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log_path = Path(tmpdir) / "audit.csv"
+
+            # Mock successful authentication
+            mock_get.return_value = Mock(status_code=200)
+
+            tester = CredentialTester(audit_log_path=str(log_path), rate_limit_delay=0)
+            tester.credentials = {"admin": ["admin"]}
+
+            results = tester.test_default_credentials("192.168.1.1", [80])
+
+            assert results["success"] is True
+
+            # Check audit log contains entry
+            with open(log_path) as f:
+                lines = f.readlines()
+                assert len(lines) >= 2  # Header + at least 1 entry
+
+                # Check success entry format
+                success_entry = [line for line in lines if "success" in line]
+                assert len(success_entry) > 0
+
+                # Parse entry
+                entry = success_entry[0].strip().split(",")
+                assert entry[1] == "192.168.1.1"  # IP
+                assert entry[2] == "80"  # Port
+                assert entry[3] == "admin"  # Username
+                assert entry[4] == "admin"  # Password
+                assert "http://192.168.1.1:80" in entry[5]  # URL
+                assert entry[6] == "basic"  # Auth type
+                assert entry[7] == "success"  # Result
+
+    @patch("gridland.analyze.plugins.builtin.credential_tester.requests.get")
+    def test_audit_logging_failure(self, mock_get):
+        """Test audit logging for failed credential test."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log_path = Path(tmpdir) / "audit.csv"
+
+            # Mock failed authentication
+            mock_get.return_value = Mock(status_code=401)
+
+            tester = CredentialTester(audit_log_path=str(log_path), rate_limit_delay=0)
+            tester.credentials = {"admin": ["wrong"]}
+
+            results = tester.test_default_credentials("192.168.1.1", [80])
+
+            assert results["success"] is False
+
+            # Check audit log contains failure entry
+            with open(log_path) as f:
+                lines = f.readlines()
+                assert len(lines) >= 2  # Header + at least 1 entry
+
+                # Check failure entries
+                failure_entries = [line for line in lines if "failure" in line]
+                assert len(failure_entries) > 0
+
+    def test_audit_logging_disabled_by_default(self):
+        """Test audit logging is disabled when no path provided."""
+        tester = CredentialTester()
+        assert tester.audit_log_path is None
+
+    @patch("gridland.analyze.plugins.builtin.credential_tester.requests.get")
+    def test_audit_logging_exception_handling(self, mock_get):
+        """Test audit logging handles exceptions gracefully."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a file, then try to use it as a directory (will cause error)
+            blocking_file = Path(tmpdir) / "blocking"
+            blocking_file.write_text("blocking")
+
+            # Try to create audit log inside the file (will fail)
+            tester = CredentialTester(
+                audit_log_path=str(blocking_file / "audit.csv"), rate_limit_delay=0
+            )
+
+            # Audit log initialization should have failed, path should be None
+            assert tester.audit_log_path is None
+
+            # Test should still work without audit logging
+            mock_get.return_value = Mock(status_code=401)
+            tester.credentials = {"admin": ["admin"]}
+
+            results = tester.test_default_credentials("192.168.1.1", [80])
+            assert results is not None
+
+    @patch("gridland.analyze.plugins.builtin.credential_tester.requests.get")
+    def test_stopped_by_limit_false_when_not_reached(self, mock_get):
+        """Test stopped_by_limit is False when limit not reached."""
+        mock_get.return_value = Mock(status_code=401)
+
+        tester = CredentialTester(max_attempts_per_target=1000, rate_limit_delay=0)
+        tester.credentials = {"admin": ["admin"]}
+
+        results = tester.test_default_credentials("192.168.1.1", [80])
+
+        assert results["stopped_by_limit"] is False
+
+    @patch("gridland.analyze.plugins.builtin.credential_tester.requests.get")
+    def test_early_termination_on_success_with_limits(self, mock_get):
+        """Test early termination still works with attempt limits."""
+        # Mock successful authentication on first try
+        mock_get.return_value = Mock(status_code=200)
+
+        tester = CredentialTester(max_attempts_per_target=100, rate_limit_delay=0)
+        tester.credentials = {"admin": ["admin", "1234", "password"]}
+
+        results = tester.test_default_credentials("192.168.1.1", [80])
+
+        # Should succeed and terminate early
+        assert results["success"] is True
+        assert results["stopped_by_limit"] is False
+        # Should not have tested all passwords
+        assert results["attempts_made"] < 3
+
+    @patch("gridland.analyze.plugins.builtin.credential_tester.requests.get")
+    def test_rate_limiting_zero_disables_delay(self, mock_get):
+        """Test rate limiting can be disabled with zero delay."""
+        mock_get.return_value = Mock(status_code=401)
+
+        tester = CredentialTester(rate_limit_delay=0)
+        tester.credentials = {"admin": ["admin", "1234"]}
+
+        start_time = time.time()
+        results = tester.test_default_credentials("192.168.1.1", [80])
+        end_time = time.time()
+
+        # Should be very fast with no rate limiting
+        elapsed = end_time - start_time
+        assert elapsed < 1.0  # Should complete quickly
+
+    @patch("gridland.analyze.plugins.builtin.credential_tester.requests.get")
+    @patch("gridland.analyze.plugins.builtin.credential_tester.requests.post")
+    def test_audit_log_multiple_entries(self, mock_post, mock_get):
+        """Test audit log records multiple attempts."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log_path = Path(tmpdir) / "audit.csv"
+
+            mock_get.return_value = Mock(status_code=401)
+            mock_post.return_value = Mock(status_code=401)
+
+            tester = CredentialTester(audit_log_path=str(log_path), rate_limit_delay=0)
+            tester.credentials = {"admin": ["admin", "1234"], "user": ["user"]}
+
+            results = tester.test_default_credentials("192.168.1.1", [80])
+
+            # Check audit log has multiple entries
+            with open(log_path) as f:
+                lines = f.readlines()
+                # Header + multiple attempt entries
+                assert len(lines) > 2
+
+    def test_metadata_unchanged(self):
+        """Test metadata still reports correct information with new features."""
+        tester = CredentialTester(rate_limit_delay=0.5, max_attempts_per_target=50)
+        metadata = tester.get_metadata()
+
+        assert metadata.name == "Credential Tester"
+        assert metadata.performance_impact == "HIGH"
+        assert metadata.priority == 60

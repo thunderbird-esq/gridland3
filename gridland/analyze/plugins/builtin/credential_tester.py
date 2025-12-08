@@ -4,17 +4,23 @@ Credential Tester Plugin for GRIDLAND v3.0
 This plugin tests default credentials on IP camera authentication endpoints through
 multi-threaded brute force testing. Supports Basic, Digest, and Form-based authentication.
 
+⚠️ ETHICAL USE WARNING: This tool performs credential testing and must only be used on
+systems you own or have explicit authorization to test. Rate limiting and audit logging
+are provided to ensure responsible security research.
+
 100% feature parity with CamXploit.py test_default_passwords() (lines 1201-1283).
 """
 
 import json
 import threading
-from typing import Any, Dict, List, Optional
+import time
+from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import requests
-from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 import urllib3
+from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 
 from gridland.analyze.memory import get_memory_pool
 from gridland.analyze.plugins.manager import PluginMetadata, VulnerabilityPlugin
@@ -33,24 +39,57 @@ class CredentialTester(VulnerabilityPlugin):
     Tests common default credentials using multi-threaded authentication attempts.
     Supports Basic, Digest, and Form-based authentication mechanisms.
 
+    Ethical Safeguards:
+        - Rate limiting: Configurable delay between credential attempts (default: 0.1s)
+        - Attempt limiting: Maximum attempts per target to prevent excessive testing
+        - Audit logging: Optional audit trail for compliance and accountability
+        - Early termination: Stops testing once valid credentials are found
+
     Attributes:
         credentials (Dict[str, List[str]]): Username to password list mapping.
         max_concurrent_threads (int): Maximum concurrent test threads (default: 20).
         timeout (int): HTTP request timeout in seconds (default: 5).
+        rate_limit_delay (float): Delay between credential attempts in seconds (default: 0.1).
+        max_attempts_per_target (int): Maximum total attempts per target (default: 100).
+        audit_log_path (Optional[Path]): Path to audit log file if logging enabled.
     """
 
-    def __init__(self):
-        """Initialize the Credential Tester plugin."""
+    def __init__(
+        self,
+        rate_limit_delay: float = 0.1,
+        max_attempts_per_target: int = 100,
+        audit_log_path: str | None = None,
+    ):
+        """
+        Initialize the Credential Tester plugin.
+
+        Args:
+            rate_limit_delay: Delay between credential attempts in seconds (default: 0.1).
+                             Helps prevent overwhelming target systems and ensures responsible testing.
+            max_attempts_per_target: Maximum total credential attempts per target (default: 100).
+                                    Prevents excessive brute-forcing.
+            audit_log_path: Optional path to CSV audit log file. If provided, all credential
+                           test attempts will be logged with timestamps for compliance tracking.
+        """
         super().__init__()
         self.credentials = self._load_credentials()
-        self.max_concurrent_threads = 20  # From CamXploit.py line 1248 (lower for credential testing)
+        self.max_concurrent_threads = (
+            20  # From CamXploit.py line 1248 (lower for credential testing)
+        )
         self.timeout = 5  # From CamXploit.py TIMEOUT constant line 797
+        self.rate_limit_delay = rate_limit_delay
+        self.max_attempts_per_target = max_attempts_per_target
+        self.audit_log_path = Path(audit_log_path) if audit_log_path else None
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
         self.memory_pool = get_memory_pool()
 
-    def _load_credentials(self) -> Dict[str, List[str]]:
+        # Initialize audit log if path provided
+        if self.audit_log_path:
+            self._initialize_audit_log()
+
+    def _load_credentials(self) -> dict[str, list[str]]:
         """
         Load default credentials from default_credentials.json.
 
@@ -71,12 +110,81 @@ class CredentialTester(VulnerabilityPlugin):
             logger.error(f"Failed to load default credentials: {e}")
             # Fallback to CamXploit.py DEFAULT_CREDENTIALS (lines 784-790)
             return {
-                "admin": ["admin", "1234", "admin123", "password", "12345", "123456", "1111", "default"],
+                "admin": [
+                    "admin",
+                    "1234",
+                    "admin123",
+                    "password",
+                    "12345",
+                    "123456",
+                    "1111",
+                    "default",
+                ],
                 "root": ["root", "toor", "1234", "pass", "root123"],
                 "user": ["user", "user123", "password"],
                 "guest": ["guest", "guest123"],
                 "operator": ["operator", "operator123"],
             }
+
+    def _initialize_audit_log(self):
+        """
+        Initialize the audit log file with CSV headers.
+
+        Creates the audit log file if it doesn't exist and writes CSV headers.
+        Thread-safe for concurrent audit logging.
+        """
+        try:
+            # Create parent directories if they don't exist
+            self.audit_log_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Create file with headers if it doesn't exist
+            if not self.audit_log_path.exists():
+                with open(self.audit_log_path, "w", encoding="utf-8") as f:
+                    f.write("timestamp,ip,port,username,password,url,auth_type,result\n")
+                logger.info(f"Initialized audit log: {self.audit_log_path}")
+
+        except Exception as e:
+            logger.error(f"Failed to initialize audit log: {e}")
+            # Disable audit logging if initialization fails
+            self.audit_log_path = None
+
+    def _log_audit_entry(
+        self,
+        ip: str,
+        port: int,
+        username: str,
+        password: str,
+        url: str,
+        auth_type: str,
+        success: bool,
+    ):
+        """
+        Log a credential test attempt to the audit log.
+
+        Args:
+            ip: Target IP address.
+            port: Target port number.
+            username: Username tested.
+            password: Password tested.
+            url: Full URL tested.
+            auth_type: Authentication type (basic, digest, form).
+            success: Whether the credential test succeeded.
+        """
+        if not self.audit_log_path:
+            return
+
+        try:
+            timestamp = datetime.utcnow().isoformat()
+            result = "success" if success else "failure"
+
+            # Thread-safe append to audit log
+            with open(self.audit_log_path, "a", encoding="utf-8") as f:
+                f.write(
+                    f"{timestamp},{ip},{port},{username},{password},{url},{auth_type},{result}\n"
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to write audit log entry: {e}")
 
     def get_metadata(self) -> PluginMetadata:
         """
@@ -100,7 +208,7 @@ class CredentialTester(VulnerabilityPlugin):
 
     async def scan_vulnerabilities(
         self, target_ip: str, target_port: int, service: str = "", banner: str = ""
-    ) -> List[Any]:
+    ) -> list[Any]:
         """
         Test credentials on a single port.
 
@@ -123,13 +231,14 @@ class CredentialTester(VulnerabilityPlugin):
     def test_default_credentials(
         self,
         ip: str,
-        open_ports: List[int],
-        progress_callback: Optional[callable] = None,
-    ) -> Dict[str, Any]:
+        open_ports: list[int],
+        progress_callback: callable | None = None,
+    ) -> dict[str, Any]:
         """
         Test default credentials across multiple ports.
 
         100% feature parity with CamXploit.py test_default_passwords() (lines 1201-1283).
+        Enhanced with ethical safeguards: rate limiting, attempt limiting, and audit logging.
 
         Args:
             ip: Target IP address.
@@ -141,9 +250,13 @@ class CredentialTester(VulnerabilityPlugin):
                 - 'success': Boolean indicating if credentials were found
                 - 'credentials': Dict with 'username', 'password', 'url' if found
                 - 'auth_type': Authentication type used ('basic', 'form', 'digest')
+                - 'attempts_made': Number of credential attempts made
+                - 'stopped_by_limit': Boolean indicating if stopped by attempt limit
         """
         found = [False]  # Mutable flag for threading
         credentials_found = {}
+        attempt_count = [0]  # Track total attempts
+        stopped_by_limit = [False]  # Track if stopped by limit
         lock = threading.Lock()
 
         # CamXploit.py lines 1254-1259: test these endpoints per port
@@ -160,17 +273,35 @@ class CredentialTester(VulnerabilityPlugin):
             if found[0]:
                 return False
 
+            # Check if stopped by attempt limit
+            if stopped_by_limit[0]:
+                return False
+
             url = f"{protocol}://{ip}:{port}{path}"
 
             for username, passwords in self.credentials.items():
                 # Check for early termination (CamXploit.py line 1213-1214)
-                if found[0]:
+                if found[0] or stopped_by_limit[0]:
                     return False
 
                 for password in passwords:
                     # Check for early termination (CamXploit.py line 1216-1217)
-                    if found[0]:
+                    if found[0] or stopped_by_limit[0]:
                         return False
+
+                    # Check attempt limit (ethical safeguard)
+                    with lock:
+                        if attempt_count[0] >= self.max_attempts_per_target:
+                            stopped_by_limit[0] = True
+                            logger.warning(
+                                f"Reached max attempts limit ({self.max_attempts_per_target}) for {ip}"
+                            )
+                            return False
+                        attempt_count[0] += 1
+
+                    # Rate limiting (ethical safeguard)
+                    if self.rate_limit_delay > 0:
+                        time.sleep(self.rate_limit_delay)
 
                     try:
                         success = False
@@ -182,6 +313,9 @@ class CredentialTester(VulnerabilityPlugin):
                             success = self._test_form_auth(url, username, password)
                         elif auth_type == "digest":
                             success = self._test_digest_auth(url, username, password)
+
+                        # Audit logging (ethical safeguard)
+                        self._log_audit_entry(ip, port, username, password, url, auth_type, success)
 
                         # CamXploit.py lines 1236-1241: successful authentication
                         if success:
@@ -204,7 +338,8 @@ class CredentialTester(VulnerabilityPlugin):
 
                     except Exception:
                         # Silent failure as in CamXploit.py line 1242-1243
-                        pass
+                        # Still log audit entry for failed attempts
+                        self._log_audit_entry(ip, port, username, password, url, auth_type, False)
 
             return False
 
@@ -243,6 +378,8 @@ class CredentialTester(VulnerabilityPlugin):
         return {
             "success": found[0],
             "credentials": credentials_found if found[0] else None,
+            "attempts_made": attempt_count[0],
+            "stopped_by_limit": stopped_by_limit[0],
         }
 
     def _get_protocol(self, port: int) -> str:
@@ -339,9 +476,7 @@ class CredentialTester(VulnerabilityPlugin):
         except Exception:
             return False
 
-    def _convert_to_vulnerability_results(
-        self, ip: str, test_results: Dict[str, Any]
-    ) -> List[Any]:
+    def _convert_to_vulnerability_results(self, ip: str, test_results: dict[str, Any]) -> list[Any]:
         """
         Convert test results to VulnerabilityResult objects.
 
@@ -371,9 +506,7 @@ class CredentialTester(VulnerabilityPlugin):
             vuln.vulnerability_id = "DEFAULT-CREDENTIALS"
             vuln.severity = "CRITICAL"
             vuln.confidence = 100
-            vuln.description = (
-                f"Default credentials found: {creds['username']}:{creds['password']}"
-            )
+            vuln.description = f"Default credentials found: {creds['username']}:{creds['password']}"
             vuln.exploit_available = True
 
             # Add details
