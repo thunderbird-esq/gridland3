@@ -18,6 +18,7 @@ from tabulate import tabulate
 
 from ..core.config import get_config, get_port_manager
 from ..core.logger import get_logger, set_verbose
+from ..discover import PythonPortScanner, PortSelector
 from ..discover.censys_engine import CensysEngine
 from ..discover.masscan_engine import MasscanEngine
 from ..discover.shodanspider_engine import ShodanSpiderEngine
@@ -127,6 +128,14 @@ class ProgressIndicator:
     help="Output format (default: table)",
 )
 @click.option("--input-file", "-f", help="Input file with targets (one per line)")
+@click.option("--use-python-scanner", is_flag=True,
+              help="Use pure Python port scanner instead of masscan")
+@click.option("--camera-ports", is_flag=True,
+              help="Use comprehensive camera port database (685 ports)")
+@click.option("--camera-port-category",
+              type=click.Choice(["all", "web", "rtsp", "rtmp", "mms", "onvif", "custom"]),
+              default=None,
+              help="Filter camera ports by category (requires --camera-ports)")
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
 @click.option("--dry-run", is_flag=True, help="Show what would be done without executing")
 def discover(
@@ -145,6 +154,9 @@ def discover(
     output,
     output_format,
     input_file,
+    use_python_scanner,
+    camera_ports,
+    camera_port_category,
     verbose,
     dry_run,
 ):
@@ -199,6 +211,19 @@ def discover(
         port_list = _get_ports_for_scan_mode(scan_mode, port_manager)
         logger.info(f"Using {scan_mode} scan mode: {len(port_list)} ports")
 
+    # Override with camera ports if requested
+    if camera_ports:
+        try:
+            if camera_port_category:
+                port_list = PortSelector.get_camera_ports(category=camera_port_category)
+                logger.info(f"Using {camera_port_category} camera ports: {len(port_list)} ports")
+            else:
+                port_list = PortSelector.get_camera_ports(category="all")
+                logger.info(f"Using all camera ports: {len(port_list)} ports")
+        except Exception as e:
+            logger.error(f"Failed to load camera ports: {e}")
+            sys.exit(1)
+
     # Parse brands if provided
     brand_list = None
     if brands:
@@ -237,6 +262,7 @@ def discover(
                 brand_list,
                 input_file,
                 config,
+                use_python_scanner,
             )
 
         # Filter for cameras if requested
@@ -336,10 +362,18 @@ def _show_dry_run(
 
 
 def _execute_discovery(
-    engine, range, query, ports, rate, limit, country, cve, brands, input_file, config
+    engine, range, query, ports, rate, limit, country, cve, brands, input_file, config, use_python_scanner=False
 ):
     """Execute discovery based on selected engine and parameters."""
     results = []
+
+    # Check if Python scanner is explicitly requested or masscan not available
+    if engine == "masscan" and (use_python_scanner or not _check_masscan_available()):
+        if not _check_masscan_available():
+            logger.warning("Masscan not available, using Python port scanner fallback")
+        else:
+            logger.info("Using Python port scanner as requested")
+        return _run_python_scanner_discovery(range, ports, input_file, config)
 
     # Auto-select engine if needed
     if engine == "auto":
@@ -387,6 +421,112 @@ def _auto_select_engine(range, query, input_file):
 
     # Default fallback
     return "masscan"
+
+
+def _check_masscan_available() -> bool:
+    """Check if masscan is available on the system."""
+    import shutil
+    return shutil.which("masscan") is not None
+
+
+def _run_python_scanner_discovery(ip_range: str, ports: list, input_file: str, config) -> list:
+    """Execute discovery using pure Python port scanner.
+
+    This is a fallback when masscan is not available or when explicitly requested.
+    Uses the PythonPortScanner from Phase 3 with multi-threaded scanning.
+    """
+    import ipaddress
+
+    scanner = PythonPortScanner(max_threads=100, timeout=1.5)
+    results = []
+
+    # Determine target IPs
+    target_ips = []
+
+    if input_file:
+        # Load targets from file
+        try:
+            with open(input_file) as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#'):
+                        # Handle IP:port format
+                        if ':' in line:
+                            ip = line.split(':')[0]
+                        else:
+                            ip = line
+                        try:
+                            ipaddress.ip_address(ip)
+                            target_ips.append(ip)
+                        except ValueError:
+                            logger.warning(f"Invalid IP in file: {line}")
+        except Exception as e:
+            logger.error(f"Failed to read input file: {e}")
+            return []
+
+    elif ip_range:
+        # Parse IP range (single IP, CIDR, or range)
+        try:
+            if '/' in ip_range:
+                # CIDR notation
+                network = ipaddress.ip_network(ip_range, strict=False)
+                target_ips = [str(ip) for ip in network.hosts()]
+                # Limit for safety
+                if len(target_ips) > 256:
+                    logger.warning(f"Large network ({len(target_ips)} IPs), limiting to first 256")
+                    target_ips = target_ips[:256]
+            elif '-' in ip_range:
+                # Range notation (e.g., 192.168.1.1-192.168.1.254)
+                parts = ip_range.split('-')
+                if len(parts) == 2:
+                    start_ip = ipaddress.ip_address(parts[0].strip())
+                    end_ip = ipaddress.ip_address(parts[1].strip())
+                    target_ips = [str(ipaddress.ip_address(ip))
+                                  for ip in range(int(start_ip), int(end_ip) + 1)]
+            else:
+                # Single IP
+                ipaddress.ip_address(ip_range)
+                target_ips = [ip_range]
+        except ValueError as e:
+            logger.error(f"Invalid IP range format: {e}")
+            return []
+
+    if not target_ips:
+        logger.error("No valid target IPs found")
+        return []
+
+    logger.info(f"Python scanner: Scanning {len(target_ips)} IPs across {len(ports)} ports")
+
+    # Progress callback
+    total_scans = len(target_ips) * len(ports)
+    scanned = [0]  # Use list to allow mutation in closure
+
+    def progress_callback(completed, total):
+        scanned[0] += completed
+        if scanned[0] % 100 == 0:
+            pct = (scanned[0] / total_scans) * 100 if total_scans > 0 else 0
+            print(f"\r⏳ Scanning... {scanned[0]}/{total_scans} ({pct:.1f}%)", end="", flush=True)
+
+    # Scan each target
+    for ip in target_ips:
+        try:
+            open_ports = scanner.scan_ports(ip, ports, progress_callback=progress_callback)
+
+            for port in open_ports:
+                results.append({
+                    "ip": ip,
+                    "port": port,
+                    "protocol": "tcp",
+                    "service": "unknown",
+                    "banner": "",
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "source": "python_scanner",
+                })
+        except Exception as e:
+            logger.warning(f"Failed to scan {ip}: {e}")
+
+    print()  # Newline after progress
+    return results
 
 
 def _run_masscan_discovery(range, ports, rate, input_file, config):

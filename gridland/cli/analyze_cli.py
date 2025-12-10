@@ -30,6 +30,11 @@ from ..analyze import (
 )
 from ..core.config import get_config
 from ..core.logger import get_logger, set_verbose
+from ..analyze.core.osint import OSINTURLGenerator, GeoLookup
+from ..analyze.core import BrandDetector, CVELookup
+from ..analyze.plugins.builtin.login_scanner import LoginPageScanner
+from ..analyze.plugins.builtin.credential_tester import CredentialTester
+from ..core import IPValidator
 
 logger = get_logger(__name__)
 
@@ -143,6 +148,14 @@ class ProgressIndicator:
 @click.option("--show-statistics", is_flag=True, help="Show detailed performance statistics")
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
 @click.option("--dry-run", is_flag=True, help="Show what would be analyzed without executing")
+@click.option("--show-search-urls", is_flag=True, help="Show OSINT search URLs (Shodan, Censys, ZoomEye)")
+@click.option("--geo-lookup", is_flag=True, help="Perform IP geolocation lookup")
+@click.option("--google-dorks", is_flag=True, help="Generate Google dork queries")
+@click.option("--show-cves", is_flag=True, help="Show CVEs for detected camera brand")
+@click.option("--detect-brand", is_flag=True, help="Detect camera brand from responses")
+@click.option("--scan-logins", is_flag=True, help="Scan for login pages")
+@click.option("--test-credentials", is_flag=True, help="Test default credentials (requires consent)")
+@click.option("--full-scan", is_flag=True, help="Enable all reconnaissance features")
 def analyze(
     targets,
     input_file,
@@ -160,6 +173,14 @@ def analyze(
     show_statistics,
     verbose,
     dry_run,
+    show_search_urls,
+    geo_lookup,
+    google_dorks,
+    show_cves,
+    detect_brand,
+    scan_logins,
+    test_credentials,
+    full_scan,
 ):
     """
     Analyze targets for vulnerabilities and streams using the revolutionary Phase 3 engine.
@@ -226,6 +247,16 @@ def analyze(
     analysis_config.enable_plugin_scanning = not disable_plugins
     analysis_config.enable_enrichment_plugins = enrich
 
+    # Handle --full-scan convenience flag
+    if full_scan:
+        show_search_urls = True
+        geo_lookup = True
+        google_dorks = True
+        show_cves = True
+        detect_brand = True
+        scan_logins = True
+        # Note: test_credentials still requires explicit flag for safety
+
     if dry_run:
         _show_dry_run(analysis_targets, analysis_config)
         return
@@ -236,6 +267,13 @@ def analyze(
 
         # Output results
         _output_results(results, output, output_format, analysis_targets)
+
+        # Run OSINT reconnaissance if any flags enabled
+        if any([show_search_urls, geo_lookup, google_dorks, show_cves, detect_brand, scan_logins, test_credentials]):
+            _run_osint_reconnaissance(
+                analysis_targets, show_search_urls, geo_lookup, google_dorks,
+                show_cves, detect_brand, scan_logins, test_credentials, verbose
+            )
 
         # Show statistics if requested
         if show_statistics:
@@ -650,6 +688,144 @@ def _show_performance_statistics():
     for plugin_type, count in plugin_stats["plugins_by_type"].items():
         if count > 0:
             print(f"  {plugin_type} plugins: {count}")
+
+
+def _run_osint_reconnaissance(targets: list, show_search_urls: bool, geo_lookup: bool,
+                               google_dorks: bool, show_cves: bool, detect_brand: bool,
+                               scan_logins: bool, test_credentials: bool, verbose: bool):
+    """Run OSINT and reconnaissance features on targets."""
+    import asyncio
+
+    unique_ips = sorted(list({t.ip for t in targets}))
+
+    if not unique_ips:
+        logger.warning("No valid IPs for reconnaissance")
+        return
+
+    print("\n" + "=" * 60)
+    print("GRIDLAND OSINT & Reconnaissance Results")
+    print("=" * 60)
+
+    for ip in unique_ips[:10]:  # Limit to first 10 IPs
+        print(f"\n🎯 Target: {ip}")
+        print("-" * 40)
+
+        # IP Validation
+        is_valid, warning = IPValidator.validate_ip(ip)
+        if warning:
+            print(f"⚠️  {warning}")
+
+        # OSINT Search URLs
+        if show_search_urls:
+            print("\n📡 OSINT Search URLs:")
+            urls = OSINTURLGenerator.generate_search_urls(ip)
+            for platform, url in urls.items():
+                print(f"   {platform.capitalize()}: {url}")
+
+        # Google Dorks
+        if google_dorks:
+            print("\n🔍 Google Dork Queries:")
+            dorks = OSINTURLGenerator.generate_google_dorks(ip)
+            for dork in dorks[:4]:  # Show top 4 dorks
+                print(f"   • {dork['query']}")
+                print(f"     URL: {dork['url']}")
+
+        # Geo Lookup (async)
+        if geo_lookup:
+            print("\n🌍 Geolocation:")
+            try:
+                geo = GeoLookup(cache_duration=3600, rate_limit_delay=0.1)
+                ip_info = asyncio.run(geo.get_ip_info(ip))
+                if ip_info:
+                    print(f"   City: {ip_info.get('city', 'N/A')}")
+                    print(f"   Region: {ip_info.get('region', 'N/A')}")
+                    print(f"   Country: {ip_info.get('country', 'N/A')}")
+                    print(f"   Organization: {ip_info.get('org', 'N/A')}")
+                    map_urls = GeoLookup.generate_map_urls(ip_info)
+                    if map_urls.get('openstreetmap'):
+                        print(f"   Map: {map_urls['openstreetmap']}")
+            except Exception as e:
+                print(f"   ⚠️  Geo lookup failed: {e}")
+
+        # Brand Detection
+        if detect_brand:
+            print("\n🏭 Brand Detection:")
+            try:
+                detector = BrandDetector()
+                # Get open ports for this IP from targets
+                ip_ports = [t.port for t in targets if t.ip == ip]
+                if ip_ports:
+                    # Create mock port data for detection
+                    ports_data = [{'port': p, 'server_header': '', 'content_type': '', 'response_body': ''} for p in ip_ports]
+                    result = detector.analyze_all_ports(ports_data)
+                    print(f"   Brand: {result.get('brand', 'Unknown')}")
+                    print(f"   Confidence: {result.get('confidence', 0):.1%}")
+                    if result.get('evidence'):
+                        print(f"   Evidence: {', '.join(result['evidence'][:2])}")
+            except Exception as e:
+                print(f"   ⚠️  Brand detection failed: {e}")
+
+        # CVE Lookup
+        if show_cves and detect_brand:
+            print("\n🔓 Known CVEs:")
+            try:
+                lookup = CVELookup()
+                if 'result' in dir() and result.get('brand') and result['brand'] != 'generic':
+                    cves = lookup.get_cves(result['brand'], min_severity='high')
+                    if cves:
+                        for cve in cves[:5]:  # Show top 5
+                            print(f"   • {cve['cve_id']} ({cve['severity'].upper()})")
+                            nvd_urls = lookup.generate_nvd_urls([cve])
+                            if nvd_urls:
+                                print(f"     {nvd_urls[0]}")
+                    else:
+                        print("   No high-severity CVEs found for this brand")
+                else:
+                    print("   (Brand detection required for CVE lookup)")
+            except Exception as e:
+                print(f"   ⚠️  CVE lookup failed: {e}")
+
+        # Login Page Scanning
+        if scan_logins:
+            print("\n🔐 Login Page Discovery:")
+            try:
+                scanner = LoginPageScanner()
+                ip_ports = [t.port for t in targets if t.ip == ip]
+                if ip_ports:
+                    result = scanner.scan_login_pages(ip, ip_ports)
+                    if result.get('login_pages'):
+                        for page in result['login_pages'][:5]:
+                            print(f"   • {page['url']}")
+                            print(f"     Auth: {page.get('auth_type', 'unknown')}, Status: {page.get('status_code', 'N/A')}")
+                    else:
+                        print("   No login pages found")
+            except Exception as e:
+                print(f"   ⚠️  Login scanning failed: {e}")
+
+        # Credential Testing (with consent warning)
+        if test_credentials:
+            print("\n🔑 Default Credential Testing:")
+            print("   ⚠️  WARNING: Only test credentials on systems you own or have authorization!")
+            try:
+                tester = CredentialTester(rate_limit_delay=0.5, max_attempts_per_target=10)
+                ip_ports = [t.port for t in targets if t.ip == ip]
+                if ip_ports:
+                    result = tester.test_default_credentials(ip, ip_ports)
+                    if result.get('success'):
+                        creds = result['credentials']
+                        print(f"   ✅ Valid credentials found!")
+                        print(f"      URL: {creds.get('url', 'N/A')}")
+                        print(f"      Username: {creds.get('username', 'N/A')}")
+                        print(f"      Auth Type: {creds.get('auth_type', 'N/A')}")
+                    else:
+                        print(f"   No default credentials found (tested {result.get('attempts_made', 0)} combinations)")
+            except Exception as e:
+                print(f"   ⚠️  Credential testing failed: {e}")
+
+    if len(unique_ips) > 10:
+        print(f"\n... and {len(unique_ips) - 10} more targets")
+
+    print("\n" + "=" * 60)
 
 
 if __name__ == "__main__":

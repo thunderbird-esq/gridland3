@@ -4826,3 +4826,212 @@ Expected completion: TASKS 252-266 (CLI integration tasks from MIGRATION_TASKS.m
 
 **Phase 7: ✓ COMPLETE**
 
+
+---
+
+## Phase 8: CLI Integration (2025-12-10)
+
+**Status**: ✓ COMPLETE  
+**TASKS**: 267-306 (40 atomic tasks)  
+**Duration**: Single session implementation
+
+### Overview
+
+Phase 8 implements comprehensive CLI integration, connecting all Phase 1-7 modules to the command-line interface. This phase transforms GRIDLAND from a collection of modules into a fully functional security reconnaissance tool accessible via `gl-analyze` and `gl-discover` commands.
+
+### Implementation Summary
+
+#### Analyze CLI Enhancements (`gridland/cli/analyze_cli.py`)
+
+**8 New Command-Line Options:**
+
+| Flag | Description | Integrated Module |
+|------|-------------|-------------------|
+| `--show-search-urls` | Display OSINT search URLs | OSINTURLGenerator |
+| `--geo-lookup` | IP geolocation with map links | GeoLookup |
+| `--google-dorks` | Camera discovery dork queries | OSINTURLGenerator |
+| `--show-cves` | Display brand-specific CVEs | CVELookup |
+| `--detect-brand` | Detect camera manufacturer | BrandDetector |
+| `--scan-logins` | Discover authentication endpoints | LoginPageScanner |
+| `--test-credentials` | Test default credentials (with consent) | CredentialTester |
+| `--full-scan` | Enable all recon features | All modules |
+
+**New Function: `_run_osint_reconnaissance()`**
+- Comprehensive OSINT reconnaissance function (136 lines)
+- Processes first 10 unique IPs from target list
+- Each IP receives full reconnaissance treatment:
+  - IP validation with private IP warnings (IPValidator)
+  - OSINT platform URLs (Shodan, Censys, ZoomEye, Google)
+  - Google dork queries (4 camera-specific patterns)
+  - Async geolocation with OpenStreetMap links
+  - Brand detection with confidence scoring
+  - CVE lookup for detected brands (top 5 high-severity)
+  - Login page discovery (top 5 endpoints)
+  - Default credential testing (with ethical warnings)
+- Clean, emoji-enhanced formatted output with sections
+- Robust error handling (try/except for all module calls)
+
+#### Discover CLI Enhancements (`gridland/cli/discover_cli.py`)
+
+**3 New Command-Line Options:**
+
+| Flag | Description | Integrated Module |
+|------|-------------|-------------------|
+| `--use-python-scanner` | Use Python scanner instead of masscan | PythonPortScanner |
+| `--camera-ports` | Use 685-port camera database | PortSelector |
+| `--camera-port-category` | Filter by category (web/rtsp/rtmp/mms/onvif/custom) | PortSelector |
+
+**New Functions:**
+
+1. `_run_python_scanner_discovery()` (94 lines)
+   - Multi-threaded port scanning (100 threads, 1.5s timeout)
+   - Supports single IP, CIDR notation, IP ranges, and input files
+   - Real-time progress tracking with percentage display
+   - Safety limit: 256 IPs for large CIDR networks
+   - Returns results in standard discovery format
+
+2. `_check_masscan_available()` (4 lines)
+   - Checks if masscan binary exists in system PATH
+   - Used for automatic fallback to Python scanner
+
+**Automatic Fallback Logic:**
+- When `--engine masscan` is used but masscan is not installed
+- Automatically falls back to Python scanner with warning message
+- Or explicitly use `--use-python-scanner` to force Python scanner
+
+### Test Suite Created
+
+**tests/cli/__init__.py** (1 line)
+- Package initialization for CLI tests
+
+**tests/cli/test_analyze_cli_integration.py** (170 lines, 13 tests)
+- TestAnalyzeCLIBasics: Help display, input requirements
+- TestAnalyzeOSINTFlags: Search URLs, geo lookup, Google Dorks, full scan
+- TestAnalyzeBrandDetection: Brand detection flag, CVE display flag
+- TestAnalyzeSecurityFlags: Login scanning, credential testing
+- TestAnalyzeDryRun: Dry run mode validation
+- TestAnalyzeOutputFormats: Output format options
+
+**tests/cli/test_discover_cli_integration.py** (182 lines, 13 tests)
+- TestDiscoverCLIBasics: Help display, input requirements
+- TestDiscoverPythonScanner: Python scanner flag, help text
+- TestDiscoverCameraPorts: Camera ports flag, category flag, category choices
+- TestDiscoverDryRun: Dry run mode validation
+- TestDiscoverEngineSelection: Engine options, scan mode options
+- TestDiscoverOutputFormats: Output format options
+- TestDiscoverInputValidation: Masscan input validation
+
+### Usage Examples
+
+```bash
+# Full reconnaissance on a target
+gl-analyze --targets "192.168.1.100:80" --full-scan
+
+# OSINT-only analysis (no credential testing)
+gl-analyze --targets "192.168.1.100:80" --show-search-urls --geo-lookup --google-dorks
+
+# CVE lookup after brand detection
+gl-analyze --targets "192.168.1.100:80,443,554" --detect-brand --show-cves
+
+# Login and credential testing (authorized targets only)
+gl-analyze --targets "192.168.1.100:80" --scan-logins --test-credentials
+
+# Discovery with Python scanner and all camera ports
+gl-discover --range 192.168.1.0/24 --use-python-scanner --camera-ports
+
+# Discovery with RTSP ports only
+gl-discover --range 192.168.1.100 --camera-ports --camera-port-category rtsp
+
+# Automatic fallback when masscan not available
+gl-discover --engine masscan --range 192.168.1.0/24
+# (automatically uses Python scanner if masscan not found)
+```
+
+### Code Quality Metrics
+
+#### Analyze CLI Enhancements
+- **New Lines Added**: ~176 lines
+- **New Options**: 8 click.option decorators
+- **New Function**: _run_osint_reconnaissance() (136 lines)
+- **Imports Added**: 6 new module imports
+- **Error Handling**: try/except for all external calls
+
+#### Discover CLI Enhancements
+- **New Lines Added**: ~140 lines
+- **New Options**: 3 click.option decorators
+- **New Functions**: 2 (_run_python_scanner_discovery, _check_masscan_available)
+- **Imports Added**: 2 new module imports
+- **Progress Tracking**: Real-time percentage display
+
+#### Test Suite
+- **Total Test Files**: 2
+- **Total Test Lines**: 353 (170 + 182 + 1)
+- **Total Tests**: 26 (13 + 13)
+- **Test Framework**: Click CliRunner
+- **Coverage Focus**: Flag existence and help text verification
+
+### Integration Points
+
+Phase 8 integrates ALL previous phase modules:
+
+| Phase | Module | CLI Flag |
+|-------|--------|----------|
+| Phase 1 | camera_ports.json | --camera-ports |
+| Phase 2 | OSINTURLGenerator | --show-search-urls, --google-dorks |
+| Phase 2 | GeoLookup | --geo-lookup |
+| Phase 3 | PythonPortScanner | --use-python-scanner |
+| Phase 3 | PortSelector | --camera-ports, --camera-port-category |
+| Phase 4 | BrandDetector | --detect-brand |
+| Phase 4 | CVELookup | --show-cves |
+| Phase 4 | IPValidator | Internal validation |
+| Phase 5 | LoginPageScanner | --scan-logins |
+| Phase 5 | CredentialTester | --test-credentials |
+
+### Ethical Safeguards
+
+CLI implements responsible use controls:
+
+1. **Credential Testing Consent**
+   - `--test-credentials` flag requires explicit opt-in
+   - Warning message displayed before testing
+   - Rate limiting: 0.5s delay between attempts
+   - Attempt limiting: Max 10 attempts per target
+
+2. **Full Scan Safety**
+   - `--full-scan` enables safe features only
+   - Does NOT automatically enable `--test-credentials`
+   - Users must explicitly add credential testing
+
+3. **Python Scanner Limits**
+   - CIDR networks limited to 256 IPs
+   - Warning displayed for large networks
+   - Progress tracking for transparency
+
+### Lessons Learned
+
+1. **Module Integration**: Clean imports make CLI integration straightforward when modules have consistent interfaces.
+
+2. **Error Handling**: Every external module call needs try/except - network operations and file I/O can fail in many ways.
+
+3. **User Experience**: Progress tracking and formatted output dramatically improve usability for long-running operations.
+
+4. **Safety by Default**: Making credential testing opt-in (not enabled by --full-scan) is the right ethical choice.
+
+5. **Automatic Fallback**: Detecting missing tools (masscan) and falling back gracefully improves reliability across environments.
+
+### Migration Progress
+
+- **Phase 8 Complete**: 40 tasks (TASKS 267-306)
+- **Total Complete**: 306/405 tasks (75.6%)
+- **Remaining**: 99 tasks (Phases 9-10)
+
+### Next Phase Preview: Testing & Validation (Phase 9)
+
+Phase 9 will implement comprehensive testing and validation:
+- End-to-end integration tests
+- Performance benchmarking (CamXploit.py vs GRIDLAND)
+- Feature parity validation
+- Coverage reporting and gap analysis
+- Stress testing for edge cases
+
+**Phase 8: ✓ COMPLETE**
