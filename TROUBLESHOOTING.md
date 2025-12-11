@@ -577,6 +577,261 @@ Plugin 'cp_plus_scanner' not found
 
 ---
 
+### Issue: Python Port Scanner runs slowly
+
+**Symptoms:**
+
+```
+Port scanning takes several minutes for common ports
+```
+
+**Solutions:**
+
+1. **Reduce thread count** (if experiencing resource issues):
+
+   ```python
+   from gridland.discover import PythonPortScanner
+
+   # Default is 100 threads - reduce if needed
+   scanner = PythonPortScanner(max_threads=50, timeout=1.5)
+   ```
+
+2. **Increase timeout** if experiencing many false negatives:
+
+   ```python
+   # Increase timeout for slower networks
+   scanner = PythonPortScanner(max_threads=100, timeout=3.0)
+   ```
+
+3. **Use category-based scanning** to scan specific port types:
+
+   ```bash
+   # Scan only RTSP ports (faster than all 685 ports)
+   gl-discover --camera-port-category rtsp 192.168.1.0/24
+
+   # Scan only web ports
+   gl-discover --camera-port-category web 192.168.1.0/24
+   ```
+
+4. **Check network connectivity**:
+
+   ```bash
+   # Verify target is reachable
+   ping 192.168.1.100
+
+   # Check for firewall blocking
+   telnet 192.168.1.100 80
+   ```
+
+---
+
+### Issue: Scanner reports all ports closed
+
+**Symptoms:**
+
+```
+No open ports found (but device is known to be online)
+```
+
+**Solutions:**
+
+1. **Verify target is reachable**:
+
+   ```bash
+   ping 192.168.1.100
+   ```
+
+2. **Check for firewall blocking** outbound connections:
+
+   ```bash
+   # Test with masscan if available
+   sudo masscan 192.168.1.100 -p80,443,554 --rate=1000
+   ```
+
+3. **Increase timeout** for slower networks:
+
+   ```python
+   scanner = PythonPortScanner(max_threads=100, timeout=5.0)
+   ```
+
+4. **Test with a known open port**:
+
+   ```bash
+   # Test if port 80 is open on a known web server
+   gl-discover --camera-ports 80 8.8.8.8
+   ```
+
+---
+
+### Issue: Python scanner used instead of masscan
+
+**Symptoms:**
+
+```
+[INFO] masscan not found - falling back to Python scanner
+```
+
+**Solutions:**
+
+1. **Install masscan** for faster scanning:
+
+   ```bash
+   # Ubuntu/Debian
+   sudo apt-get install masscan
+
+   # macOS
+   brew install masscan
+
+   # Build from source
+   git clone https://github.com/robertdavidgraham/masscan
+   cd masscan
+   make
+   sudo make install
+   ```
+
+2. **Explicitly use Python scanner** (if masscan causes issues):
+
+   ```bash
+   gl-discover --use-python-scanner 192.168.1.0/24
+   ```
+
+3. **Verify masscan installation**:
+
+   ```bash
+   which masscan
+   masscan --version
+   ```
+
+---
+
+### Issue: OSINT geo lookup returns empty results
+
+**Symptoms:**
+
+```
+Geo lookup failed or returned no data
+```
+
+**Solutions:**
+
+1. **IPinfo.io rate limiting** - Free tier has limits:
+
+   ```python
+   from gridland.analyze.core.osint import GeoLookup
+
+   # Increase rate limit delay
+   geo = GeoLookup(rate_limit_delay=0.5)  # 500ms between requests
+   ```
+
+2. **Check internet connectivity**:
+
+   ```bash
+   # Test API access
+   curl https://ipinfo.io/8.8.8.8
+   ```
+
+3. **Use API token** for higher rate limits (optional):
+
+   ```python
+   # IPinfo.io supports optional API tokens
+   # Modify GeoLookup class to accept token parameter
+   ```
+
+4. **Clear cache** if getting stale data:
+
+   ```python
+   geo = GeoLookup()
+   geo.clear_cache()
+   ```
+
+---
+
+### Issue: OSINT URLs not working
+
+**Symptoms:**
+
+```
+Generated URLs return 404 or access denied
+```
+
+**Solutions:**
+
+1. **Some platforms require API keys** for full access:
+
+   ```
+   - Shodan: Requires paid API key for full host lookups
+   - Censys: Free tier available with registration
+   - ZoomEye: Requires account registration
+   ```
+
+2. **URLs are for manual verification** in browser:
+
+   ```bash
+   # Use --show-search-urls flag to get URLs
+   gl-analyze --show-search-urls 192.168.1.100
+
+   # Copy URL and paste in browser
+   ```
+
+3. **Check IP is public** (not private):
+
+   ```python
+   from gridland.core import IPValidator
+
+   is_valid, warning = IPValidator.validate_ip("192.168.1.1")
+   if warning:
+       print(warning)  # "Warning: Private IP address detected..."
+   ```
+
+4. **Try alternative OSINT platforms**:
+
+   ```bash
+   # Use different platforms if one is down
+   gl-analyze --show-search-urls --google-dorks 192.168.1.100
+   ```
+
+---
+
+### Issue: Google Dorks not finding cameras
+
+**Symptoms:**
+
+```
+Google Dork queries return no results
+```
+
+**Solutions:**
+
+1. **Dorks work best for public IPs**:
+
+   ```
+   Google indexes public web servers, not private networks
+   ```
+
+2. **Try different dork queries**:
+
+   ```bash
+   # Generate all available dorks
+   gl-analyze --google-dorks 192.168.1.100
+   ```
+
+3. **Manual dork testing**:
+
+   ```
+   intitle:"Network Camera" inurl:view/index.shtml
+   inurl:/view/view.shtml
+   intitle:"Live View / - AXIS"
+   ```
+
+4. **Check if IP has web interface**:
+
+   ```bash
+   # Verify port 80/443 is open first
+   curl -I http://192.168.1.100
+   ```
+
+---
+
 ## 📊 Performance Issues
 
 ### Issue: Slow fingerprinting

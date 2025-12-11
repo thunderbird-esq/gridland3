@@ -2,6 +2,75 @@
 
 Thank you for your interest in contributing to GRIDLAND! This document provides guidelines and setup instructions for contributors.
 
+## ⚠️ Ethical Guidelines
+
+GRIDLAND is designed for **defensive security research, education, and authorized auditing ONLY**. All contributors must adhere to these ethical principles:
+
+### Do's
+- ✓ Use GRIDLAND on systems you own
+- ✓ Use GRIDLAND on systems you have explicit written authorization to test
+- ✓ Use GRIDLAND for educational security research
+- ✓ Use GRIDLAND for authorized penetration testing engagements
+- ✓ Report vulnerabilities responsibly through proper disclosure channels
+
+### Don'ts
+- ✗ Scan systems without authorization
+- ✗ Attempt to access systems without permission
+- ✗ Use GRIDLAND for malicious purposes
+- ✗ Share access credentials obtained without authorization
+- ✗ Bypass ethical safeguards in the code
+
+## 🔐 Responsible Use
+
+### Legal Compliance
+- Ensure all scanning activities comply with local, state, and federal laws
+- Obtain written authorization before testing any system
+- Respect Terms of Service of all platforms and services
+
+### Authorization Requirements
+Before using GRIDLAND's credential testing features, you MUST have:
+1. Written authorization from the system owner
+2. A defined scope of testing
+3. An incident response plan
+4. Contact information for the system owner
+
+### Privacy and Data Protection
+- Do not collect or store personal data without proper consent
+- Follow data protection regulations (GDPR, CCPA, etc.)
+- Delete any sensitive data obtained during testing after authorized review
+- Encrypt sensitive audit logs and store them securely
+
+## 🛡️ Credential Testing Consent Requirements
+
+The `--test-credentials` flag requires explicit consent due to its sensitive nature:
+
+### Before Testing
+1. **Document Authorization**: Keep written proof of authorization
+2. **Define Scope**: Clearly define which systems are in scope
+3. **Notify Stakeholders**: Inform relevant parties of testing window
+4. **Prepare Rollback Plan**: Have a plan to revert any changes if issues arise
+
+### Ethical Safeguards Built-In
+GRIDLAND includes these safeguards for credential testing:
+- **Rate Limiting**: Configurable delays prevent account lockouts (default 0.1s)
+- **Attempt Limiting**: Maximum attempts per target prevents brute forcing (default 100)
+- **Audit Logging**: All attempts logged for accountability
+- **Explicit Opt-In**: Feature requires explicit flag (not enabled by --full-scan)
+
+### Audit Trail
+All credential testing attempts are logged to CSV with:
+- Timestamp, Target IP, Port, Username tested
+- URL attempted, Authentication type
+- Result (success/failure)
+
+This audit trail provides accountability and evidence of authorized testing.
+
+### Best Practices
+- Always test during agreed-upon maintenance windows
+- Monitor system logs for unintended side effects
+- Stop testing immediately if unexpected behavior occurs
+- Document all findings professionally and securely
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -400,6 +469,18 @@ Logs, screenshots, etc.
 
 ## 🔒 Security
 
+### Security-First Development
+
+When contributing code to GRIDLAND:
+
+1. **Never bypass ethical safeguards** - Rate limiting, attempt limiting, and audit logging are critical security features
+2. **Always include rate limiting** for network operations to prevent abuse and account lockouts
+3. **Log all security-sensitive operations** for accountability and audit trails
+4. **Include comprehensive error handling** to prevent information disclosure through error messages
+5. **Add unit tests for new functionality** - Minimum 80% code coverage for security-critical features
+6. **Follow the principle of least privilege** - Request only necessary permissions
+7. **Validate and sanitize all user inputs** - Never trust user-supplied data
+
 ### Reporting Security Issues
 
 **DO NOT** create public issues for security vulnerabilities.
@@ -414,6 +495,9 @@ Contact: [Security contact to be added]
 - Follow OWASP security guidelines
 - Sanitize all user inputs
 - Use parameterized queries for databases
+- Review code for injection vulnerabilities (SQL, command, code injection)
+- Implement proper authentication and authorization checks
+- Use secure defaults (fail securely)
 
 ---
 
