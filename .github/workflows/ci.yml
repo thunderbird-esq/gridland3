@@ -185,6 +185,26 @@ jobs:
           test -f CONTRIBUTING.md || echo "⚠️  Missing CONTRIBUTING.md"
           test -f gridland/README.md || echo "⚠️  Missing gridland/README.md"
 
+  # Build documentation (verify it compiles)
+  docs-build:
+    name: Documentation Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install MkDocs
+        run: |
+          pip install mkdocs mkdocs-material mkdocstrings[python] pymdown-extensions
+          pip install -r requirements.txt
+
+      - name: Build docs
+        run: mkdocs build --strict
+
   # Overall status check
   ci-success:
     name: CI Success

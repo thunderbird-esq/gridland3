@@ -1,0 +1,76 @@
+site_name: GRIDLAND v3.0 Documentation
+site_description: Professional camera reconnaissance toolkit for security research
+site_author: GRIDLAND Security Team
+site_url: https://thunderbird-esq.github.io/gridland3/
+
+repo_name: thunderbird-esq/gridland3
+repo_url: https://github.com/thunderbird-esq/gridland3
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [gridland]
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+    - Configuration: getting-started/configuration.md
+  - CLI Reference:
+    - Overview: cli/overview.md
+    - Discover Command: cli/discover.md
+    - Analyze Command: cli/analyze.md
+  - API Reference:
+    - Core Modules: api/core.md
+    - Analyze Modules: api/analyze.md
+    - Discover Modules: api/discover.md
+    - Plugins: api/plugins.md
+  - Migration Guide:
+    - From CamXploit.py: migration/from-camxploit.md
+    - Command Mapping: migration/command-mapping.md
+  - Contributing:
+    - Guidelines: contributing/guidelines.md
+    - Ethical Use: contributing/ethics.md
+  - Troubleshooting: troubleshooting.md
+  - Changelog: changelog.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/thunderbird-esq/gridland3
