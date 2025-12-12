@@ -42,28 +42,47 @@ class RTSPHandler(ProtocolHandler):
         self.common_ports = [554, 8554, 10554, 1554, 2554, 3554, 4554, 5554, 6554, 7554, 9554]
 
         self.stream_paths = {
-            'generic': [
-                '/', '/stream', '/stream1', '/stream2', '/live', '/live1',
-                '/video', '/video1', '/cam', '/cam1', '/channel1', '/h264'
+            "generic": [
+                "/",
+                "/stream",
+                "/stream1",
+                "/stream2",
+                "/live",
+                "/live1",
+                "/video",
+                "/video1",
+                "/cam",
+                "/cam1",
+                "/channel1",
+                "/h264",
             ],
-            'hikvision': [
-                '/Streaming/Channels/1', '/Streaming/Channels/101',
-                '/Streaming/Channels/2', '/Streaming/Channels/102',
-                '/h264/ch1/main/av_stream', '/h264/ch1/sub/av_stream'
+            "hikvision": [
+                "/Streaming/Channels/1",
+                "/Streaming/Channels/101",
+                "/Streaming/Channels/2",
+                "/Streaming/Channels/102",
+                "/h264/ch1/main/av_stream",
+                "/h264/ch1/sub/av_stream",
             ],
-            'dahua': [
-                '/cam/realmonitor?channel=1&subtype=0',
-                '/cam/realmonitor?channel=1&subtype=1',
-                '/live', '/live1', '/av0_0', '/av0_1'
+            "dahua": [
+                "/cam/realmonitor?channel=1&subtype=0",
+                "/cam/realmonitor?channel=1&subtype=1",
+                "/live",
+                "/live1",
+                "/av0_0",
+                "/av0_1",
             ],
-            'axis': [
-                '/axis-media/media.amp', '/axis-media/media.amp?camera=1',
-                '/axis-media/media.amp?videocodec=h264'
+            "axis": [
+                "/axis-media/media.amp",
+                "/axis-media/media.amp?camera=1",
+                "/axis-media/media.amp?videocodec=h264",
             ],
-            'onvif': [
-                '/onvif/streaming/channels/1', '/onvif/streaming/channels/2',
-                '/onvif/media', '/MediaInput/h264'
-            ]
+            "onvif": [
+                "/onvif/streaming/channels/1",
+                "/onvif/streaming/channels/2",
+                "/onvif/media",
+                "/MediaInput/h264",
+            ],
         }
 
     def get_ports(self):
@@ -72,21 +91,21 @@ class RTSPHandler(ProtocolHandler):
 
     def get_protocol(self):
         """Get protocol name."""
-        return 'rtsp'
+        return "rtsp"
 
     def get_stream_paths(self, brand=None):
         """Get RTSP stream paths."""
         if brand and brand.lower() in self.stream_paths:
             return self.stream_paths[brand.lower()]
-        return self.stream_paths['generic']
+        return self.stream_paths["generic"]
 
     def build_url(self, ip, port, path, username=None, password=None):
         """Build RTSP URL."""
         if username and password:
-            return f'rtsp://{username}:{password}@{ip}:{port}{path}'
+            return f"rtsp://{username}:{password}@{ip}:{port}{path}"
         elif username:
-            return f'rtsp://{username}@{ip}:{port}{path}'
-        return f'rtsp://{ip}:{port}{path}'
+            return f"rtsp://{username}@{ip}:{port}{path}"
+        return f"rtsp://{ip}:{port}{path}"
 
 
 class RTMPHandler(ProtocolHandler):
@@ -96,14 +115,17 @@ class RTMPHandler(ProtocolHandler):
         self.common_ports = [1935, 1936, 1937, 1938, 1939]
 
         self.stream_paths = {
-            'generic': [
-                '/live', '/stream', '/live/stream', '/live/stream1',
-                '/live/video', '/rtmp', '/app', '/app/stream'
+            "generic": [
+                "/live",
+                "/stream",
+                "/live/stream",
+                "/live/stream1",
+                "/live/video",
+                "/rtmp",
+                "/app",
+                "/app/stream",
             ],
-            'advanced': [
-                '/live/adaptive', '/live/multicast', '/stream/primary',
-                '/stream/backup'
-            ]
+            "advanced": ["/live/adaptive", "/live/multicast", "/stream/primary", "/stream/backup"],
         }
 
     def get_ports(self):
@@ -112,19 +134,19 @@ class RTMPHandler(ProtocolHandler):
 
     def get_protocol(self):
         """Get protocol name."""
-        return 'rtmp'
+        return "rtmp"
 
     def get_stream_paths(self, brand=None):
         """Get RTMP stream paths."""
-        paths = self.stream_paths['generic'].copy()
+        paths = self.stream_paths["generic"].copy()
         if brand:
-            paths.extend(self.stream_paths.get('advanced', []))
+            paths.extend(self.stream_paths.get("advanced", []))
         return paths
 
     def build_url(self, ip, port, path, username=None, password=None):
         """Build RTMP URL."""
         # RTMP typically doesn't use authentication in URL
-        return f'rtmp://{ip}:{port}{path}'
+        return f"rtmp://{ip}:{port}{path}"
 
 
 class HTTPHandler(ProtocolHandler):
@@ -135,19 +157,34 @@ class HTTPHandler(ProtocolHandler):
         self.https_ports = [443, 8443, 8444]
 
         self.stream_paths = {
-            'generic': [
-                '/video', '/stream', '/live', '/mjpg', '/snapshot',
-                '/cgi-bin/mjpg/video.cgi', '/video.cgi', '/videostream.cgi',
-                '/mjpg/video.mjpg', '/stream.cgi', '/image.jpg'
+            "generic": [
+                "/video",
+                "/stream",
+                "/live",
+                "/mjpg",
+                "/snapshot",
+                "/cgi-bin/mjpg/video.cgi",
+                "/video.cgi",
+                "/videostream.cgi",
+                "/mjpg/video.mjpg",
+                "/stream.cgi",
+                "/image.jpg",
             ],
-            'api_endpoints': [
-                '/api/video', '/api/stream', '/api/live', '/api/camera/stream',
-                '/api/media', '/api/v1/video', '/api/v2/stream'
+            "api_endpoints": [
+                "/api/video",
+                "/api/stream",
+                "/api/live",
+                "/api/camera/stream",
+                "/api/media",
+                "/api/v1/video",
+                "/api/v2/stream",
             ],
-            'advanced': [
-                '/hls/stream.m3u8', '/dash/stream.mpd', '/webrtc/stream',
-                '/websocket/stream'
-            ]
+            "advanced": [
+                "/hls/stream.m3u8",
+                "/dash/stream.mpd",
+                "/webrtc/stream",
+                "/websocket/stream",
+            ],
         }
 
     def get_ports(self):
@@ -156,25 +193,25 @@ class HTTPHandler(ProtocolHandler):
 
     def get_protocol(self):
         """Get protocol name."""
-        return 'http'
+        return "http"
 
     def get_stream_paths(self, brand=None):
         """Get HTTP stream paths."""
-        paths = self.stream_paths['generic'].copy()
-        paths.extend(self.stream_paths['api_endpoints'])
+        paths = self.stream_paths["generic"].copy()
+        paths.extend(self.stream_paths["api_endpoints"])
         if brand:
-            paths.extend(self.stream_paths.get('advanced', []))
+            paths.extend(self.stream_paths.get("advanced", []))
         return paths
 
     def build_url(self, ip, port, path, username=None, password=None):
         """Build HTTP/HTTPS URL."""
-        protocol = 'https' if port in self.https_ports else 'http'
+        protocol = "https" if port in self.https_ports else "http"
 
         if username and password:
-            return f'{protocol}://{username}:{password}@{ip}:{port}{path}'
+            return f"{protocol}://{username}:{password}@{ip}:{port}{path}"
         elif username:
-            return f'{protocol}://{username}@{ip}:{port}{path}'
-        return f'{protocol}://{ip}:{port}{path}'
+            return f"{protocol}://{username}@{ip}:{port}{path}"
+        return f"{protocol}://{ip}:{port}{path}"
 
 
 class MMSHandler(ProtocolHandler):
@@ -183,11 +220,7 @@ class MMSHandler(ProtocolHandler):
     def __init__(self):
         self.common_ports = [1755, 1024, 7007, 8080]
 
-        self.stream_paths = {
-            'generic': [
-                '/', '/stream', '/live', '/video', '/broadcast'
-            ]
-        }
+        self.stream_paths = {"generic": ["/", "/stream", "/live", "/video", "/broadcast"]}
 
     def get_ports(self):
         """Get MMS ports."""
@@ -195,15 +228,15 @@ class MMSHandler(ProtocolHandler):
 
     def get_protocol(self):
         """Get protocol name."""
-        return 'mms'
+        return "mms"
 
     def get_stream_paths(self, brand=None):
         """Get MMS stream paths."""
-        return self.stream_paths['generic']
+        return self.stream_paths["generic"]
 
     def build_url(self, ip, port, path, username=None, password=None):
         """Build MMS URL."""
-        return f'mms://{ip}:{port}{path}'
+        return f"mms://{ip}:{port}{path}"
 
 
 class ONVIFHandler(ProtocolHandler):
@@ -213,10 +246,13 @@ class ONVIFHandler(ProtocolHandler):
         self.common_ports = [80, 8080, 8000, 8081, 10080]
 
         self.stream_paths = {
-            'generic': [
-                '/onvif/device_service', '/onvif/media_service',
-                '/onvif-http/snapshot', '/onvif/streaming/channels/1',
-                '/onvif/streaming/channels/101', '/onvif/media'
+            "generic": [
+                "/onvif/device_service",
+                "/onvif/media_service",
+                "/onvif-http/snapshot",
+                "/onvif/streaming/channels/1",
+                "/onvif/streaming/channels/101",
+                "/onvif/media",
             ]
         }
 
@@ -226,17 +262,17 @@ class ONVIFHandler(ProtocolHandler):
 
     def get_protocol(self):
         """Get protocol name."""
-        return 'onvif'
+        return "onvif"
 
     def get_stream_paths(self, brand=None):
         """Get ONVIF stream paths."""
-        return self.stream_paths['generic']
+        return self.stream_paths["generic"]
 
     def build_url(self, ip, port, path, username=None, password=None):
         """Build ONVIF URL (uses HTTP)."""
         if username and password:
-            return f'http://{username}:{password}@{ip}:{port}{path}'
-        return f'http://{ip}:{port}{path}'
+            return f"http://{username}:{password}@{ip}:{port}{path}"
+        return f"http://{ip}:{port}{path}"
 
 
 class ProtocolMapper:
@@ -244,11 +280,11 @@ class ProtocolMapper:
 
     def __init__(self):
         self.handlers = {
-            'rtsp': RTSPHandler(),
-            'rtmp': RTMPHandler(),
-            'http': HTTPHandler(),
-            'mms': MMSHandler(),
-            'onvif': ONVIFHandler()
+            "rtsp": RTSPHandler(),
+            "rtmp": RTMPHandler(),
+            "http": HTTPHandler(),
+            "mms": MMSHandler(),
+            "onvif": ONVIFHandler(),
         }
 
     def get_handler(self, protocol):
@@ -291,40 +327,40 @@ class TestRTSPHandler(unittest.TestCase):
 
     def test_get_protocol_returns_rtsp(self):
         """Test that get_protocol returns 'rtsp'."""
-        self.assertEqual(self.handler.get_protocol(), 'rtsp')
+        self.assertEqual(self.handler.get_protocol(), "rtsp")
 
     def test_get_stream_paths_generic(self):
         """Test getting generic RTSP stream paths."""
         paths = self.handler.get_stream_paths()
-        self.assertIn('/stream', paths)
-        self.assertIn('/live', paths)
+        self.assertIn("/stream", paths)
+        self.assertIn("/live", paths)
         self.assertIsInstance(paths, list)
 
     def test_get_stream_paths_hikvision(self):
         """Test getting Hikvision-specific RTSP paths."""
-        paths = self.handler.get_stream_paths('hikvision')
-        self.assertIn('/Streaming/Channels/1', paths)
-        self.assertIn('/h264/ch1/main/av_stream', paths)
+        paths = self.handler.get_stream_paths("hikvision")
+        self.assertIn("/Streaming/Channels/1", paths)
+        self.assertIn("/h264/ch1/main/av_stream", paths)
 
     def test_get_stream_paths_dahua(self):
         """Test getting Dahua-specific RTSP paths."""
-        paths = self.handler.get_stream_paths('dahua')
-        self.assertIn('/cam/realmonitor?channel=1&subtype=0', paths)
+        paths = self.handler.get_stream_paths("dahua")
+        self.assertIn("/cam/realmonitor?channel=1&subtype=0", paths)
 
     def test_build_url_without_auth(self):
         """Test building RTSP URL without authentication."""
-        url = self.handler.build_url('192.168.1.100', 554, '/stream')
-        self.assertEqual(url, 'rtsp://192.168.1.100:554/stream')
+        url = self.handler.build_url("192.168.1.100", 554, "/stream")
+        self.assertEqual(url, "rtsp://192.168.1.100:554/stream")
 
     def test_build_url_with_auth(self):
         """Test building RTSP URL with authentication."""
-        url = self.handler.build_url('192.168.1.100', 554, '/stream', 'admin', 'password')
-        self.assertEqual(url, 'rtsp://admin:password@192.168.1.100:554/stream')
+        url = self.handler.build_url("192.168.1.100", 554, "/stream", "admin", "password")
+        self.assertEqual(url, "rtsp://admin:password@192.168.1.100:554/stream")
 
     def test_build_url_with_username_only(self):
         """Test building RTSP URL with username only."""
-        url = self.handler.build_url('192.168.1.100', 554, '/stream', username='admin')
-        self.assertEqual(url, 'rtsp://admin@192.168.1.100:554/stream')
+        url = self.handler.build_url("192.168.1.100", 554, "/stream", username="admin")
+        self.assertEqual(url, "rtsp://admin@192.168.1.100:554/stream")
 
 
 class TestRTMPHandler(unittest.TestCase):
@@ -342,18 +378,18 @@ class TestRTMPHandler(unittest.TestCase):
 
     def test_get_protocol_returns_rtmp(self):
         """Test that get_protocol returns 'rtmp'."""
-        self.assertEqual(self.handler.get_protocol(), 'rtmp')
+        self.assertEqual(self.handler.get_protocol(), "rtmp")
 
     def test_get_stream_paths(self):
         """Test getting RTMP stream paths."""
         paths = self.handler.get_stream_paths()
-        self.assertIn('/live', paths)
-        self.assertIn('/stream', paths)
+        self.assertIn("/live", paths)
+        self.assertIn("/stream", paths)
 
     def test_build_url(self):
         """Test building RTMP URL."""
-        url = self.handler.build_url('192.168.1.100', 1935, '/live/stream')
-        self.assertEqual(url, 'rtmp://192.168.1.100:1935/live/stream')
+        url = self.handler.build_url("192.168.1.100", 1935, "/live/stream")
+        self.assertEqual(url, "rtmp://192.168.1.100:1935/live/stream")
 
 
 class TestHTTPHandler(unittest.TestCase):
@@ -373,29 +409,29 @@ class TestHTTPHandler(unittest.TestCase):
 
     def test_get_protocol_returns_http(self):
         """Test that get_protocol returns 'http'."""
-        self.assertEqual(self.handler.get_protocol(), 'http')
+        self.assertEqual(self.handler.get_protocol(), "http")
 
     def test_get_stream_paths(self):
         """Test getting HTTP stream paths."""
         paths = self.handler.get_stream_paths()
-        self.assertIn('/video', paths)
-        self.assertIn('/stream', paths)
-        self.assertIn('/api/video', paths)
+        self.assertIn("/video", paths)
+        self.assertIn("/stream", paths)
+        self.assertIn("/api/video", paths)
 
     def test_build_url_http(self):
         """Test building HTTP URL."""
-        url = self.handler.build_url('192.168.1.100', 80, '/stream')
-        self.assertEqual(url, 'http://192.168.1.100:80/stream')
+        url = self.handler.build_url("192.168.1.100", 80, "/stream")
+        self.assertEqual(url, "http://192.168.1.100:80/stream")
 
     def test_build_url_https(self):
         """Test building HTTPS URL."""
-        url = self.handler.build_url('192.168.1.100', 443, '/stream')
-        self.assertEqual(url, 'https://192.168.1.100:443/stream')
+        url = self.handler.build_url("192.168.1.100", 443, "/stream")
+        self.assertEqual(url, "https://192.168.1.100:443/stream")
 
     def test_build_url_with_auth(self):
         """Test building HTTP URL with authentication."""
-        url = self.handler.build_url('192.168.1.100', 80, '/stream', 'admin', 'pass')
-        self.assertEqual(url, 'http://admin:pass@192.168.1.100:80/stream')
+        url = self.handler.build_url("192.168.1.100", 80, "/stream", "admin", "pass")
+        self.assertEqual(url, "http://admin:pass@192.168.1.100:80/stream")
 
 
 class TestMMSHandler(unittest.TestCase):
@@ -413,18 +449,18 @@ class TestMMSHandler(unittest.TestCase):
 
     def test_get_protocol_returns_mms(self):
         """Test that get_protocol returns 'mms'."""
-        self.assertEqual(self.handler.get_protocol(), 'mms')
+        self.assertEqual(self.handler.get_protocol(), "mms")
 
     def test_get_stream_paths(self):
         """Test getting MMS stream paths."""
         paths = self.handler.get_stream_paths()
-        self.assertIn('/', paths)
-        self.assertIn('/stream', paths)
+        self.assertIn("/", paths)
+        self.assertIn("/stream", paths)
 
     def test_build_url(self):
         """Test building MMS URL."""
-        url = self.handler.build_url('192.168.1.100', 1755, '/stream')
-        self.assertEqual(url, 'mms://192.168.1.100:1755/stream')
+        url = self.handler.build_url("192.168.1.100", 1755, "/stream")
+        self.assertEqual(url, "mms://192.168.1.100:1755/stream")
 
 
 class TestONVIFHandler(unittest.TestCase):
@@ -443,23 +479,23 @@ class TestONVIFHandler(unittest.TestCase):
 
     def test_get_protocol_returns_onvif(self):
         """Test that get_protocol returns 'onvif'."""
-        self.assertEqual(self.handler.get_protocol(), 'onvif')
+        self.assertEqual(self.handler.get_protocol(), "onvif")
 
     def test_get_stream_paths(self):
         """Test getting ONVIF stream paths."""
         paths = self.handler.get_stream_paths()
-        self.assertIn('/onvif/device_service', paths)
-        self.assertIn('/onvif/media_service', paths)
+        self.assertIn("/onvif/device_service", paths)
+        self.assertIn("/onvif/media_service", paths)
 
     def test_build_url_without_auth(self):
         """Test building ONVIF URL without authentication."""
-        url = self.handler.build_url('192.168.1.100', 80, '/onvif/device_service')
-        self.assertEqual(url, 'http://192.168.1.100:80/onvif/device_service')
+        url = self.handler.build_url("192.168.1.100", 80, "/onvif/device_service")
+        self.assertEqual(url, "http://192.168.1.100:80/onvif/device_service")
 
     def test_build_url_with_auth(self):
         """Test building ONVIF URL with authentication."""
-        url = self.handler.build_url('192.168.1.100', 80, '/onvif/device_service', 'admin', 'pass')
-        self.assertEqual(url, 'http://admin:pass@192.168.1.100:80/onvif/device_service')
+        url = self.handler.build_url("192.168.1.100", 80, "/onvif/device_service", "admin", "pass")
+        self.assertEqual(url, "http://admin:pass@192.168.1.100:80/onvif/device_service")
 
 
 class TestProtocolMapper(unittest.TestCase):
@@ -471,31 +507,31 @@ class TestProtocolMapper(unittest.TestCase):
 
     def test_get_handler_rtsp(self):
         """Test getting RTSP handler."""
-        handler = self.mapper.get_handler('rtsp')
+        handler = self.mapper.get_handler("rtsp")
         self.assertIsInstance(handler, RTSPHandler)
-        self.assertEqual(handler.get_protocol(), 'rtsp')
+        self.assertEqual(handler.get_protocol(), "rtsp")
 
     def test_get_handler_case_insensitive(self):
         """Test that get_handler is case-insensitive."""
-        handler1 = self.mapper.get_handler('RTSP')
-        handler2 = self.mapper.get_handler('rtsp')
+        handler1 = self.mapper.get_handler("RTSP")
+        handler2 = self.mapper.get_handler("rtsp")
         self.assertEqual(handler1.get_protocol(), handler2.get_protocol())
 
     def test_get_protocols_for_port_554(self):
         """Test getting protocols for RTSP port 554."""
         protocols = self.mapper.get_protocols_for_port(554)
-        self.assertIn('rtsp', protocols)
+        self.assertIn("rtsp", protocols)
 
     def test_get_protocols_for_port_80(self):
         """Test getting protocols for port 80 (multiple protocols)."""
         protocols = self.mapper.get_protocols_for_port(80)
-        self.assertIn('http', protocols)
-        self.assertIn('onvif', protocols)
+        self.assertIn("http", protocols)
+        self.assertIn("onvif", protocols)
 
     def test_get_protocols_for_port_1935(self):
         """Test getting protocols for RTMP port 1935."""
         protocols = self.mapper.get_protocols_for_port(1935)
-        self.assertIn('rtmp', protocols)
+        self.assertIn("rtmp", protocols)
 
     def test_get_all_port_mappings(self):
         """Test getting all port-to-protocol mappings."""
@@ -503,7 +539,7 @@ class TestProtocolMapper(unittest.TestCase):
         self.assertIsInstance(port_map, dict)
         self.assertIn(554, port_map)
         self.assertIn(1935, port_map)
-        self.assertIn('rtsp', port_map[554])
+        self.assertIn("rtsp", port_map[554])
 
     def test_get_protocols_for_invalid_port(self):
         """Test getting protocols for invalid/unused port."""
@@ -513,16 +549,16 @@ class TestProtocolMapper(unittest.TestCase):
     def test_edge_case_empty_path(self):
         """Test building URL with empty path."""
         handler = RTSPHandler()
-        url = handler.build_url('192.168.1.100', 554, '')
-        self.assertEqual(url, 'rtsp://192.168.1.100:554')
+        url = handler.build_url("192.168.1.100", 554, "")
+        self.assertEqual(url, "rtsp://192.168.1.100:554")
 
     def test_edge_case_invalid_port_type(self):
         """Test that handlers work with string ports."""
         handler = RTSPHandler()
         # Should work with string port numbers
-        url = handler.build_url('192.168.1.100', '554', '/stream')
-        self.assertIn('554', url)
+        url = handler.build_url("192.168.1.100", "554", "/stream")
+        self.assertIn("554", url)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

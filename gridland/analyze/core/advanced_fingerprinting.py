@@ -17,6 +17,8 @@ INNOVATIVE CAPABILITIES:
 This system provides capabilities never seen before in security reconnaissance tools.
 """
 
+from __future__ import annotations
+
 import asyncio
 import hashlib
 import json

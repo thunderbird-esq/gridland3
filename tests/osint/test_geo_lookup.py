@@ -157,9 +157,7 @@ class TestGeoLookup:
             mock_get = AsyncMock()
             mock_get.__aenter__.return_value = mock_response
 
-            mock_session.return_value.__aenter__.return_value.get = MagicMock(
-                return_value=mock_get
-            )
+            mock_session.return_value.__aenter__.return_value.get = MagicMock(return_value=mock_get)
 
             with pytest.raises(Exception, match="API Error"):
                 await geo.get_ip_info("8.8.8.8")
@@ -208,8 +206,7 @@ class TestGeoLookup:
 
         # Verify OSM URL format (public instance)
         expected_osm = (
-            "https://www.openstreetmap.org/?mlat=37.4056&mlon=-122.0775"
-            "#map=12/37.4056/-122.0775"
+            "https://www.openstreetmap.org/?mlat=37.4056&mlon=-122.0775" "#map=12/37.4056/-122.0775"
         )
         assert urls["openstreetmap"] == expected_osm
 
@@ -311,9 +308,7 @@ class TestGeoLookup:
         urls = GeoLookup.generate_map_urls(ip_info, osm_base_url="http://localhost:8080")
 
         # Verify local instance URL
-        expected_osm = (
-            "http://localhost:8080/?mlat=48.8566&mlon=2.3522" "#map=12/48.8566/2.3522"
-        )
+        expected_osm = "http://localhost:8080/?mlat=48.8566&mlon=2.3522" "#map=12/48.8566/2.3522"
         assert urls["openstreetmap"] == expected_osm
 
         # Lat/lon should still be present

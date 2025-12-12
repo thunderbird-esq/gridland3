@@ -8,17 +8,18 @@ Stream details and quality detection capabilities added for Phase 7 (TASKS 255-2
 based on CamXploit.py lines 1685-1720.
 """
 
-from typing import Dict, Any, Optional, Tuple
 import re
-from urllib.parse import urlparse
-import requests
 import warnings
+from typing import Any, Dict, Optional, Tuple
+from urllib.parse import urlparse
 
+import requests
 
 # Suppress SSL warnings for camera devices
 warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 try:
     from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 except (ImportError, AttributeError):
     pass
@@ -49,54 +50,19 @@ class StreamDetector:
     """
 
     # Content-type indicators for streams (CamXploit.py line 1512, 1529)
-    CONTENT_TYPE_INDICATORS = [
-        "video",
-        "stream",
-        "mpeg",
-        "h264",
-        "mjpeg",
-        "rtsp",
-        "rtmp",
-        "image"
-    ]
+    CONTENT_TYPE_INDICATORS = ["video", "stream", "mpeg", "h264", "mjpeg", "rtsp", "rtmp", "image"]
 
     # Video file extensions (CamXploit.py line 1516, 1535)
-    VIDEO_EXTENSIONS = [
-        ".mp4",
-        ".m3u8",
-        ".ts",
-        ".flv",
-        ".webm",
-        ".avi",
-        ".mov"
-    ]
+    VIDEO_EXTENSIONS = [".mp4", ".m3u8", ".ts", ".flv", ".webm", ".avi", ".mov"]
 
     # Streaming protocols (CamXploit.py line 1519, 1540)
-    STREAMING_PROTOCOLS = [
-        "rtsp://",
-        "rtmp://",
-        "mms://",
-        "rtp://"
-    ]
+    STREAMING_PROTOCOLS = ["rtsp://", "rtmp://", "mms://", "rtp://"]
 
     # Camera stream path patterns (CamXploit.py line 1552)
-    STREAM_PATH_PATTERNS = [
-        "/video",
-        "/stream",
-        "/live",
-        "/mjpg",
-        "/snapshot"
-    ]
+    STREAM_PATH_PATTERNS = ["/video", "/stream", "/live", "/mjpg", "/snapshot"]
 
     # Response content indicators (CamXploit.py line 1546)
-    CONTENT_INDICATORS = [
-        "stream",
-        "video",
-        "live",
-        "camera",
-        "mjpg",
-        "mpeg"
-    ]
+    CONTENT_INDICATORS = ["stream", "video", "live", "camera", "mjpg", "mpeg"]
 
     # Codec detection patterns (Phase 7 - TASKS 255-260)
     CODEC_PATTERNS = {
@@ -125,11 +91,7 @@ class StreamDetector:
         """Initialize StreamDetector."""
         pass
 
-    def check_stream_url(
-        self,
-        url: str,
-        timeout: float = 5
-    ) -> Dict[str, Any]:
+    def check_stream_url(self, url: str, timeout: float = 5) -> Dict[str, Any]:
         """Check if a URL is a valid stream endpoint.
 
         This method implements a multi-phase detection strategy:
@@ -180,8 +142,8 @@ class StreamDetector:
                     "details": {
                         "protocol": protocol.rstrip("://"),
                         "content_type": None,
-                        "status_code": None
-                    }
+                        "status_code": None,
+                    },
                 }
 
         # Phase 2: Try HEAD request first (lightweight)
@@ -200,8 +162,8 @@ class StreamDetector:
                             "details": {
                                 "content_type": content_type,
                                 "status_code": response.status_code,
-                                "indicator": indicator
-                            }
+                                "indicator": indicator,
+                            },
                         }
 
                 # Check for video file extensions in URL
@@ -213,8 +175,8 @@ class StreamDetector:
                             "details": {
                                 "content_type": content_type,
                                 "status_code": response.status_code,
-                                "extension": extension
-                            }
+                                "extension": extension,
+                            },
                         }
 
         except requests.exceptions.RequestException:
@@ -240,8 +202,8 @@ class StreamDetector:
                             "details": {
                                 "content_type": content_type,
                                 "status_code": response.status_code,
-                                "indicator": indicator
-                            }
+                                "indicator": indicator,
+                            },
                         }
 
                 # Check for video file extensions in URL
@@ -253,8 +215,8 @@ class StreamDetector:
                             "details": {
                                 "content_type": content_type,
                                 "status_code": response.status_code,
-                                "extension": extension
-                            }
+                                "extension": extension,
+                            },
                         }
 
                 # Check response content for stream indicators
@@ -271,8 +233,8 @@ class StreamDetector:
                                 "details": {
                                     "content_type": content_type,
                                     "status_code": response.status_code,
-                                    "content_match": indicator
-                                }
+                                    "content_match": indicator,
+                                },
                             }
                 except Exception:
                     # Content reading failed, continue
@@ -291,28 +253,17 @@ class StreamDetector:
                 return {
                     "is_stream": True,
                     "detection_method": "path_pattern",
-                    "details": {
-                        "content_type": None,
-                        "status_code": None,
-                        "path_pattern": pattern
-                    }
+                    "details": {"content_type": None, "status_code": None, "path_pattern": pattern},
                 }
 
         # No stream detected
         return {
             "is_stream": False,
             "detection_method": None,
-            "details": {
-                "content_type": None,
-                "status_code": None
-            }
+            "details": {"content_type": None, "status_code": None},
         }
 
-    def validate_stream_url(
-        self,
-        url: str,
-        timeout: float = 5
-    ) -> bool:
+    def validate_stream_url(self, url: str, timeout: float = 5) -> bool:
         """Simple boolean check if URL is a valid stream.
 
         This is a convenience method that wraps check_stream_url() and returns
@@ -335,11 +286,7 @@ class StreamDetector:
         result = self.check_stream_url(url, timeout)
         return result["is_stream"]
 
-    def get_stream_details(
-        self,
-        url: str,
-        timeout: float = 5
-    ) -> Dict[str, Any]:
+    def get_stream_details(self, url: str, timeout: float = 5) -> Dict[str, Any]:
         """Get detailed information about a stream URL.
 
         Analyzes a stream URL to extract comprehensive details including
@@ -415,21 +362,12 @@ class StreamDetector:
         if protocol in ["http", "https"]:
             try:
                 # Try HEAD request first (faster, doesn't download content)
-                response = requests.head(
-                    url,
-                    timeout=timeout,
-                    verify=False,
-                    allow_redirects=True
-                )
+                response = requests.head(url, timeout=timeout, verify=False, allow_redirects=True)
 
                 # If HEAD fails or returns 4xx/5xx, try GET with stream=True
                 if response.status_code >= 400:
                     response = requests.get(
-                        url,
-                        timeout=timeout,
-                        verify=False,
-                        stream=True,
-                        allow_redirects=True
+                        url, timeout=timeout, verify=False, stream=True, allow_redirects=True
                     )
                     # Don't download full stream, close immediately
                     response.close()
@@ -476,8 +414,7 @@ class StreamDetector:
 
         # Live stream indicators
         if any(
-            indicator in url_lower
-            for indicator in ["/live", "/stream", "/realtime", "/real-time"]
+            indicator in url_lower for indicator in ["/live", "/stream", "/realtime", "/real-time"]
         ):
             return "live"
 
@@ -490,8 +427,7 @@ class StreamDetector:
 
         # Recorded indicators
         elif any(
-            indicator in url_lower
-            for indicator in ["/playback", "/record", "/replay", "/archive"]
+            indicator in url_lower for indicator in ["/playback", "/record", "/replay", "/archive"]
         ):
             return "recorded"
 
@@ -569,11 +505,7 @@ class StreamDetector:
 
         return None
 
-    def _is_valid_stream_content(
-        self,
-        content_type: Optional[str],
-        url: str
-    ) -> bool:
+    def _is_valid_stream_content(self, content_type: Optional[str], url: str) -> bool:
         """Check if content type indicates a valid stream.
 
         Validates whether the content type or URL indicates a valid video
@@ -589,10 +521,7 @@ class StreamDetector:
         # Check content type (CamXploit.py lines 1694-1696)
         if content_type:
             content_type_lower = content_type.lower()
-            if any(
-                indicator in content_type_lower
-                for indicator in self.CONTENT_TYPE_INDICATORS
-            ):
+            if any(indicator in content_type_lower for indicator in self.CONTENT_TYPE_INDICATORS):
                 return True
 
         # Check URL for video file extensions (CamXploit.py lines 1702-1707)

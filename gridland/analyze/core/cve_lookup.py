@@ -6,6 +6,8 @@ Phase 1 and generates NVD (National Vulnerability Database) URLs for
 detailed vulnerability information.
 """
 
+from __future__ import annotations
+
 from typing import Any, Dict, List, Optional
 
 from gridland.core.data_loader import get_cves_by_brand, load_cve_database

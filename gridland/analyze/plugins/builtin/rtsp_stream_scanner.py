@@ -9,6 +9,8 @@ Comprehensive RTSP stream vulnerability detection including:
 - Codec and format analysis
 """
 
+from __future__ import annotations
+
 import asyncio
 import base64
 import hashlib

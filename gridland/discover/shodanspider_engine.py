@@ -5,6 +5,8 @@ Provides free access to Shodan-style device discovery without API limitations,
 using the ShodanSpider v2 tool for CVE searching and device enumeration.
 """
 
+from __future__ import annotations
+
 import json
 import os
 import subprocess

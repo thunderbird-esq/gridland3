@@ -9,6 +9,8 @@ Author: GRIDLAND Development Team
 Date: July 29, 2025
 """
 
+from __future__ import annotations
+
 import asyncio
 import hashlib
 import json

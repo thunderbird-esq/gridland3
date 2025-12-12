@@ -5,6 +5,8 @@ This plugin enriches analysis results with contextual information about the
 target IP address, such as geolocation and ISP, using the ipinfo.io API.
 """
 
+from __future__ import annotations
+
 import asyncio
 from typing import Any, Dict, List
 

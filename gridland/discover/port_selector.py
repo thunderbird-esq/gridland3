@@ -6,10 +6,11 @@ validates port ranges.
 """
 
 from typing import List
+
 from gridland.core.data_loader import (
     get_all_ports,
-    get_ports_by_category,
     get_port_categories,
+    get_ports_by_category,
 )
 
 

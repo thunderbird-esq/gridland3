@@ -5,6 +5,8 @@ Shodan, Censys, ZoomEye, and Google Dorking queries. URLs are formatted
 exactly as specified in CamXploit.py for compatibility.
 """
 
+from __future__ import annotations
+
 from typing import Dict, List
 from urllib.parse import quote_plus
 

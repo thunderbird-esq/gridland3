@@ -5,6 +5,8 @@ server headers, content types, and response bodies. Brand detection logic
 is ported from CamXploit.py lines 989-1079 for 100% feature parity.
 """
 
+from __future__ import annotations
+
 from typing import Any, Dict, List, Optional
 
 

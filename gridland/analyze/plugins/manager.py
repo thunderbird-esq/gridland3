@@ -5,6 +5,8 @@ Provides a flexible plugin architecture for extending GRIDLAND's
 analysis capabilities with custom vulnerability scanners and tools.
 """
 
+from __future__ import annotations
+
 import importlib
 import importlib.util
 import inspect

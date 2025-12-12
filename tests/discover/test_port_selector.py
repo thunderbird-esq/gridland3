@@ -169,14 +169,12 @@ class TestPortSelectorPortValidation:
             ports = selector.get_camera_ports(category=category)
 
             # All ports should be in valid range
-            assert all(1 <= p <= 65535 for p in ports), (
-                f"Category {category} has invalid ports"
-            )
+            assert all(1 <= p <= 65535 for p in ports), f"Category {category} has invalid ports"
 
             # All ports should be integers
-            assert all(isinstance(p, int) for p in ports), (
-                f"Category {category} has non-integer ports"
-            )
+            assert all(
+                isinstance(p, int) for p in ports
+            ), f"Category {category} has non-integer ports"
 
     def test_no_duplicate_ports_in_all(self):
         """Test that 'all' category has no duplicates."""
@@ -220,9 +218,7 @@ class TestPortSelectorIntegration:
             category_ports = set(selector.get_camera_ports(category=category))
 
             # Each category should be a subset of 'all'
-            assert category_ports.issubset(all_ports), (
-                f"Category {category} has ports not in 'all'"
-            )
+            assert category_ports.issubset(all_ports), f"Category {category} has ports not in 'all'"
 
     def test_categories_combined_equal_or_exceed_all(self):
         """Test that combining categories covers at least 'all' ports."""
@@ -235,9 +231,7 @@ class TestPortSelectorIntegration:
             combined.update(selector.get_camera_ports(category=category))
 
         # Combined should include all ports (may have duplicates across categories)
-        assert all_ports.issubset(combined), (
-            "Not all ports are covered by categories"
-        )
+        assert all_ports.issubset(combined), "Not all ports are covered by categories"
 
     def test_common_camera_ports_present(self):
         """Test that common camera ports are present."""

@@ -5,6 +5,8 @@ Provides professional-grade internet scanning capabilities using the Censys API
 as a backup to ShodanSpider when API credentials are available.
 """
 
+from __future__ import annotations
+
 import base64
 import json
 import time

@@ -371,25 +371,24 @@ class TestStreamPathsStructure:
         assert isinstance(stream_paths_data, dict)
 
     def test_no_duplicate_paths_within_protocol(self, stream_paths_data):
-        """Verify no duplicate paths within each protocol."""
+        """Verify no duplicate paths within each brand section of a protocol.
+
+        Note: Duplicates across different brands are allowed since common paths
+        like /live.sdp can be used by multiple camera manufacturers.
+        """
         for protocol_name, protocol_data in stream_paths_data["protocols"].items():
-            all_paths = []
-
-            def collect_paths(data):
-                if isinstance(data, dict):
-                    for value in data.values():
-                        collect_paths(value)
-                elif isinstance(data, list):
-                    all_paths.extend(data)
-
-            collect_paths(protocol_data)
-
-            duplicates = [path for path in set(all_paths) if all_paths.count(path) > 1]
-            assert (
-                not duplicates
-            ), f"Duplicate paths found in {protocol_name} protocol:\n" + "\n".join(
-                f"  - {path}" for path in duplicates
-            )
+            if isinstance(protocol_data, dict):
+                # Check for duplicates within each brand section
+                for brand_name, brand_paths in protocol_data.items():
+                    if isinstance(brand_paths, list):
+                        duplicates = [
+                            path for path in set(brand_paths) if brand_paths.count(path) > 1
+                        ]
+                        assert (
+                            not duplicates
+                        ), f"Duplicate paths found in {protocol_name}/{brand_name}:\n" + "\n".join(
+                            f"  - {path}" for path in duplicates
+                        )
 
     def test_all_paths_start_with_slash(self, stream_paths_data):
         """Verify all paths start with forward slash."""

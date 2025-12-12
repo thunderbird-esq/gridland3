@@ -117,8 +117,8 @@ class RTSPHandler:
             >>> RTSPHandler.build_url("192.168.1.100", 554, "/live.sdp")
             'rtsp://192.168.1.100:554/live.sdp'
         """
-        if not path.startswith('/'):
-            path = '/' + path
+        if not path.startswith("/"):
+            path = "/" + path
         return f"rtsp://{ip}:{port}{path}"
 
 
@@ -203,8 +203,8 @@ class RTMPHandler:
             >>> RTMPHandler.build_url("192.168.1.100", 1935, "/live")
             'rtmp://192.168.1.100:1935/live'
         """
-        if not path.startswith('/'):
-            path = '/' + path
+        if not path.startswith("/"):
+            path = "/" + path
         return f"rtmp://{ip}:{port}{path}"
 
 
@@ -327,8 +327,8 @@ class HTTPHandler:
             >>> HTTPHandler.build_url("192.168.1.100", 80, "/video.cgi")
             'http://192.168.1.100:80/video.cgi'
         """
-        if not path.startswith('/'):
-            path = '/' + path
+        if not path.startswith("/"):
+            path = "/" + path
 
         # Auto-select protocol based on port
         protocol = "https" if port in HTTPHandler.HTTPS_PORTS else "http"
@@ -405,8 +405,8 @@ class MMSHandler:
             >>> MMSHandler.build_url("192.168.1.100", 1755, "/stream")
             'mms://192.168.1.100:1755/stream'
         """
-        if not path.startswith('/'):
-            path = '/' + path
+        if not path.startswith("/"):
+            path = "/" + path
         return f"mms://{ip}:{port}{path}"
 
 
@@ -488,8 +488,8 @@ class ONVIFHandler:
             >>> ONVIFHandler.build_url("192.168.1.100", 443, "/onvif/streaming")
             'https://192.168.1.100:443/onvif/streaming'
         """
-        if not path.startswith('/'):
-            path = '/' + path
+        if not path.startswith("/"):
+            path = "/" + path
 
         # Auto-select protocol based on port
         protocol = "https" if port == 443 else "http"

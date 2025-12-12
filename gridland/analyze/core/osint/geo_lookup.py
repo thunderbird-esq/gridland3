@@ -4,6 +4,8 @@ This module provides async IP geolocation lookup using IPinfo.io API,
 including map URL generation for Google Maps and Google Earth.
 """
 
+from __future__ import annotations
+
 import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Tuple

@@ -5,6 +5,8 @@ Handles environment variables, user configuration files, and default settings
 with validation and type conversion.
 """
 
+from __future__ import annotations
+
 import json
 import os
 from dataclasses import dataclass, field

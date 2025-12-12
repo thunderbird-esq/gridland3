@@ -5,6 +5,8 @@ Implements pre-allocated memory pools to eliminate garbage collection overhead
 during intensive vulnerability scanning and result processing operations.
 """
 
+from __future__ import annotations
+
 import asyncio
 import weakref
 from collections import deque

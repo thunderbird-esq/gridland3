@@ -4,6 +4,8 @@ This module provides functions to load static data files used by GRIDLAND,
 including camera ports, default credentials, stream paths, and login paths.
 """
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
 from typing import Any, Dict, List

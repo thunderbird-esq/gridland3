@@ -5,6 +5,8 @@ Provides high-speed port scanning capabilities using the masscan tool,
 with intelligent rate limiting, result parsing, and error handling.
 """
 
+from __future__ import annotations
+
 import json
 import subprocess
 import tempfile

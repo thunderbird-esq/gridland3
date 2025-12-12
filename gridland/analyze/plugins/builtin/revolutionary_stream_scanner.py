@@ -13,6 +13,8 @@ This goes far beyond traditional stream scanners to provide unprecedented
 reconnaissance capabilities never seen before in the security industry.
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import time

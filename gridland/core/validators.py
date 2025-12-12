@@ -4,6 +4,8 @@ This module provides validation utilities for IP addresses and other
 inputs. Validation logic is ported from CamXploit.py for 100% feature parity.
 """
 
+from __future__ import annotations
+
 import ipaddress
 
 

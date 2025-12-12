@@ -9,6 +9,8 @@ Comprehensive vulnerability detection for Dahua IP cameras including:
 - Firmware-specific exploits
 """
 
+from __future__ import annotations
+
 import asyncio
 import hashlib
 import json

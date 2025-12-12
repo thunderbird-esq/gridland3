@@ -5,6 +5,8 @@ Implements high-performance vulnerability analysis using the revolutionary
 memory pool, work-stealing scheduler, and plugin system for optimal resource utilization.
 """
 
+from __future__ import annotations
+
 import asyncio
 import threading
 import time

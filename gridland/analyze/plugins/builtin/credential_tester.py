@@ -11,6 +11,8 @@ are provided to ensure responsible security research.
 100% feature parity with CamXploit.py test_default_passwords() (lines 1201-1283).
 """
 
+from __future__ import annotations
+
 import json
 import threading
 import time

@@ -5,9 +5,10 @@ Tests the LoginPageScanner plugin for IP camera authentication endpoint detectio
 """
 
 import json
-import pytest
-from unittest.mock import Mock, MagicMock, patch, call
 import threading
+from unittest.mock import MagicMock, Mock, call, patch
+
+import pytest
 
 from gridland.analyze.plugins.builtin.login_scanner import LoginPageScanner
 
@@ -52,7 +53,7 @@ class TestLoginPageScanner:
         """Test detection of Basic authentication."""
         mock_response = Mock()
         mock_response.status_code = 401
-        mock_response.headers = {"WWW-Authenticate": "Basic realm=\"Camera\""}
+        mock_response.headers = {"WWW-Authenticate": 'Basic realm="Camera"'}
 
         auth_type = scanner._detect_auth_type(mock_response)
         assert auth_type == "basic"
@@ -61,9 +62,7 @@ class TestLoginPageScanner:
         """Test detection of Digest authentication."""
         mock_response = Mock()
         mock_response.status_code = 401
-        mock_response.headers = {
-            "WWW-Authenticate": "Digest realm=\"Camera\", nonce=\"abc123\""
-        }
+        mock_response.headers = {"WWW-Authenticate": 'Digest realm="Camera", nonce="abc123"'}
 
         auth_type = scanner._detect_auth_type(mock_response)
         assert auth_type == "digest"
@@ -144,7 +143,7 @@ class TestLoginPageScanner:
         # Mock successful response with Basic auth
         mock_response = Mock()
         mock_response.status_code = 401
-        mock_response.headers = {"WWW-Authenticate": "Basic realm=\"Camera\""}
+        mock_response.headers = {"WWW-Authenticate": 'Basic realm="Camera"'}
         mock_head.return_value = mock_response
 
         # Scan single port with limited paths for testing
@@ -247,9 +246,7 @@ class TestLoginPageScanner:
             progress_calls.append((checked, total))
 
         scanner.login_paths = ["/", "/admin", "/login"]
-        results = scanner.scan_login_pages(
-            "192.168.1.1", [80], progress_callback=progress_callback
-        )
+        results = scanner.scan_login_pages("192.168.1.1", [80], progress_callback=progress_callback)
 
         # Progress callback should have been called
         assert len(progress_calls) > 0

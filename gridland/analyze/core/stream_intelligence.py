@@ -14,6 +14,8 @@ Key Innovations:
 6. Predictive stream endpoint discovery
 """
 
+from __future__ import annotations
+
 import asyncio
 import hashlib
 import json

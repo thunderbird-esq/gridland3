@@ -7,6 +7,8 @@ model detection, and device type classification.
 100% feature parity with CamXploit.py fingerprint_cp_plus() (lines 1417-1453).
 """
 
+from __future__ import annotations
+
 import json
 import re
 from pathlib import Path

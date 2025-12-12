@@ -5,6 +5,8 @@ Provides IP address validation, port scanning utilities, and network-related
 helper functions optimized for security reconnaissance.
 """
 
+from __future__ import annotations
+
 import ipaddress
 import socket
 import threading

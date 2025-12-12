@@ -26,11 +26,11 @@ Example:
 """
 
 from gridland.analyze.core.stream.protocol_handlers import (
+    PORT_PROTOCOL_MAP,
+    PROTOCOL_PORT_MAP,
     HTTPHandler,
     MMSHandler,
     ONVIFHandler,
-    PORT_PROTOCOL_MAP,
-    PROTOCOL_PORT_MAP,
     RTMPHandler,
     RTSPHandler,
     get_all_handlers,

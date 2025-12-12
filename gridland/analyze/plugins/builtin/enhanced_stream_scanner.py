@@ -15,6 +15,8 @@ This scanner increases stream discovery rates by 570% over traditional methods
 while maintaining architectural integrity and performance optimization.
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import socket

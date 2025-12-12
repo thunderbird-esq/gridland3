@@ -10,8 +10,8 @@ HTTP probing. It checks common login paths and identifies authentication mechani
 
 import json
 import threading
-from typing import Any, Dict, List, Optional
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import requests
 import urllib3
@@ -285,27 +285,22 @@ class LoginPageScanner(VulnerabilityPlugin):
 
         # Look for common form field indicators
         form_indicators = [
-            "type=\"password\"",
+            'type="password"',
             "type='password'",
             'name="username"',
             'name="password"',
             'name="login"',
-            "type=\"submit\"",
+            'type="submit"',
             "<form",
         ]
 
         # Need at least a form and password field
         has_form = "<form" in html_lower
-        has_password = any(
-            ind in html_lower
-            for ind in ["type=\"password\"", "type='password'"]
-        )
+        has_password = any(ind in html_lower for ind in ['type="password"', "type='password'"])
 
         return has_form and has_password
 
-    def _convert_to_vulnerability_results(
-        self, ip: str, scan_results: Dict[str, Any]
-    ) -> List[Any]:
+    def _convert_to_vulnerability_results(self, ip: str, scan_results: Dict[str, Any]) -> List[Any]:
         """
         Convert scan results to VulnerabilityResult objects.
 

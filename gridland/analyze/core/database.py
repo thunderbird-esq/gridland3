@@ -5,6 +5,8 @@ Implements a high-performance vulnerability signature database using
 memory-mapped files and trie data structures for O(1) lookups.
 """
 
+from __future__ import annotations
+
 import hashlib
 import json
 import mmap

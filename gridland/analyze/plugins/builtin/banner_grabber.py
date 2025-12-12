@@ -14,6 +14,8 @@ This plugin represents the evolution of banner grabbing into comprehensive
 device intelligence gathering never seen before in security tools.
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import re

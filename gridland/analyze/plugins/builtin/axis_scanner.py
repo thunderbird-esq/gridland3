@@ -9,6 +9,8 @@ Comprehensive vulnerability detection for Axis IP cameras including:
 - Firmware-specific exploits
 """
 
+from __future__ import annotations
+
 import asyncio
 import base64
 from typing import Any, Dict, List, Optional

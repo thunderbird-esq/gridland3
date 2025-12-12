@@ -20,6 +20,8 @@ while maintaining ethical boundaries for defensive security research.
 and educational purposes only. Unauthorized access to systems is prohibited.
 """
 
+from __future__ import annotations
+
 import asyncio
 import base64
 import hashlib

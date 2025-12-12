@@ -5,6 +5,8 @@ Implements a sophisticated task distribution system that dynamically
 balances workload across worker threads using work-stealing queues.
 """
 
+from __future__ import annotations
+
 import asyncio
 import statistics
 import threading

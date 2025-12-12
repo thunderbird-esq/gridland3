@@ -17,6 +17,8 @@ This represents a breakthrough in reconnaissance methodology, providing
 network intelligence never before available in security tools.
 """
 
+from __future__ import annotations
+
 import asyncio
 import ipaddress
 import json

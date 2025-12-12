@@ -9,6 +9,8 @@ Universal vulnerability detection for IP cameras of any brand including:
 - Web interface vulnerability assessment
 """
 
+from __future__ import annotations
+
 import asyncio
 import base64
 import json

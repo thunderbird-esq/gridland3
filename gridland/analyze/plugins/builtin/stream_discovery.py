@@ -340,9 +340,7 @@ class StreamDiscoveryPlugin(VulnerabilityPlugin):
         threads = []
 
         for url, port, path, protocol in work_queue:
-            thread = threading.Thread(
-                target=check_stream_worker, args=(url, port, path, protocol)
-            )
+            thread = threading.Thread(target=check_stream_worker, args=(url, port, path, protocol))
             thread.daemon = True
             threads.append(thread)
             thread.start()
@@ -369,9 +367,7 @@ class StreamDiscoveryPlugin(VulnerabilityPlugin):
             "total_found": len(streams_found),
         }
 
-    def _get_paths_for_protocol(
-        self, protocol: str, protocols_data: Dict[str, Any]
-    ) -> List[str]:
+    def _get_paths_for_protocol(self, protocol: str, protocols_data: Dict[str, Any]) -> List[str]:
         """
         Get all stream paths for a given protocol.
 
@@ -390,7 +386,13 @@ class StreamDiscoveryPlugin(VulnerabilityPlugin):
             http_data = protocols_data.get("http", {})
 
             # Collect all HTTP stream paths
-            for category in ["generic", "snapshots", "mjpeg_streams", "api_endpoints", "cgi_endpoints"]:
+            for category in [
+                "generic",
+                "snapshots",
+                "mjpeg_streams",
+                "api_endpoints",
+                "cgi_endpoints",
+            ]:
                 if category in http_data:
                     paths.extend(http_data[category])
 
@@ -403,7 +405,19 @@ class StreamDiscoveryPlugin(VulnerabilityPlugin):
             rtsp_data = protocols_data.get("rtsp", {})
 
             # Collect all RTSP stream paths
-            for category in ["generic", "onvif", "hikvision", "dahua", "axis", "sony", "bosch", "panasonic", "cp_plus", "foscam", "vivotek"]:
+            for category in [
+                "generic",
+                "onvif",
+                "hikvision",
+                "dahua",
+                "axis",
+                "sony",
+                "bosch",
+                "panasonic",
+                "cp_plus",
+                "foscam",
+                "vivotek",
+            ]:
                 if category in rtsp_data:
                     paths.extend(rtsp_data[category])
 
