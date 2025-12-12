@@ -3,11 +3,14 @@ name: Deploy Documentation
 
 'on':
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'claude/**'
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
       - 'gridland/**/*.py'
+      - '.github/workflows/docs.yml'
   workflow_dispatch:
 
 permissions:
