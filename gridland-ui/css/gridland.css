@@ -452,3 +452,66 @@
 #saveShodanKeyBtn {
   margin-top: 8px;
 }
+
+/* Dropdown Menu Styles */
+.menu-dropdown {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  background: var(--mac-window);
+  border: 1px solid var(--mac-border);
+  box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  z-index: 2000;
+  min-width: 180px;
+  padding: 2px 0;
+}
+
+.menu-dropdown-item {
+  padding: 4px 20px 4px 12px;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.menu-dropdown-item:hover {
+  background: var(--mac-highlight);
+  color: var(--mac-window);
+}
+
+.menu-dropdown-item.disabled {
+  color: var(--mac-shadow);
+  cursor: default;
+}
+
+.menu-dropdown-item.disabled:hover {
+  background: transparent;
+  color: var(--mac-shadow);
+}
+
+.menu-dropdown-separator {
+  height: 1px;
+  background: var(--mac-border);
+  margin: 4px 8px;
+}
+
+.menu-shortcut {
+  font-size: 9px;
+  color: var(--mac-shadow);
+  margin-left: 20px;
+}
+
+.menu-dropdown-item:hover .menu-shortcut {
+  color: var(--mac-light-gray);
+}
+
+.menu-item {
+  position: relative;
+}
+
+.menu-item.active {
+  background: var(--mac-highlight);
+  color: var(--mac-window);
+}

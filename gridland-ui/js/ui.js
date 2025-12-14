@@ -641,8 +641,224 @@ class MacUI {
     }
     
     closeAllMenus() {
-        // Implementation for closing dropdown menus
+        // Remove any existing dropdown menus
+        const existingMenus = document.querySelectorAll('.menu-dropdown');
+        existingMenus.forEach(menu => menu.remove());
+
+        // Remove active state from menu items
+        const menuItems = document.querySelectorAll('.menu-item');
+        menuItems.forEach(item => item.classList.remove('active'));
+
         this.menuState = null;
+    }
+
+    createDropdownMenu(menuItem, items) {
+        // Close any existing menus first
+        this.closeAllMenus();
+
+        // Create dropdown element
+        const dropdown = document.createElement('div');
+        dropdown.className = 'menu-dropdown';
+
+        items.forEach(item => {
+            if (item.separator) {
+                const sep = document.createElement('div');
+                sep.className = 'menu-dropdown-separator';
+                dropdown.appendChild(sep);
+            } else {
+                const menuItemEl = document.createElement('div');
+                menuItemEl.className = 'menu-dropdown-item';
+                if (item.disabled) {
+                    menuItemEl.classList.add('disabled');
+                }
+
+                const label = document.createElement('span');
+                label.textContent = item.label;
+                menuItemEl.appendChild(label);
+
+                if (item.shortcut) {
+                    const shortcut = document.createElement('span');
+                    shortcut.className = 'menu-shortcut';
+                    shortcut.textContent = item.shortcut;
+                    menuItemEl.appendChild(shortcut);
+                }
+
+                if (!item.disabled && item.action) {
+                    menuItemEl.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.closeAllMenus();
+                        item.action();
+                    });
+                }
+
+                dropdown.appendChild(menuItemEl);
+            }
+        });
+
+        // Position the dropdown
+        const rect = menuItem.getBoundingClientRect();
+        dropdown.style.left = `${rect.left}px`;
+        dropdown.style.top = `${rect.bottom}px`;
+
+        document.body.appendChild(dropdown);
+
+        // Mark menu item as active
+        menuItem.classList.add('active');
+
+        // Set menu state
+        this.menuState = { active: true, currentMenu: menuItem.textContent.trim() };
+    }
+
+    showMenu(menuName) {
+        const menuItems = document.querySelectorAll('.menu-item');
+        let targetMenuItem = null;
+
+        menuItems.forEach(item => {
+            if (item.textContent.trim() === menuName) {
+                targetMenuItem = item;
+            }
+        });
+
+        if (targetMenuItem) {
+            this.handleMenuClick(menuName);
+        }
+    }
+
+    showFileMenu() {
+        const menuItem = document.querySelector('.menu-item:nth-child(2)'); // File
+        this.createDropdownMenu(menuItem, [
+            { label: 'New Scan', shortcut: '⌘N', action: () => this.newScan() },
+            { label: 'Open Target List...', shortcut: '⌘O', action: () => this.openTargetList() },
+            { separator: true },
+            { label: 'Save Results', shortcut: '⌘S', action: () => this.saveResults() },
+            { label: 'Save As...', shortcut: '⇧⌘S', action: () => this.saveAs() },
+            { label: 'Export Report...', action: () => this.exportReport() },
+            { separator: true },
+            { label: 'Print...', shortcut: '⌘P', action: () => this.printReport() },
+            { separator: true },
+            { label: 'Quit', shortcut: '⌘Q', action: () => this.quit() }
+        ]);
+    }
+
+    showEditMenu() {
+        const menuItem = document.querySelector('.menu-item:nth-child(3)'); // Edit
+        this.createDropdownMenu(menuItem, [
+            { label: 'Undo', shortcut: '⌘Z', disabled: true },
+            { label: 'Redo', shortcut: '⇧⌘Z', disabled: true },
+            { separator: true },
+            { label: 'Cut', shortcut: '⌘X', disabled: true },
+            { label: 'Copy', shortcut: '⌘C', action: () => document.execCommand('copy') },
+            { label: 'Paste', shortcut: '⌘V', action: () => document.execCommand('paste') },
+            { label: 'Select All', shortcut: '⌘A', action: () => document.execCommand('selectAll') },
+            { separator: true },
+            { label: 'Preferences...', shortcut: '⌘,', action: () => this.showPreferences() }
+        ]);
+    }
+
+    showTargetsMenu() {
+        const menuItem = document.querySelector('.menu-item:nth-child(4)'); // Targets
+        this.createDropdownMenu(menuItem, [
+            { label: 'Add Target...', shortcut: '⌘T', action: () => this.showModal('addTargetDialog') },
+            { label: 'Remove Selected', action: () => this.removeSelectedTarget() },
+            { label: 'Clear All Targets', action: () => this.clearAllTargets() },
+            { separator: true },
+            { label: 'Import from File...', action: () => this.importTargets() },
+            { label: 'Export Target List...', action: () => this.exportTargets() },
+            { separator: true },
+            { label: 'Discover Targets...', shortcut: '⌘D', action: () => this.focusDiscoveryQuery() }
+        ]);
+    }
+
+    showAnalysisMenu() {
+        const menuItem = document.querySelector('.menu-item:nth-child(5)'); // Analysis
+        this.createDropdownMenu(menuItem, [
+            { label: 'Start Analysis', shortcut: '⌘R', action: () => this.startAnalysisAction() },
+            { label: 'Stop Analysis', shortcut: '⌘.', action: () => this.stopAnalysis() },
+            { separator: true },
+            { label: 'Scan Mode: Fast', action: () => this.setScanMode('fast') },
+            { label: 'Scan Mode: Balanced', action: () => this.setScanMode('balanced') },
+            { label: 'Scan Mode: Comprehensive', action: () => this.setScanMode('comprehensive') },
+            { separator: true },
+            { label: 'View Results...', action: () => this.viewResults() }
+        ]);
+    }
+
+    showToolsMenu() {
+        const menuItem = document.querySelector('.menu-item:nth-child(6)'); // Tools
+        this.createDropdownMenu(menuItem, [
+            { label: 'Port Scanner', action: () => this.openPortScanner() },
+            { label: 'Stream Finder', action: () => this.openStreamFinder() },
+            { label: 'CVE Lookup', action: () => this.openCVELookup() },
+            { separator: true },
+            { label: 'OSINT URLs', action: () => this.generateOSINTUrls() },
+            { label: 'GeoIP Lookup', action: () => this.openGeoIPLookup() },
+            { separator: true },
+            { label: 'Console', action: () => this.openConsole() }
+        ]);
+    }
+
+    showWindowMenu() {
+        const menuItem = document.querySelector('.menu-item:nth-child(7)'); // Window
+        this.createDropdownMenu(menuItem, [
+            { label: 'Zoom', action: () => this.toggleWindowZoom('main') },
+            { label: 'Minimize', action: () => this.minimizeWindow() },
+            { separator: true },
+            { label: 'Show Channel Guide', action: () => this.showChannelGuide() },
+            { separator: true },
+            { label: 'GRIDLAND', action: () => this.focusMainWindow() }
+        ]);
+    }
+
+    showHelpMenu() {
+        const menuItem = document.querySelector('.menu-item:nth-child(8)'); // Help
+        this.createDropdownMenu(menuItem, [
+            { label: 'GRIDLAND Help', action: () => this.showHelp() },
+            { separator: true },
+            { label: 'Keyboard Shortcuts', action: () => this.showShortcuts() },
+            { label: 'Documentation', action: () => window.open('https://github.com/thunderbird-esq/gridland3', '_blank') },
+            { separator: true },
+            { label: 'About GRIDLAND', action: () => this.showModal('aboutDialog') }
+        ]);
+    }
+
+    // Additional menu action stubs
+    exportReport() { console.log('Export Report'); }
+    clearAllTargets() {
+        if (window.gridlandApp) {
+            window.gridlandApp.clearTargets();
+        }
+    }
+    importTargets() { console.log('Import Targets'); }
+    exportTargets() { console.log('Export Targets'); }
+    startAnalysisAction() {
+        if (window.gridlandApp) {
+            window.gridlandApp.startAnalysis();
+        }
+    }
+    setScanMode(mode) { console.log('Set Scan Mode:', mode); }
+    viewResults() { console.log('View Results'); }
+    openPortScanner() { console.log('Open Port Scanner'); }
+    openStreamFinder() { console.log('Open Stream Finder'); }
+    openCVELookup() { console.log('Open CVE Lookup'); }
+    generateOSINTUrls() { console.log('Generate OSINT URLs'); }
+    openGeoIPLookup() { console.log('Open GeoIP Lookup'); }
+    openConsole() { console.log('Open Console'); }
+    minimizeWindow() { console.log('Minimize Window'); }
+    showChannelGuide() {
+        const guide = document.getElementById('channelGuide');
+        if (guide) {
+            guide.style.display = guide.style.display === 'none' ? 'block' : 'none';
+        }
+    }
+    focusMainWindow() {
+        const mainWindow = document.getElementById('mainWindow');
+        if (mainWindow) {
+            mainWindow.focus();
+        }
+    }
+    showHelp() { console.log('Show Help'); }
+    showShortcuts() {
+        alert('Keyboard Shortcuts:\n\n⌘N - New Scan\n⌘O - Open Target List\n⌘S - Save Results\n⌘T - Add Target\n⌘D - Focus Discovery\n⌘R - Start Analysis\n⌘. - Stop Analysis\n⌘, - Preferences\n⌘Q - Quit');
     }
     
     // Clock
