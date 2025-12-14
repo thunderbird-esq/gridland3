@@ -515,3 +515,151 @@
   background: var(--mac-highlight);
   color: var(--mac-window);
 }
+
+/* Import Dialog Styles */
+.import-dialog {
+  min-width: 450px;
+}
+
+.import-info {
+  margin-bottom: 12px;
+  padding: 8px;
+  background: #f0f0f0;
+  border: 1px solid var(--mac-border);
+  border-radius: 2px;
+}
+
+.import-info p {
+  margin: 0 0 4px 0;
+  font-size: 9px;
+}
+
+.mac-textarea {
+  width: 100%;
+  font-family: var(--font-monaco);
+  font-size: 9px;
+  padding: 6px;
+  border: 1px inset var(--mac-border);
+  background: white;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.import-status {
+  margin: 12px 0;
+  padding: 8px;
+  background: #f8f8f8;
+  border: 1px solid var(--mac-border);
+}
+
+.import-status .status-text {
+  font-size: 9px;
+  margin-bottom: 6px;
+}
+
+/* Subnet Dialog Styles */
+.subnet-dialog {
+  min-width: 480px;
+}
+
+.subnet-info {
+  margin-bottom: 12px;
+  padding: 8px;
+  background: #f0f0f0;
+  border: 1px solid var(--mac-border);
+  border-radius: 2px;
+}
+
+.subnet-info p {
+  margin: 0;
+  font-size: 9px;
+}
+
+.mac-select {
+  width: 100%;
+  font-family: var(--font-chicago);
+  font-size: 9px;
+  padding: 4px;
+  border: 1px inset var(--mac-border);
+  background: white;
+  cursor: pointer;
+}
+
+.subnet-status {
+  margin: 12px 0;
+  padding: 10px;
+  background: #f8f8f8;
+  border: 1px solid var(--mac-border);
+}
+
+.status-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  margin-bottom: 6px;
+}
+
+.status-line:last-child {
+  margin-bottom: 0;
+}
+
+.subnet-results {
+  margin: 12px 0;
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px inset var(--mac-border);
+  background: white;
+}
+
+.results-header {
+  font-size: 9px;
+  font-weight: bold;
+  padding: 4px 8px;
+  background: var(--mac-light-gray);
+  border-bottom: 1px solid var(--mac-border);
+  position: sticky;
+  top: 0;
+}
+
+.results-list {
+  padding: 4px;
+}
+
+.result-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 6px;
+  font-size: 9px;
+  border-bottom: 1px dotted var(--mac-shadow);
+  cursor: pointer;
+}
+
+.result-item:hover {
+  background: var(--mac-light-gray);
+}
+
+.result-item:last-child {
+  border-bottom: none;
+}
+
+.result-ip {
+  font-family: var(--font-monaco);
+}
+
+.result-ports {
+  color: var(--mac-shadow);
+}
+
+/* Progress bar improvements */
+.progress-bar {
+  height: 12px;
+  border: 1px inset var(--mac-border);
+  background: white;
+  margin: 4px 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--mac-border);
+  transition: width 0.2s ease;
+}

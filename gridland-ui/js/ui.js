@@ -189,6 +189,63 @@ class MacUI {
             });
         }
 
+        // Import CSV dialog
+        const importCancelBtn = document.getElementById('importCancelBtn');
+        const importOkBtn = document.getElementById('importOkBtn');
+
+        if (importCancelBtn) {
+            importCancelBtn.addEventListener('click', () => {
+                this.hideModal('importDialog');
+            });
+        }
+
+        if (importOkBtn) {
+            importOkBtn.addEventListener('click', () => {
+                this.handleCSVImport();
+            });
+        }
+
+        // Subnet scanner dialog
+        const subnetCancelBtn = document.getElementById('subnetCancelBtn');
+        const subnetStartBtn = document.getElementById('subnetStartBtn');
+        const subnetStopBtn = document.getElementById('subnetStopBtn');
+        const subnetAddAllBtn = document.getElementById('subnetAddAllBtn');
+        const subnetPorts = document.getElementById('subnetPorts');
+
+        if (subnetCancelBtn) {
+            subnetCancelBtn.addEventListener('click', () => {
+                this.cancelSubnetScan();
+                this.hideModal('subnetDialog');
+            });
+        }
+
+        if (subnetStartBtn) {
+            subnetStartBtn.addEventListener('click', () => {
+                this.startSubnetScan();
+            });
+        }
+
+        if (subnetStopBtn) {
+            subnetStopBtn.addEventListener('click', () => {
+                this.cancelSubnetScan();
+            });
+        }
+
+        if (subnetAddAllBtn) {
+            subnetAddAllBtn.addEventListener('click', () => {
+                this.addAllSubnetHosts();
+            });
+        }
+
+        if (subnetPorts) {
+            subnetPorts.addEventListener('change', () => {
+                const customGroup = document.getElementById('customPortsGroup');
+                if (customGroup) {
+                    customGroup.style.display = subnetPorts.value === 'custom' ? 'block' : 'none';
+                }
+            });
+        }
+
         // Modal overlay click to close
         if (this.modalOverlay) {
             this.modalOverlay.addEventListener('click', (e) => {
@@ -786,10 +843,11 @@ class MacUI {
     showToolsMenu() {
         const menuItem = document.querySelector('.menu-item:nth-child(6)'); // Tools
         this.createDropdownMenu(menuItem, [
+            { label: 'Scan Subnet...', action: () => this.showSubnetDialog() },
             { label: 'Port Scanner', action: () => this.openPortScanner() },
             { label: 'Stream Finder', action: () => this.openStreamFinder() },
-            { label: 'CVE Lookup', action: () => this.openCVELookup() },
             { separator: true },
+            { label: 'CVE Lookup', action: () => this.openCVELookup() },
             { label: 'OSINT URLs', action: () => this.generateOSINTUrls() },
             { label: 'GeoIP Lookup', action: () => this.openGeoIPLookup() },
             { separator: true },
@@ -828,7 +886,7 @@ class MacUI {
             window.gridlandApp.clearTargets();
         }
     }
-    importTargets() { console.log('Import Targets'); }
+    importTargets() { this.showImportDialog(); }
     exportTargets() { console.log('Export Targets'); }
     startAnalysisAction() {
         if (window.gridlandApp) {
@@ -1027,7 +1085,279 @@ class MacUI {
             window.macSounds.playError();
         }
     }
-    
+
+    // ==========================================================================
+    // CSV Import
+    // ==========================================================================
+
+    showImportDialog() {
+        // Reset form
+        const fileInput = document.getElementById('csvFileInput');
+        const textInput = document.getElementById('csvTextInput');
+        const importStatus = document.getElementById('importStatus');
+
+        if (fileInput) fileInput.value = '';
+        if (textInput) textInput.value = '';
+        if (importStatus) importStatus.style.display = 'none';
+
+        this.showModal('importDialog');
+    }
+
+    async handleCSVImport() {
+        const fileInput = document.getElementById('csvFileInput');
+        const textInput = document.getElementById('csvTextInput');
+        const importStatus = document.getElementById('importStatus');
+        const importStatusText = document.getElementById('importStatusText');
+        const importProgressFill = document.getElementById('importProgressFill');
+
+        // Show status
+        if (importStatus) importStatus.style.display = 'block';
+        if (importStatusText) importStatusText.textContent = 'Importing...';
+        if (importProgressFill) importProgressFill.style.width = '50%';
+
+        try {
+            let result;
+
+            if (fileInput && fileInput.files.length > 0) {
+                // Import from file
+                result = await window.gridlandAPI.importCSVFile(fileInput.files[0]);
+            } else if (textInput && textInput.value.trim()) {
+                // Import from text
+                result = await window.gridlandAPI.importCSV(textInput.value.trim());
+            } else {
+                this.showErrorDialog('No Data', 'Please select a CSV file or paste CSV data.');
+                if (importStatus) importStatus.style.display = 'none';
+                return;
+            }
+
+            if (importProgressFill) importProgressFill.style.width = '100%';
+
+            if (result.success && result.targets && result.targets.length > 0) {
+                // Add targets to queue
+                for (const target of result.targets) {
+                    if (window.gridlandApp) {
+                        window.gridlandApp.addTarget({
+                            ip: target.ip,
+                            port: target.port,
+                            org: target.org,
+                            source: 'csv_import'
+                        });
+                    }
+                }
+
+                if (importStatusText) {
+                    importStatusText.textContent = `Imported ${result.imported} targets`;
+                }
+
+                window.macSounds.playSuccess();
+
+                // Close dialog after brief delay
+                setTimeout(() => {
+                    this.hideModal('importDialog');
+                }, 1000);
+
+            } else if (result.imported === 0) {
+                this.showErrorDialog('Import Failed', 'No valid targets found in CSV.');
+                if (importStatus) importStatus.style.display = 'none';
+            }
+
+            if (result.errors > 0) {
+                console.warn(`CSV import had ${result.errors} errors:`, result.error_details);
+            }
+
+        } catch (error) {
+            this.showErrorDialog('Import Error', error.message);
+            window.macSounds.playError();
+            if (importStatus) importStatus.style.display = 'none';
+        }
+    }
+
+    // ==========================================================================
+    // Subnet Scanner
+    // ==========================================================================
+
+    currentSubnetScan = null;
+    subnetDiscoveredHosts = [];
+
+    showSubnetDialog() {
+        // Reset form
+        const cidrInput = document.getElementById('subnetCidr');
+        const portsSelect = document.getElementById('subnetPorts');
+        const customPortsGroup = document.getElementById('customPortsGroup');
+        const subnetStatus = document.getElementById('subnetStatus');
+        const subnetResults = document.getElementById('subnetResults');
+        const subnetStartBtn = document.getElementById('subnetStartBtn');
+        const subnetStopBtn = document.getElementById('subnetStopBtn');
+        const subnetAddAllBtn = document.getElementById('subnetAddAllBtn');
+
+        if (cidrInput) cidrInput.value = '';
+        if (portsSelect) portsSelect.value = 'camera';
+        if (customPortsGroup) customPortsGroup.style.display = 'none';
+        if (subnetStatus) subnetStatus.style.display = 'none';
+        if (subnetResults) subnetResults.style.display = 'none';
+        if (subnetStartBtn) subnetStartBtn.style.display = 'inline-block';
+        if (subnetStopBtn) subnetStopBtn.style.display = 'none';
+        if (subnetAddAllBtn) subnetAddAllBtn.style.display = 'none';
+
+        this.subnetDiscoveredHosts = [];
+
+        this.showModal('subnetDialog');
+    }
+
+    startSubnetScan() {
+        const cidrInput = document.getElementById('subnetCidr');
+        const portsSelect = document.getElementById('subnetPorts');
+        const customPorts = document.getElementById('customPorts');
+
+        const cidr = cidrInput ? cidrInput.value.trim() : '';
+        if (!cidr) {
+            this.showErrorDialog('Invalid Input', 'Please enter a subnet in CIDR notation (e.g., 192.168.1.0/24)');
+            return;
+        }
+
+        // Determine ports
+        let ports = portsSelect ? portsSelect.value : 'camera';
+        if (ports === 'custom' && customPorts) {
+            ports = customPorts.value.trim();
+        }
+
+        // Update UI
+        const subnetStatus = document.getElementById('subnetStatus');
+        const subnetResults = document.getElementById('subnetResults');
+        const subnetResultsList = document.getElementById('subnetResultsList');
+        const subnetStartBtn = document.getElementById('subnetStartBtn');
+        const subnetStopBtn = document.getElementById('subnetStopBtn');
+        const subnetAddAllBtn = document.getElementById('subnetAddAllBtn');
+
+        if (subnetStatus) subnetStatus.style.display = 'block';
+        if (subnetResults) subnetResults.style.display = 'block';
+        if (subnetResultsList) subnetResultsList.innerHTML = '';
+        if (subnetStartBtn) subnetStartBtn.style.display = 'none';
+        if (subnetStopBtn) subnetStopBtn.style.display = 'inline-block';
+        if (subnetAddAllBtn) subnetAddAllBtn.style.display = 'none';
+
+        this.subnetDiscoveredHosts = [];
+        this.currentSubnetCidr = cidr;
+
+        // Start scan
+        this.currentSubnetScan = window.gridlandAPI.scanSubnet(
+            cidr,
+            { ports: ports },
+            // onHost
+            (host) => {
+                this.subnetDiscoveredHosts.push(host);
+                this.addHostToResults(host);
+            },
+            // onProgress
+            (progress) => {
+                this.updateSubnetProgress(progress);
+            },
+            // onComplete
+            (result) => {
+                this.onSubnetScanComplete(result);
+            },
+            // onError
+            (error) => {
+                this.showErrorDialog('Scan Error', error.message);
+                this.resetSubnetDialog();
+            }
+        );
+    }
+
+    addHostToResults(host) {
+        const resultsList = document.getElementById('subnetResultsList');
+        if (!resultsList) return;
+
+        const item = document.createElement('div');
+        item.className = 'result-item';
+        item.innerHTML = `
+            <span class="result-ip">${host.ip}</span>
+            <span class="result-ports">Ports: ${host.open_ports.join(', ')}</span>
+        `;
+        item.addEventListener('click', () => {
+            if (window.gridlandApp) {
+                window.gridlandApp.addTarget({
+                    ip: host.ip,
+                    port: host.open_ports[0] || 80,
+                    source: 'subnet_scan'
+                });
+                item.style.background = '#d4edda';
+            }
+        });
+        resultsList.appendChild(item);
+    }
+
+    updateSubnetProgress(progress) {
+        const progressText = document.getElementById('subnetProgressText');
+        const progressFill = document.getElementById('subnetProgressFill');
+        const discoveredCount = document.getElementById('subnetDiscoveredCount');
+
+        if (progress.type === 'start') {
+            if (progressText) progressText.textContent = `0 / ${progress.totalHosts} hosts`;
+            if (progressFill) progressFill.style.width = '0%';
+            if (discoveredCount) discoveredCount.textContent = '0 hosts with open ports';
+        } else if (progress.type === 'progress') {
+            if (progressText) progressText.textContent = `${progress.scanned} / ${progress.total} hosts`;
+            if (progressFill) progressFill.style.width = `${progress.percent}%`;
+            if (discoveredCount) discoveredCount.textContent = `${progress.discovered} hosts with open ports`;
+        }
+    }
+
+    onSubnetScanComplete(result) {
+        const subnetStartBtn = document.getElementById('subnetStartBtn');
+        const subnetStopBtn = document.getElementById('subnetStopBtn');
+        const subnetAddAllBtn = document.getElementById('subnetAddAllBtn');
+        const progressText = document.getElementById('subnetProgressText');
+
+        if (subnetStartBtn) subnetStartBtn.style.display = 'inline-block';
+        if (subnetStopBtn) subnetStopBtn.style.display = 'none';
+
+        if (result.totalDiscovered > 0) {
+            if (subnetAddAllBtn) subnetAddAllBtn.style.display = 'inline-block';
+        }
+
+        if (progressText) {
+            progressText.textContent = `Complete: ${result.totalScanned} hosts scanned`;
+        }
+
+        window.macSounds.playSuccess();
+        this.currentSubnetScan = null;
+    }
+
+    cancelSubnetScan() {
+        if (this.currentSubnetCidr) {
+            window.gridlandAPI.stopSubnetScan(this.currentSubnetCidr);
+        }
+        this.currentSubnetScan = null;
+        this.resetSubnetDialog();
+    }
+
+    resetSubnetDialog() {
+        const subnetStartBtn = document.getElementById('subnetStartBtn');
+        const subnetStopBtn = document.getElementById('subnetStopBtn');
+
+        if (subnetStartBtn) subnetStartBtn.style.display = 'inline-block';
+        if (subnetStopBtn) subnetStopBtn.style.display = 'none';
+    }
+
+    addAllSubnetHosts() {
+        if (this.subnetDiscoveredHosts.length === 0) return;
+
+        for (const host of this.subnetDiscoveredHosts) {
+            if (window.gridlandApp) {
+                window.gridlandApp.addTarget({
+                    ip: host.ip,
+                    port: host.open_ports[0] || 80,
+                    source: 'subnet_scan'
+                });
+            }
+        }
+
+        window.macSounds.playSuccess();
+        alert(`Added ${this.subnetDiscoveredHosts.length} hosts to analysis queue.`);
+        this.hideModal('subnetDialog');
+    }
+
     // File drop handling
     handleFileDrop(e) {
         const files = Array.from(e.dataTransfer.files);

@@ -555,6 +555,183 @@ class GridlandAPI {
     }
 
     // ==========================================================================
+    // CSV Import API
+    // ==========================================================================
+
+    /**
+     * Import targets from CSV data (Shodan export or generic format).
+     * @param {string} csvData - Raw CSV string
+     * @returns {Promise<object>} - Import result with targets array
+     */
+    async importCSV(csvData) {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/import/csv`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ csv_data: csvData })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || `Import failed: ${response.status}`);
+            }
+
+            return result;
+        } catch (error) {
+            console.error('CSV import failed:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Import targets from CSV file.
+     * @param {File} file - CSV file object
+     * @returns {Promise<object>} - Import result with targets array
+     */
+    async importCSVFile(file) {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch(`${this.baseUrl}/api/import/csv`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || `Import failed: ${response.status}`);
+            }
+
+            return result;
+        } catch (error) {
+            console.error('CSV file import failed:', error);
+            throw error;
+        }
+    }
+
+    // ==========================================================================
+    // Subnet Scanner API
+    // ==========================================================================
+
+    /**
+     * Scan a subnet for hosts with open ports.
+     * @param {string} cidr - CIDR notation subnet (e.g., "192.168.1.0/24")
+     * @param {object} options - Scan options
+     * @param {function} onHost - Callback when a host with open ports is found
+     * @param {function} onProgress - Progress callback
+     * @param {function} onComplete - Completion callback
+     * @returns {number} - Request ID
+     */
+    scanSubnet(cidr, options = {}, onHost, onProgress, onComplete, onError) {
+        const requestId = this.getRequestId();
+
+        try {
+            // Build query parameters
+            const params = new URLSearchParams({
+                cidr: cidr,
+                ports: options.ports || 'camera',
+                timeout: options.timeout || 1.5,
+                max_threads: options.max_threads || 100
+            });
+
+            const eventSource = new EventSource(`${this.baseUrl}/api/scan/subnet?${params}`);
+
+            const key = `subnet:${cidr}`;
+            this.eventSources.set(key, eventSource);
+
+            let discoveredHosts = [];
+
+            eventSource.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    switch (data.type) {
+                        case 'start':
+                            if (onProgress) {
+                                onProgress({
+                                    type: 'start',
+                                    totalHosts: data.total_hosts,
+                                    ports: data.ports,
+                                    cidr: data.cidr
+                                });
+                            }
+                            break;
+
+                        case 'host':
+                            discoveredHosts.push(data.host);
+                            if (onHost) {
+                                onHost(data.host);
+                            }
+                            break;
+
+                        case 'progress':
+                            if (onProgress) {
+                                onProgress({
+                                    type: 'progress',
+                                    scanned: data.scanned,
+                                    total: data.total,
+                                    percent: data.percent,
+                                    discovered: data.discovered
+                                });
+                            }
+                            break;
+
+                        case 'complete':
+                            eventSource.close();
+                            this.eventSources.delete(key);
+                            if (onComplete) {
+                                onComplete({
+                                    totalScanned: data.total_scanned,
+                                    totalDiscovered: data.total_discovered,
+                                    hosts: data.hosts
+                                });
+                            }
+                            break;
+                    }
+                } catch (e) {
+                    console.error('Failed to parse subnet scan data:', e);
+                }
+            };
+
+            eventSource.onerror = (error) => {
+                eventSource.close();
+                this.eventSources.delete(key);
+
+                if (onError) {
+                    onError(new Error('Subnet scan connection lost'));
+                }
+            };
+
+            return requestId;
+
+        } catch (error) {
+            console.error('Failed to start subnet scan:', error);
+            if (onError) {
+                onError(error);
+            }
+            return null;
+        }
+    }
+
+    /**
+     * Stop an active subnet scan.
+     */
+    stopSubnetScan(cidr) {
+        const key = `subnet:${cidr}`;
+        if (this.eventSources.has(key)) {
+            this.eventSources.get(key).close();
+            this.eventSources.delete(key);
+            return true;
+        }
+        return false;
+    }
+
+    // ==========================================================================
     // Utility Methods
     // ==========================================================================
 

@@ -594,6 +594,258 @@ def get_cves(brand):
 
 
 # =============================================================================
+# CSV Import API
+# =============================================================================
+
+
+@app.route("/api/import/csv", methods=["POST"])
+def import_csv():
+    """
+    Import targets from a CSV file (Shodan export or generic IP,port format).
+
+    Request:
+        file: CSV file upload
+        OR
+        csv_data: Raw CSV string in request body
+
+    Shodan CSV columns: ip_str, port, org, hostnames, timestamp, data...
+    Generic CSV columns: ip (or ip_str), port (optional)
+
+    Returns:
+        List of imported targets with count.
+    """
+    import csv
+    import io
+
+    targets = []
+    errors = []
+
+    # Get CSV data from file upload or raw body
+    if "file" in request.files:
+        file = request.files["file"]
+        if file.filename == "":
+            return jsonify({"error": "No file selected"}), 400
+        try:
+            csv_content = file.read().decode("utf-8")
+        except UnicodeDecodeError:
+            csv_content = file.read().decode("latin-1")
+    else:
+        data = request.get_json(silent=True) or {}
+        csv_content = data.get("csv_data", "")
+
+    if not csv_content:
+        return jsonify({"error": "No CSV data provided"}), 400
+
+    try:
+        # Parse CSV
+        reader = csv.DictReader(io.StringIO(csv_content))
+
+        # Normalize field names (Shodan uses ip_str, generic might use ip)
+        for row_num, row in enumerate(reader, start=2):  # Start at 2 (header is row 1)
+            try:
+                # Find IP field
+                ip = row.get("ip_str") or row.get("ip") or row.get("IP") or row.get("address")
+                if not ip:
+                    errors.append(f"Row {row_num}: No IP address found")
+                    continue
+
+                ip = ip.strip()
+
+                # Validate IP
+                try:
+                    ipaddress.ip_address(ip)
+                except ValueError:
+                    errors.append(f"Row {row_num}: Invalid IP address '{ip}'")
+                    continue
+
+                # Find port field (optional)
+                port = row.get("port") or row.get("Port") or row.get("PORT")
+                if port:
+                    try:
+                        port = int(str(port).strip())
+                        if not (1 <= port <= 65535):
+                            port = 80
+                    except ValueError:
+                        port = 80
+                else:
+                    port = 80
+
+                # Extract additional info if available (from Shodan)
+                org = row.get("org", "").strip()
+                hostnames = row.get("hostnames", "").strip()
+                product = row.get("product", "").strip()
+
+                target = {
+                    "ip": ip,
+                    "port": port,
+                    "org": org if org else None,
+                    "hostnames": hostnames if hostnames else None,
+                    "product": product if product else None,
+                }
+
+                # Avoid duplicates
+                if not any(t["ip"] == ip and t["port"] == port for t in targets):
+                    targets.append(target)
+
+            except Exception as e:
+                errors.append(f"Row {row_num}: {str(e)}")
+
+    except csv.Error as e:
+        return jsonify({"error": f"CSV parsing error: {str(e)}"}), 400
+
+    return jsonify({
+        "success": True,
+        "imported": len(targets),
+        "errors": len(errors),
+        "error_details": errors[:10] if errors else [],  # First 10 errors only
+        "targets": targets,
+    })
+
+
+# =============================================================================
+# Subnet Scanner API
+# =============================================================================
+
+
+@app.route("/api/scan/subnet", methods=["POST", "GET"])
+def scan_subnet():
+    """
+    Scan an IP subnet for open ports (camera discovery).
+
+    Supports both POST (with JSON body) and GET (with query params) for SSE compatibility.
+
+    Request:
+        cidr (str): CIDR notation subnet (e.g., "192.168.1.0/24")
+        ports (str, optional): Comma-separated ports or "camera" for camera ports
+        timeout (float, optional): Connection timeout per port (default: 1.5)
+        max_threads (int, optional): Maximum concurrent threads (default: 100)
+
+    Returns:
+        Server-Sent Events stream with discovered hosts.
+    """
+    # Handle both POST body and GET query params
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        cidr = data.get("cidr")
+        ports_str = data.get("ports", "camera")
+        timeout = float(data.get("timeout", 1.5))
+        max_threads = int(data.get("max_threads", 100))
+    else:
+        cidr = request.args.get("cidr")
+        ports_str = request.args.get("ports", "camera")
+        timeout = float(request.args.get("timeout", 1.5))
+        max_threads = int(request.args.get("max_threads", 100))
+
+    if not cidr:
+        return jsonify({"error": "CIDR subnet is required (e.g., 192.168.1.0/24)"}), 400
+
+    # Validate CIDR
+    try:
+        network = ipaddress.ip_network(cidr, strict=False)
+    except ValueError as e:
+        return jsonify({"error": f"Invalid CIDR notation: {e}"}), 400
+
+    # Limit subnet size to prevent abuse
+    if network.num_addresses > 65536:  # /16 max
+        return jsonify({"error": "Subnet too large. Maximum /16 (65536 addresses) allowed."}), 400
+
+    # Determine ports to scan
+    if ports_str == "camera":
+        # Use camera-specific ports
+        try:
+            from gridland.discover import PortSelector
+            ports = PortSelector.get_camera_ports()[:50]  # Top 50 camera ports
+        except ImportError:
+            ports = [80, 443, 554, 8080, 8443, 8554, 37777, 37778, 34567, 8000, 8888, 9000]
+    else:
+        try:
+            ports = [int(p.strip()) for p in ports_str.split(",") if p.strip()]
+            ports = [p for p in ports if 1 <= p <= 65535]
+        except ValueError:
+            return jsonify({"error": "Invalid port specification"}), 400
+
+    if not ports:
+        return jsonify({"error": "No valid ports specified"}), 400
+
+    def generate_subnet_scan():
+        """Stream subnet scan results as Server-Sent Events."""
+        import socket
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        hosts = list(network.hosts())
+        total_hosts = len(hosts)
+
+        yield f"data: {json.dumps({'type': 'start', 'total_hosts': total_hosts, 'ports': len(ports), 'cidr': cidr})}\n\n"
+
+        discovered = []
+        scanned = 0
+
+        def scan_host(ip):
+            """Scan a single host for open ports."""
+            ip_str = str(ip)
+            open_ports = []
+
+            for port in ports:
+                try:
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.settimeout(timeout)
+                    result = sock.connect_ex((ip_str, port))
+                    sock.close()
+                    if result == 0:
+                        open_ports.append(port)
+                except Exception:
+                    pass
+
+            return ip_str, open_ports
+
+        with ThreadPoolExecutor(max_workers=max_threads) as executor:
+            futures = {executor.submit(scan_host, ip): ip for ip in hosts}
+
+            for future in as_completed(futures):
+                scanned += 1
+                ip_str, open_ports = future.result()
+
+                if open_ports:
+                    host_info = {
+                        "ip": ip_str,
+                        "open_ports": open_ports,
+                        "port_count": len(open_ports),
+                    }
+                    discovered.append(host_info)
+                    yield f"data: {json.dumps({'type': 'host', 'host': host_info})}\n\n"
+
+                # Progress update every 10 hosts or at completion
+                if scanned % 10 == 0 or scanned == total_hosts:
+                    progress = {
+                        "type": "progress",
+                        "scanned": scanned,
+                        "total": total_hosts,
+                        "percent": round((scanned / total_hosts) * 100, 1),
+                        "discovered": len(discovered),
+                    }
+                    yield f"data: {json.dumps(progress)}\n\n"
+
+        # Final summary
+        summary = {
+            "type": "complete",
+            "total_scanned": total_hosts,
+            "total_discovered": len(discovered),
+            "hosts": discovered,
+        }
+        yield f"data: {json.dumps(summary)}\n\n"
+
+    return Response(
+        stream_with_context(generate_subnet_scan()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
+# =============================================================================
 # Health Check
 # =============================================================================
 

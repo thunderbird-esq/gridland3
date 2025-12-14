@@ -241,6 +241,91 @@
         </div>
     </div>
 
+        <!-- Import CSV Dialog -->
+        <div class="mac-dialog import-dialog" id="importDialog" style="display: none;">
+            <div class="dialog-title-bar">
+                <div class="dialog-title">Import Targets from CSV</div>
+            </div>
+            <div class="dialog-content">
+                <div class="import-info">
+                    <p>Import targets from a Shodan CSV export or any CSV with IP addresses.</p>
+                    <p class="field-hint">Supported columns: ip_str/ip, port, org, hostnames</p>
+                </div>
+                <div class="field-group">
+                    <label>Select CSV File:</label>
+                    <input type="file" id="csvFileInput" class="mac-input" accept=".csv,.txt">
+                </div>
+                <div class="field-group">
+                    <label>Or paste CSV data:</label>
+                    <textarea id="csvTextInput" class="mac-textarea" rows="6" placeholder="ip_str,port,org&#10;192.168.1.1,80,Example Org&#10;192.168.1.2,554,Another Org"></textarea>
+                </div>
+                <div class="import-status" id="importStatus" style="display: none;">
+                    <div class="status-text" id="importStatusText">Importing...</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="importProgressFill" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="dialog-buttons">
+                    <button class="mac-button" id="importCancelBtn">Cancel</button>
+                    <button class="mac-button default-button" id="importOkBtn">Import</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subnet Scanner Dialog -->
+        <div class="mac-dialog subnet-dialog" id="subnetDialog" style="display: none;">
+            <div class="dialog-title-bar">
+                <div class="dialog-title">Scan Subnet</div>
+            </div>
+            <div class="dialog-content">
+                <div class="subnet-info">
+                    <p>Scan an IP range for devices with open camera ports.</p>
+                </div>
+                <div class="field-group">
+                    <label for="subnetCidr">Subnet (CIDR):</label>
+                    <input type="text" id="subnetCidr" class="mac-input" placeholder="192.168.1.0/24">
+                    <div class="field-hint">Examples: 192.168.1.0/24 (254 hosts), 10.0.0.0/16 (65534 hosts)</div>
+                </div>
+                <div class="field-group">
+                    <label for="subnetPorts">Ports:</label>
+                    <select id="subnetPorts" class="mac-select">
+                        <option value="camera">Camera Ports (default)</option>
+                        <option value="80,443,8080">Web Only (80, 443, 8080)</option>
+                        <option value="554,8554">RTSP Only (554, 8554)</option>
+                        <option value="custom">Custom...</option>
+                    </select>
+                </div>
+                <div class="field-group" id="customPortsGroup" style="display: none;">
+                    <label for="customPorts">Custom Ports:</label>
+                    <input type="text" id="customPorts" class="mac-input" placeholder="80,443,554,8080">
+                </div>
+                <div class="subnet-status" id="subnetStatus" style="display: none;">
+                    <div class="status-line">
+                        <span>Progress:</span>
+                        <span id="subnetProgressText">0 / 0 hosts</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="subnetProgressFill" style="width: 0%"></div>
+                    </div>
+                    <div class="status-line">
+                        <span>Discovered:</span>
+                        <span id="subnetDiscoveredCount">0 hosts with open ports</span>
+                    </div>
+                </div>
+                <div class="subnet-results" id="subnetResults" style="display: none;">
+                    <div class="results-header">Discovered Hosts:</div>
+                    <div class="results-list" id="subnetResultsList"></div>
+                </div>
+                <div class="dialog-buttons">
+                    <button class="mac-button" id="subnetCancelBtn">Cancel</button>
+                    <button class="mac-button" id="subnetStopBtn" style="display: none;">Stop Scan</button>
+                    <button class="mac-button default-button" id="subnetStartBtn">Start Scan</button>
+                    <button class="mac-button default-button" id="subnetAddAllBtn" style="display: none;">Add All to Queue</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Channel Guide (Hidden by default) -->
     <div class="channel-guide" id="channelGuide" style="display: none;">
         <div class="guide-header">Camera Channels</div>
