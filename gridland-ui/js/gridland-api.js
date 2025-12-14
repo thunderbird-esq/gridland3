@@ -1,6 +1,8 @@
 /**
- * GRIDLAND Backend API Integration
- * Connects to existing Flask server endpoints
+ * GRIDLAND v3.0 Backend API Integration
+ * Connects to Flask server endpoints for real security reconnaissance.
+ *
+ * All operations are REAL - no simulation or demo mode.
  */
 
 class GridlandAPI {
@@ -9,19 +11,29 @@ class GridlandAPI {
         this.eventSources = new Map();
         this.requestId = 0;
     }
-    
+
     // Generate unique request ID for tracking
     getRequestId() {
         return ++this.requestId;
     }
-    
-    // Discover targets using existing /discover endpoint
+
+    // ==========================================================================
+    // Discovery API - Shodan Integration
+    // ==========================================================================
+
+    /**
+     * Discover targets using Shodan API.
+     * @param {string} query - Shodan search query (e.g., "port:554 country:US")
+     * @param {object} options - Additional options (limit, etc.)
+     * @returns {Promise<Array>} - Array of target objects
+     */
     async discoverTargets(query, options = {}) {
         const requestData = {
             query: query,
+            limit: options.limit || 50,
             ...options
         };
-        
+
         try {
             const response = await fetch(`${this.baseUrl}/discover`, {
                 method: 'POST',
@@ -30,88 +42,111 @@ class GridlandAPI {
                 },
                 body: JSON.stringify(requestData)
             });
-            
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || `HTTP ${response.status}`);
             }
-            
+
             const targets = await response.json();
-            
+
             // Transform to consistent format
             return targets.map(ip => ({
                 ip: ip,
-                port: 80, // Default port, will be refined during analysis
+                port: 80,
                 source: 'shodan',
                 timestamp: new Date().toISOString()
             }));
-            
+
         } catch (error) {
             console.error('Discovery failed:', error);
             throw error;
         }
     }
-    
-    // Start analysis using existing /scan endpoint with Server-Sent Events
+
+    // ==========================================================================
+    // Analysis API - CamXploit Integration
+    // ==========================================================================
+
+    /**
+     * Start real-time analysis using Server-Sent Events.
+     * Uses GET request since EventSource doesn't support POST body.
+     *
+     * @param {object} target - Target object with ip property
+     * @param {function} onProgress - Progress callback(analysisData)
+     * @param {function} onComplete - Completion callback(analysisData)
+     * @param {function} onError - Error callback(error)
+     * @returns {number} - Request ID
+     */
     startAnalysis(target, onProgress, onComplete, onError) {
         const requestId = this.getRequestId();
-        
+
         try {
             // Close any existing EventSource for this target
-            const existingKey = `${target.ip}:${target.port}`;
+            const existingKey = `${target.ip}:${target.port || 80}`;
             if (this.eventSources.has(existingKey)) {
                 this.eventSources.get(existingKey).close();
             }
-            
-            // Create new EventSource connection
-            const eventSource = new EventSource(`${this.baseUrl}/scan`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ ip: target.ip })
-            });
-            
+
+            // EventSource uses GET - pass IP as query parameter
+            const eventSource = new EventSource(`${this.baseUrl}/scan?ip=${encodeURIComponent(target.ip)}`);
+
             this.eventSources.set(existingKey, eventSource);
-            
+
             let analysisData = {
                 target: target,
                 vulnerabilities: [],
                 streams: [],
+                rawOutput: [],
                 progress: 0,
                 status: 'scanning',
                 startTime: Date.now()
             };
-            
+
             eventSource.onmessage = (event) => {
                 const line = event.data;
-                
+
+                // Store raw output
+                analysisData.rawOutput.push(line);
+
                 // Parse progress and status from output
                 this.parseAnalysisOutput(line, analysisData);
-                
+
                 // Call progress callback
                 if (onProgress) {
                     onProgress(analysisData);
                 }
             };
-            
+
             eventSource.onerror = (error) => {
-                console.error('Analysis stream error:', error);
+                console.log('Analysis stream ended');
                 eventSource.close();
                 this.eventSources.delete(existingKey);
-                
+
                 // Mark as complete
                 analysisData.status = 'complete';
+                analysisData.progress = 100;
                 analysisData.endTime = Date.now();
                 analysisData.duration = analysisData.endTime - analysisData.startTime;
-                
+
                 if (onComplete) {
                     onComplete(analysisData);
                 }
             };
-            
+
+            eventSource.addEventListener('error', (e) => {
+                if (eventSource.readyState === EventSource.CLOSED) {
+                    // Normal close - scan completed
+                    return;
+                }
+                console.error('Analysis stream error:', e);
+                if (onError) {
+                    onError(new Error('Connection lost'));
+                }
+            });
+
             return requestId;
-            
+
         } catch (error) {
             console.error('Failed to start analysis:', error);
             if (onError) {
@@ -120,108 +155,129 @@ class GridlandAPI {
             return null;
         }
     }
-    
-    // Parse analysis output from existing CamXploit.py integration
+
+    /**
+     * Parse CamXploit.py output and extract structured data.
+     */
     parseAnalysisOutput(line, analysisData) {
         // Update progress based on output patterns
-        if (line.includes('Scanning comprehensive CCTV ports')) {
+        if (line.includes('Scanning comprehensive CCTV ports') || line.includes('Starting scan')) {
             analysisData.progress = 10;
             analysisData.status = 'Port scanning...';
-        } else if (line.includes('Analyzing Ports for Camera Indicators')) {
+        } else if (line.includes('Analyzing Ports') || line.includes('Checking open ports')) {
             analysisData.progress = 30;
             analysisData.status = 'Analyzing services...';
-        } else if (line.includes('Checking for authentication pages')) {
+        } else if (line.includes('authentication') || line.includes('login')) {
             analysisData.progress = 50;
             analysisData.status = 'Testing authentication...';
-        } else if (line.includes('Testing common credentials')) {
+        } else if (line.includes('credentials') || line.includes('password')) {
             analysisData.progress = 70;
             analysisData.status = 'Testing credentials...';
-        } else if (line.includes('Checking for Live Streams')) {
+        } else if (line.includes('Live Streams') || line.includes('RTSP') || line.includes('stream')) {
             analysisData.progress = 90;
             analysisData.status = 'Discovering streams...';
-        } else if (line.includes('Scan Completed')) {
+        } else if (line.includes('Scan Completed') || line.includes('completed')) {
             analysisData.progress = 100;
             analysisData.status = 'Complete';
         }
-        
-        // Extract vulnerability information
-        if (line.includes('Camera Detected') || line.includes('Camera Server Detected')) {
+
+        // Extract camera detection
+        if (line.includes('Camera Detected') || line.includes('Camera Server Detected') ||
+            line.includes('Hikvision') || line.includes('Dahua') || line.includes('Axis')) {
             analysisData.vulnerabilities.push({
                 type: 'Camera Detection',
                 severity: 'INFO',
-                description: line.trim()
+                description: line.trim(),
+                timestamp: new Date().toISOString()
             });
         }
-        
-        if (line.includes('Default credentials') || line.includes('Success!')) {
+
+        // Extract credential findings
+        if (line.includes('Default credentials') || line.includes('Success!') ||
+            line.includes('authenticated') || line.includes('login successful')) {
             analysisData.vulnerabilities.push({
                 type: 'Default Credentials',
                 severity: 'CRITICAL',
-                description: line.trim()
+                description: line.trim(),
+                timestamp: new Date().toISOString()
             });
         }
-        
-        if (line.includes('CVE-')) {
-            const cveMatch = line.match(/CVE-\d{4}-\d+/);
-            if (cveMatch) {
-                analysisData.vulnerabilities.push({
-                    type: 'Known Vulnerability',
-                    severity: 'HIGH',
-                    cve: cveMatch[0],
-                    description: line.trim()
-                });
-            }
-        }
-        
-        // Extract stream URLs
-        const streamRegex = /(rtsp|http|https):\/\/[^\s"']+/gi;
-        const streamMatches = line.match(streamRegex);
-        if (streamMatches) {
-            streamMatches.forEach(url => {
-                // Avoid duplicates
-                if (!analysisData.streams.find(s => s.url === url)) {
-                    analysisData.streams.push({
-                        url: url,
-                        protocol: url.split(':')[0].toUpperCase(),
-                        status: 'discovered',
-                        quality: 'unknown'
+
+        // Extract CVE findings
+        const cveMatch = line.match(/CVE-\d{4}-\d+/g);
+        if (cveMatch) {
+            cveMatch.forEach(cve => {
+                if (!analysisData.vulnerabilities.find(v => v.cve === cve)) {
+                    analysisData.vulnerabilities.push({
+                        type: 'Known Vulnerability',
+                        severity: 'HIGH',
+                        cve: cve,
+                        description: line.trim(),
+                        timestamp: new Date().toISOString()
                     });
                 }
             });
         }
-        
+
+        // Extract stream URLs
+        const streamRegex = /(rtsp|rtmp|http|https):\/\/[^\s"'<>]+/gi;
+        const streamMatches = line.match(streamRegex);
+        if (streamMatches) {
+            streamMatches.forEach(url => {
+                // Clean URL and avoid duplicates
+                const cleanUrl = url.replace(/[<>]$/, '');
+                if (!analysisData.streams.find(s => s.url === cleanUrl)) {
+                    analysisData.streams.push({
+                        url: cleanUrl,
+                        protocol: cleanUrl.split(':')[0].toUpperCase(),
+                        status: 'discovered',
+                        quality: 'unknown',
+                        timestamp: new Date().toISOString()
+                    });
+                }
+            });
+        }
+
         // Extract device information
         if (line.includes('Model:') || line.includes('Firmware:') || line.includes('Brand:')) {
             if (!analysisData.deviceInfo) {
                 analysisData.deviceInfo = {};
             }
-            
-            if (line.includes('Model:')) {
-                const modelMatch = line.match(/Model:\s*(.+)/);
-                if (modelMatch) {
-                    analysisData.deviceInfo.model = modelMatch[1].trim();
-                }
+
+            const modelMatch = line.match(/Model:\s*(.+)/i);
+            if (modelMatch) {
+                analysisData.deviceInfo.model = modelMatch[1].trim();
             }
-            
-            if (line.includes('Firmware:')) {
-                const firmwareMatch = line.match(/Firmware:\s*(.+)/);
-                if (firmwareMatch) {
-                    analysisData.deviceInfo.firmware = firmwareMatch[1].trim();
-                }
+
+            const firmwareMatch = line.match(/Firmware:\s*(.+)/i);
+            if (firmwareMatch) {
+                analysisData.deviceInfo.firmware = firmwareMatch[1].trim();
             }
-            
-            if (line.includes('Brand:')) {
-                const brandMatch = line.match(/Brand:\s*(.+)/);
-                if (brandMatch) {
-                    analysisData.deviceInfo.brand = brandMatch[1].trim();
-                }
+
+            const brandMatch = line.match(/Brand:\s*(.+)/i);
+            if (brandMatch) {
+                analysisData.deviceInfo.brand = brandMatch[1].trim();
+            }
+        }
+
+        // Extract open ports
+        const portMatch = line.match(/Port\s+(\d+)\s+(open|is open)/i);
+        if (portMatch) {
+            if (!analysisData.openPorts) {
+                analysisData.openPorts = [];
+            }
+            const port = parseInt(portMatch[1]);
+            if (!analysisData.openPorts.includes(port)) {
+                analysisData.openPorts.push(port);
             }
         }
     }
-    
-    // Stop analysis
+
+    /**
+     * Stop an active analysis.
+     */
     stopAnalysis(target) {
-        const key = `${target.ip}:${target.port}`;
+        const key = `${target.ip}:${target.port || 80}`;
         if (this.eventSources.has(key)) {
             this.eventSources.get(key).close();
             this.eventSources.delete(key);
@@ -229,26 +285,35 @@ class GridlandAPI {
         }
         return false;
     }
-    
-    // Test stream using existing /stream endpoint
+
+    // ==========================================================================
+    // Stream API
+    // ==========================================================================
+
+    /**
+     * Test if a stream is accessible.
+     */
     async testStream(streamUrl) {
         try {
-            // Encode stream URL for existing endpoint
             const encodedUrl = btoa(streamUrl);
             const testUrl = `${this.baseUrl}/stream/${encodedUrl}`;
-            
-            // Test if stream is accessible
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+
             const response = await fetch(testUrl, {
                 method: 'HEAD',
-                timeout: 5000
+                signal: controller.signal
             });
-            
+
+            clearTimeout(timeoutId);
+
             return {
                 accessible: response.ok,
                 contentType: response.headers.get('content-type'),
                 status: response.status
             };
-            
+
         } catch (error) {
             console.error('Stream test failed:', error);
             return {
@@ -257,14 +322,148 @@ class GridlandAPI {
             };
         }
     }
-    
-    // Get stream URL for video element
+
+    /**
+     * Get transcoded stream URL for video element.
+     */
     getStreamUrl(streamUrl) {
         const encodedUrl = btoa(streamUrl);
         return `${this.baseUrl}/stream/${encodedUrl}`;
     }
-    
-    // Invoke existing CLI commands via new API endpoints
+
+    // ==========================================================================
+    // Configuration API
+    // ==========================================================================
+
+    /**
+     * Get current server configuration.
+     */
+    async getConfiguration() {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/config`);
+            if (!response.ok) {
+                throw new Error(`Config fetch failed: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to get configuration:', error);
+            // Return default configuration
+            return {
+                scan_timeout: 10,
+                max_threads: 100,
+                default_ports: '80,443,554,8080,8443',
+                performance_mode: 'BALANCED'
+            };
+        }
+    }
+
+    /**
+     * Update server configuration.
+     */
+    async saveConfiguration(config) {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/config`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(config)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Config save failed: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to save configuration:', error);
+            throw error;
+        }
+    }
+
+    // ==========================================================================
+    // Plugin API
+    // ==========================================================================
+
+    /**
+     * Get information about available plugins.
+     */
+    async getPluginInfo() {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/plugins`);
+            if (!response.ok) {
+                throw new Error(`Plugin info fetch failed: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to get plugin info:', error);
+            throw error;
+        }
+    }
+
+    // ==========================================================================
+    // OSINT API
+    // ==========================================================================
+
+    /**
+     * Get OSINT URLs for an IP address.
+     */
+    async getOsintUrls(ip) {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/osint/urls/${ip}`);
+            if (!response.ok) {
+                throw new Error(`OSINT fetch failed: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to get OSINT URLs:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get geolocation information for an IP.
+     */
+    async getGeoInfo(ip) {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/osint/geo/${ip}`);
+            if (!response.ok) {
+                throw new Error(`Geo lookup failed: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to get geo info:', error);
+            throw error;
+        }
+    }
+
+    // ==========================================================================
+    // CVE API
+    // ==========================================================================
+
+    /**
+     * Get CVEs for a camera brand.
+     */
+    async getCVEs(brand) {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/cves/${brand}`);
+            if (!response.ok) {
+                throw new Error(`CVE fetch failed: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to get CVEs:', error);
+            throw error;
+        }
+    }
+
+    // ==========================================================================
+    // CLI API
+    // ==========================================================================
+
+    /**
+     * Invoke GRIDLAND CLI commands.
+     */
     async invokeCLI(command, args = []) {
         try {
             const response = await fetch(`${this.baseUrl}/api/cli`, {
@@ -277,93 +476,45 @@ class GridlandAPI {
                     args: args
                 })
             });
-            
+
             if (!response.ok) {
                 throw new Error(`CLI command failed: ${response.status}`);
             }
-            
+
             return await response.json();
-            
         } catch (error) {
             console.error('CLI invocation failed:', error);
             throw error;
         }
     }
-    
-    // Get configuration from existing backend
-    async getConfiguration() {
+
+    // ==========================================================================
+    // Health Check
+    // ==========================================================================
+
+    /**
+     * Check server health status.
+     */
+    async checkHealth() {
         try {
-            const response = await fetch(`${this.baseUrl}/api/config`);
-            if (!response.ok) {
-                throw new Error(`Config fetch failed: ${response.status}`);
-            }
-            
+            const response = await fetch(`${this.baseUrl}/api/health`);
             return await response.json();
-            
         } catch (error) {
-            console.error('Failed to get configuration:', error);
-            // Return default configuration
+            console.error('Health check failed:', error);
             return {
-                scan_timeout: 10,
-                max_threads: 100,
-                default_ports: '80,443,554,8080,8443',
-                performance_mode: 'BALANCED'
+                status: 'unreachable',
+                error: error.message
             };
         }
     }
-    
-    // Save configuration to existing backend
-    async saveConfiguration(config) {
-        try {
-            const response = await fetch(`${this.baseUrl}/api/config`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(config)
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Config save failed: ${response.status}`);
-            }
-            
-            return await response.json();
-            
-        } catch (error) {
-            console.error('Failed to save configuration:', error);
-            throw error;
-        }
-    }
-    
-    // Get plugin information
-    async getPluginInfo() {
-        try {
-            const response = await fetch(`${this.baseUrl}/api/plugins`);
-            if (!response.ok) {
-                throw new Error(`Plugin info fetch failed: ${response.status}`);
-            }
-            
-            return await response.json();
-            
-        } catch (error) {
-            console.error('Failed to get plugin info:', error);
-            // Return default plugin info based on existing codebase
-            return {
-                total_plugins: 6,
-                enabled_plugins: 6,
-                plugins: [
-                    { name: 'Hikvision Scanner', version: '1.0.0', enabled: true },
-                    { name: 'Dahua Scanner', version: '1.0.0', enabled: true },
-                    { name: 'Axis Scanner', version: '1.0.0', enabled: true },
-                    { name: 'Generic Camera Scanner', version: '1.0.0', enabled: true },
-                    { name: 'RTSP Stream Scanner', version: '1.0.0', enabled: true },
-                    { name: 'Enhanced Banner Grabber', version: '1.0.0', enabled: true }
-                ]
-            };
-        }
-    }
-    
-    // Cleanup all connections
+
+    // ==========================================================================
+    // Utility Methods
+    // ==========================================================================
+
+    /**
+     * Cleanup all active connections.
+     */
     cleanup() {
         for (const eventSource of this.eventSources.values()) {
             eventSource.close();
@@ -380,7 +531,7 @@ window.addEventListener('beforeunload', () => {
     window.gridlandAPI.cleanup();
 });
 
-// Export for use in other modules
+// Export for module usage
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = GridlandAPI;
 }
