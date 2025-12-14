@@ -202,6 +202,43 @@
                 </div>
             </div>
         </div>
+
+        <!-- Settings Dialog -->
+        <div class="mac-dialog settings-dialog" id="settingsDialog" style="display: none;">
+            <div class="dialog-title-bar">
+                <div class="dialog-title">Settings</div>
+            </div>
+            <div class="dialog-content">
+                <div class="settings-section">
+                    <div class="section-title">Shodan API Configuration</div>
+                    <div class="shodan-status" id="shodanStatus">
+                        <span class="status-indicator" id="shodanStatusIndicator">⚪</span>
+                        <span id="shodanStatusText">Checking status...</span>
+                    </div>
+                    <div class="field-group">
+                        <label for="shodanApiKey">API Key:</label>
+                        <input type="password" id="shodanApiKey" class="mac-input" placeholder="Enter your Shodan API key">
+                    </div>
+                    <div class="field-hint">Get your API key from <a href="https://account.shodan.io" target="_blank">account.shodan.io</a></div>
+                    <button class="mac-button" id="saveShodanKeyBtn">Save API Key</button>
+                </div>
+                <div class="settings-section">
+                    <div class="section-title">Scan Settings</div>
+                    <div class="field-group">
+                        <label for="scanTimeout">Timeout (seconds):</label>
+                        <input type="number" id="scanTimeout" class="mac-input" value="10" min="1" max="60">
+                    </div>
+                    <div class="field-group">
+                        <label for="maxThreads">Max Threads:</label>
+                        <input type="number" id="maxThreads" class="mac-input" value="100" min="1" max="500">
+                    </div>
+                </div>
+                <div class="dialog-buttons">
+                    <button class="mac-button" id="settingsCancelBtn">Cancel</button>
+                    <button class="mac-button default-button" id="settingsSaveBtn">Save</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Channel Guide (Hidden by default) -->

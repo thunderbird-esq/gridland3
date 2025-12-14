@@ -30,8 +30,8 @@ except ImportError:
 from flask import Flask, Response, jsonify, request, send_from_directory, stream_with_context
 from werkzeug.utils import secure_filename
 
-# Initialize Flask app - serve gridland-ui as the main interface
-app = Flask(__name__, static_folder="gridland-ui", static_url_path="/ui")
+# Initialize Flask app - serve gridland-ui assets from root path
+app = Flask(__name__, static_folder="gridland-ui", static_url_path="")
 
 # Configuration storage (in-memory, can be extended to file-based)
 _config = {
@@ -314,6 +314,65 @@ def set_config():
             if key in _config:
                 _config[key] = value
         return jsonify(_config)
+
+
+@app.route("/api/config/shodan", methods=["GET"])
+def get_shodan_status():
+    """Get Shodan API configuration status."""
+    return jsonify({
+        "available": SHODAN_AVAILABLE,
+        "configured": shodan_api is not None,
+        "message": "Shodan API ready" if shodan_api else "Shodan API not configured"
+    })
+
+
+@app.route("/api/config/shodan", methods=["POST"])
+def set_shodan_key():
+    """
+    Configure Shodan API key at runtime.
+
+    Request Body:
+        api_key (str): Shodan API key
+
+    Returns:
+        Status of configuration.
+    """
+    global shodan_api
+
+    if not SHODAN_AVAILABLE:
+        return jsonify({
+            "success": False,
+            "error": "Shodan module not installed. Run: pip install shodan"
+        }), 400
+
+    data = request.get_json(silent=True) or {}
+    api_key = data.get("api_key", "").strip()
+
+    if not api_key:
+        return jsonify({
+            "success": False,
+            "error": "API key is required"
+        }), 400
+
+    try:
+        # Test the API key
+        test_api = shodan.Shodan(api_key)
+        test_api.info()  # This will fail if the key is invalid
+
+        # Key is valid, save it
+        shodan_api = test_api
+        os.environ["SHODAN_API_KEY"] = api_key
+
+        return jsonify({
+            "success": True,
+            "message": "Shodan API key configured successfully"
+        })
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Invalid API key: {str(e)}"
+        }), 400
 
 
 # =============================================================================

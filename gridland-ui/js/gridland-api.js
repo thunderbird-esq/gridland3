@@ -381,6 +381,52 @@ class GridlandAPI {
         }
     }
 
+    /**
+     * Get Shodan API configuration status.
+     */
+    async getShodanStatus() {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/config/shodan`);
+            if (!response.ok) {
+                throw new Error(`Shodan status fetch failed: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to get Shodan status:', error);
+            return {
+                available: false,
+                configured: false,
+                message: 'Unable to check Shodan status'
+            };
+        }
+    }
+
+    /**
+     * Configure Shodan API key.
+     */
+    async setShodanApiKey(apiKey) {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/config/shodan`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ api_key: apiKey })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || `Failed to set API key: ${response.status}`);
+            }
+
+            return result;
+        } catch (error) {
+            console.error('Failed to set Shodan API key:', error);
+            throw error;
+        }
+    }
+
     // ==========================================================================
     // Plugin API
     // ==========================================================================

@@ -165,7 +165,30 @@ class MacUI {
                 this.hideModal('errorDialog');
             });
         }
-        
+
+        // Settings dialog
+        const settingsCancelBtn = document.getElementById('settingsCancelBtn');
+        const settingsSaveBtn = document.getElementById('settingsSaveBtn');
+        const saveShodanKeyBtn = document.getElementById('saveShodanKeyBtn');
+
+        if (settingsCancelBtn) {
+            settingsCancelBtn.addEventListener('click', () => {
+                this.hideModal('settingsDialog');
+            });
+        }
+
+        if (settingsSaveBtn) {
+            settingsSaveBtn.addEventListener('click', () => {
+                this.saveSettings();
+            });
+        }
+
+        if (saveShodanKeyBtn) {
+            saveShodanKeyBtn.addEventListener('click', () => {
+                this.saveShodanApiKey();
+            });
+        }
+
         // Modal overlay click to close
         if (this.modalOverlay) {
             this.modalOverlay.addEventListener('click', (e) => {
@@ -698,10 +721,96 @@ class MacUI {
     saveAs() { console.log('Save As'); }
     printReport() { console.log('Print Report'); }
     quit() { this.closeWindow('main'); }
-    showPreferences() { console.log('Show Preferences'); }
+    showPreferences() { this.showSettingsDialog(); }
     removeSelectedTarget() { console.log('Remove Selected Target'); }
     startAnalysis() { console.log('Start Analysis'); }
     stopAnalysis() { console.log('Stop Analysis'); }
+
+    // Settings dialog
+    async showSettingsDialog() {
+        // Load current config
+        try {
+            const config = await window.gridlandAPI.getConfiguration();
+            const shodanStatus = await window.gridlandAPI.getShodanStatus();
+
+            // Populate form
+            const scanTimeout = document.getElementById('scanTimeout');
+            const maxThreads = document.getElementById('maxThreads');
+            const shodanStatusIndicator = document.getElementById('shodanStatusIndicator');
+            const shodanStatusText = document.getElementById('shodanStatusText');
+
+            if (scanTimeout) scanTimeout.value = config.scan_timeout || 10;
+            if (maxThreads) maxThreads.value = config.max_threads || 100;
+
+            // Update Shodan status
+            if (shodanStatusIndicator && shodanStatusText) {
+                if (shodanStatus.configured) {
+                    shodanStatusIndicator.textContent = '🟢';
+                    shodanStatusText.textContent = 'API key configured and ready';
+                } else if (shodanStatus.available) {
+                    shodanStatusIndicator.textContent = '🟡';
+                    shodanStatusText.textContent = 'Module available, API key not set';
+                } else {
+                    shodanStatusIndicator.textContent = '🔴';
+                    shodanStatusText.textContent = 'Shodan module not installed';
+                }
+            }
+
+            this.showModal('settingsDialog');
+        } catch (error) {
+            console.error('Failed to load settings:', error);
+            this.showErrorDialog('Error', 'Failed to load settings');
+        }
+    }
+
+    async saveShodanApiKey() {
+        const apiKeyInput = document.getElementById('shodanApiKey');
+        if (!apiKeyInput) return;
+
+        const apiKey = apiKeyInput.value.trim();
+        if (!apiKey) {
+            this.showErrorDialog('Invalid Input', 'Please enter an API key');
+            return;
+        }
+
+        try {
+            const result = await window.gridlandAPI.setShodanApiKey(apiKey);
+            if (result.success) {
+                // Update status indicator
+                const shodanStatusIndicator = document.getElementById('shodanStatusIndicator');
+                const shodanStatusText = document.getElementById('shodanStatusText');
+                if (shodanStatusIndicator) shodanStatusIndicator.textContent = '🟢';
+                if (shodanStatusText) shodanStatusText.textContent = 'API key configured and ready';
+
+                // Clear input
+                apiKeyInput.value = '';
+                window.macSounds.playSuccess();
+                alert('Shodan API key saved successfully!');
+            }
+        } catch (error) {
+            this.showErrorDialog('API Key Error', error.message);
+            window.macSounds.playError();
+        }
+    }
+
+    async saveSettings() {
+        const scanTimeout = document.getElementById('scanTimeout');
+        const maxThreads = document.getElementById('maxThreads');
+
+        const config = {
+            scan_timeout: parseInt(scanTimeout.value) || 10,
+            max_threads: parseInt(maxThreads.value) || 100
+        };
+
+        try {
+            await window.gridlandAPI.saveConfiguration(config);
+            this.hideModal('settingsDialog');
+            window.macSounds.playSuccess();
+        } catch (error) {
+            this.showErrorDialog('Save Failed', 'Failed to save settings');
+            window.macSounds.playError();
+        }
+    }
     
     // File drop handling
     handleFileDrop(e) {
