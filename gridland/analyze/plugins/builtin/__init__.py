@@ -12,6 +12,7 @@ from .dahua_scanner import dahua_scanner
 from .generic_camera_scanner import generic_camera_scanner
 from .hikvision_scanner import hikvision_scanner
 from .ip_context_scanner import ip_context_scanner
+from .osint_integration_scanner import osint_integration_scanner
 from .rtsp_stream_scanner import rtsp_stream_scanner
 from .stream_discovery import StreamDiscoveryPlugin, stream_discovery_plugin
 
@@ -25,6 +26,7 @@ __all__ = [
     "generic_camera_scanner",
     "banner_grabber",
     "ip_context_scanner",
+    "osint_integration_scanner",
     "stream_discovery_plugin",
     "StreamDiscoveryPlugin",
 ]
@@ -39,5 +41,7 @@ BUILTIN_PLUGINS = [
     generic_camera_scanner,
     banner_grabber,
     ip_context_scanner,
+    osint_integration_scanner,
     stream_discovery_plugin,
 ]
+

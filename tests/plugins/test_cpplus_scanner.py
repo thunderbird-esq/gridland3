@@ -433,3 +433,326 @@ class TestCPPlusScanner:
         # Should add CP- prefix
         if result["model"] != "unknown":
             assert result["model"].startswith("CP-")
+
+
+# =============================================================================
+# VULNERABILITY TESTING TESTS (M2 Enhancement)
+# =============================================================================
+
+
+class TestCPPlusVulnerabilityTesting:
+    """Test suite for CP Plus vulnerability testing features."""
+
+    @pytest.fixture
+    def scanner(self):
+        """Create a CPPlusScanner instance for testing."""
+        return CPPlusScanner()
+
+    # -------------------------------------------------------------------------
+    # Initialization Tests
+    # -------------------------------------------------------------------------
+
+    def test_default_credentials_initialized(self, scanner):
+        """Test that default credentials are initialized."""
+        assert hasattr(scanner, "default_credentials")
+        assert len(scanner.default_credentials) >= 15
+
+    def test_default_credentials_format(self, scanner):
+        """Test default credentials are tuples of (username, password)."""
+        for cred in scanner.default_credentials:
+            assert isinstance(cred, tuple)
+            assert len(cred) == 2
+
+    def test_cve_signatures_initialized(self, scanner):
+        """Test that CVE signatures are initialized."""
+        assert hasattr(scanner, "cve_signatures")
+        assert len(scanner.cve_signatures) >= 3
+
+    def test_cve_signatures_structure(self, scanner):
+        """Test CVE signatures have required fields."""
+        for cve_id, cve_info in scanner.cve_signatures.items():
+            assert cve_id.startswith("CVE-")
+            assert "description" in cve_info
+            assert "severity" in cve_info
+            assert "test_path" in cve_info
+            assert "test_method" in cve_info
+
+    def test_info_disclosure_endpoints_initialized(self, scanner):
+        """Test info disclosure endpoints are initialized."""
+        assert hasattr(scanner, "info_disclosure_endpoints")
+        assert len(scanner.info_disclosure_endpoints) >= 5
+
+    # -------------------------------------------------------------------------
+    # Credential Testing Tests
+    # -------------------------------------------------------------------------
+
+    @patch("gridland.analyze.plugins.builtin.cpplus_scanner.requests.get")
+    def test_test_default_credentials_success(self, mock_get, scanner):
+        """Test successful credential detection."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = "Welcome admin user to system dashboard"
+        mock_get.return_value = mock_response
+
+        result = scanner.test_default_credentials("192.168.1.1", 80)
+
+        assert result["success"] is True
+        assert result["credentials"] is not None
+        assert result["url"] is not None
+        assert result["attempts"] >= 1
+
+    @patch("gridland.analyze.plugins.builtin.cpplus_scanner.requests.get")
+    def test_test_default_credentials_failure(self, mock_get, scanner):
+        """Test credential testing with no valid credentials."""
+        mock_response = Mock()
+        mock_response.status_code = 401
+        mock_response.text = "Authentication required"
+        mock_get.return_value = mock_response
+
+        result = scanner.test_default_credentials("192.168.1.1", 80)
+
+        assert result["success"] is False
+        assert result["credentials"] is None
+        assert result["attempts"] > 0
+
+    @patch("gridland.analyze.plugins.builtin.cpplus_scanner.requests.get")
+    def test_test_default_credentials_login_page_rejection(self, mock_get, scanner):
+        """Test that login pages are not false positives."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = "Please enter your password to login"
+        mock_get.return_value = mock_response
+
+        result = scanner.test_default_credentials("192.168.1.1", 80)
+
+        # Should reject login pages even with 200 response
+        assert result["success"] is False
+
+    @patch("gridland.analyze.plugins.builtin.cpplus_scanner.requests.get")
+    def test_test_default_credentials_exception_handling(self, mock_get, scanner):
+        """Test credential testing handles exceptions."""
+        mock_get.side_effect = Exception("Connection refused")
+
+        result = scanner.test_default_credentials("192.168.1.1", 80)
+
+        assert result["success"] is False
+        assert result["attempts"] > 0
+
+    @patch("gridland.analyze.plugins.builtin.cpplus_scanner.requests.get")
+    def test_test_default_credentials_empty_password(self, mock_get, scanner):
+        """Test credential testing finds first working credential."""
+        # When password is empty, auth=(user, "") is passed, not None
+        # Empty password (admin, "") is at index 1 in the credentials list
+        mock_response = Mock()
+        mock_response.status_code = 200
+        # Content must NOT contain 'login' or 'password' to be considered success
+        mock_response.text = "Dashboard content with device status active"
+        mock_get.return_value = mock_response
+
+        result = scanner.test_default_credentials("192.168.1.1", 80)
+
+        # First successful match should be (admin, admin) at index 0
+        assert result["success"] is True
+        assert result["credentials"] is not None
+
+    # -------------------------------------------------------------------------
+    # CVE Testing Tests
+    # -------------------------------------------------------------------------
+
+    @patch("gridland.analyze.plugins.builtin.cpplus_scanner.requests.get")
+    def test_test_cve_vulnerabilities_bypass_detected(self, mock_get, scanner):
+        """Test CVE bypass vulnerability detection."""
+        def mock_response(*args, **kwargs):
+            url = args[0]
+            mock_resp = Mock()
+            if "getuser" in url:
+                mock_resp.status_code = 200
+                mock_resp.text = "user=admin&password=secret"
+            else:
+                mock_resp.status_code = 404
+                mock_resp.text = ""
+            return mock_resp
+
+        mock_get.side_effect = mock_response
+
+        results = scanner.test_cve_vulnerabilities("192.168.1.1", 80)
+
+        assert len(results) >= 1
+        assert any(r["cve_id"] == "CVE-2017-5673" for r in results)
+
+    @patch("gridland.analyze.plugins.builtin.cpplus_scanner.requests.get")
+    def test_test_cve_vulnerabilities_traversal_detected(self, mock_get, scanner):
+        """Test CVE path traversal vulnerability detection."""
+        def mock_response(*args, **kwargs):
+            url = args[0]
+            mock_resp = Mock()
+            if "etc/passwd" in url:
+                mock_resp.status_code = 200
+                mock_resp.text = "root:x:0:0:root:/root:/bin/bash"
+            else:
+                mock_resp.status_code = 404
+                mock_resp.text = ""
+            return mock_resp
+
+        mock_get.side_effect = mock_response
+
+        results = scanner.test_cve_vulnerabilities("192.168.1.1", 80)
+
+        assert len(results) >= 1
+        traversal_result = [r for r in results if r["cve_id"] == "CVE-2020-25078"]
+        assert len(traversal_result) == 1
+        assert "passwd" in traversal_result[0]["evidence"].lower()
+
+    @patch("gridland.analyze.plugins.builtin.cpplus_scanner.requests.get")
+    def test_test_cve_vulnerabilities_no_vulns(self, mock_get, scanner):
+        """Test CVE testing when no vulnerabilities found."""
+        mock_response = Mock()
+        mock_response.status_code = 403
+        mock_response.text = "Forbidden"
+        mock_get.return_value = mock_response
+
+        results = scanner.test_cve_vulnerabilities("192.168.1.1", 80)
+
+        assert len(results) == 0
+
+    @patch("gridland.analyze.plugins.builtin.cpplus_scanner.requests.get")
+    def test_test_cve_vulnerabilities_exception_handling(self, mock_get, scanner):
+        """Test CVE testing handles exceptions."""
+        mock_get.side_effect = Exception("Network error")
+
+        results = scanner.test_cve_vulnerabilities("192.168.1.1", 80)
+
+        # Should return empty list, not crash
+        assert results == []
+
+    # -------------------------------------------------------------------------
+    # Information Disclosure Tests
+    # -------------------------------------------------------------------------
+
+    @patch("gridland.analyze.plugins.builtin.cpplus_scanner.requests.get")
+    def test_test_information_disclosure_mac_exposed(self, mock_get, scanner):
+        """Test MAC address disclosure detection - needs content > 50 chars."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        # Content must be > 50 chars for detection
+        mock_response.text = "Device Info: MAC=00:11:22:33:44:55, Status=Active, Model=CP-DVR-0401"
+        mock_get.return_value = mock_response
+
+        results = scanner.test_information_disclosure("192.168.1.1", 80)
+
+        assert len(results) >= 1
+        assert any("MAC" in r["finding"] for r in results)
+
+    @patch("gridland.analyze.plugins.builtin.cpplus_scanner.requests.get")
+    def test_test_information_disclosure_firmware_exposed(self, mock_get, scanner):
+        """Test firmware version disclosure detection - needs content > 50 chars."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        # Content must be > 50 chars for detection
+        mock_response.text = "System Info: Firmware=V2.4.1 Build 20200315 Device Type DVR"
+        mock_get.return_value = mock_response
+
+        results = scanner.test_information_disclosure("192.168.1.1", 80)
+
+        assert len(results) >= 1
+        assert any("Firmware" in r["finding"] for r in results)
+
+    @patch("gridland.analyze.plugins.builtin.cpplus_scanner.requests.get")
+    def test_test_information_disclosure_no_findings(self, mock_get, scanner):
+        """Test info disclosure with no sensitive data."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = "OK"  # Too short and no indicators
+        mock_get.return_value = mock_response
+
+        results = scanner.test_information_disclosure("192.168.1.1", 80)
+
+        assert len(results) == 0
+
+    @patch("gridland.analyze.plugins.builtin.cpplus_scanner.requests.get")
+    def test_test_information_disclosure_404_response(self, mock_get, scanner):
+        """Test info disclosure with 404 responses."""
+        mock_response = Mock()
+        mock_response.status_code = 404
+        mock_response.text = "Not Found"
+        mock_get.return_value = mock_response
+
+        results = scanner.test_information_disclosure("192.168.1.1", 80)
+
+        assert len(results) == 0
+
+    @patch("gridland.analyze.plugins.builtin.cpplus_scanner.requests.get")
+    def test_test_information_disclosure_content_preview(self, mock_get, scanner):
+        """Test that content preview is included in results."""
+        long_content = "Config: IP=192.168.1.1, " + "A" * 300
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = long_content
+        mock_get.return_value = mock_response
+
+        results = scanner.test_information_disclosure("192.168.1.1", 80)
+
+        if results:
+            # Preview should be truncated
+            assert len(results[0]["content_preview"]) <= 200
+
+    # -------------------------------------------------------------------------
+    # Full Vulnerability Scan Tests
+    # -------------------------------------------------------------------------
+
+    @pytest.mark.asyncio
+    @patch("gridland.analyze.plugins.builtin.cpplus_scanner.requests.get")
+    async def test_scan_vulnerabilities_full_detection(self, mock_get, scanner):
+        """Test full vulnerability scan with detection."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = "CP Plus DVR UVR-0401E1"
+        mock_get.return_value = mock_response
+
+        results = await scanner.scan_vulnerabilities_full("192.168.1.1", 80)
+
+        # Should have at least the detection result
+        assert len(results) >= 1
+        assert any(r.vulnerability_id == "CP-PLUS-DETECTION" for r in results)
+
+    @pytest.mark.asyncio
+    @patch("gridland.analyze.plugins.builtin.cpplus_scanner.requests.get")
+    async def test_scan_vulnerabilities_full_no_cp_plus(self, mock_get, scanner):
+        """Test full scan on non-CP Plus device."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = "Hikvision camera"
+        mock_get.return_value = mock_response
+
+        results = await scanner.scan_vulnerabilities_full("192.168.1.1", 80)
+
+        # Should return empty list
+        assert len(results) == 0
+
+    @pytest.mark.asyncio
+    @patch("gridland.analyze.plugins.builtin.cpplus_scanner.requests.get")
+    async def test_scan_vulnerabilities_full_with_creds(self, mock_get, scanner):
+        """Test full scan finds default credentials."""
+        call_count = [0]
+
+        def mock_responses(*args, **kwargs):
+            call_count[0] += 1
+            mock_resp = Mock()
+            if call_count[0] <= 7:  # Detection phase
+                mock_resp.status_code = 200
+                mock_resp.text = "CP Plus DVR System"
+            else:
+                # Credential testing phase - first success
+                mock_resp.status_code = 200
+                mock_resp.text = "Dashboard welcome admin"
+            return mock_resp
+
+        mock_get.side_effect = mock_responses
+
+        results = await scanner.scan_vulnerabilities_full("192.168.1.1", 80)
+
+        # Should include credential finding
+        cred_results = [r for r in results if r.vulnerability_id == "CP-PLUS-DEFAULT-CREDENTIALS"]
+        assert len(cred_results) == 1
+        assert cred_results[0].severity == "CRITICAL"
+
