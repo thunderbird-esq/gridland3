@@ -107,9 +107,10 @@ def discover():
     Request Body:
         query (str): Shodan search query (e.g., "port:554 country:US")
         limit (int, optional): Maximum results to return (default: 50)
+        full_data (bool, optional): Return full data with geo info (default: True)
 
     Returns:
-        List of IP addresses matching the query.
+        List of target objects with IP, port, and geolocation data.
     """
     if not shodan_api:
         return jsonify({"error": "Shodan API is not configured. Set SHODAN_API_KEY environment variable."}), 500
@@ -117,14 +118,44 @@ def discover():
     data = request.get_json(silent=True) or {}
     query = data.get("query")
     limit = data.get("limit", 50)
+    full_data = data.get("full_data", True)
 
     if not query:
         return jsonify({"error": "A search query is required."}), 400
 
     try:
         results = shodan_api.search(query, limit=limit)
-        ips = [result["ip_str"] for result in results["matches"]]
-        return jsonify(ips)
+
+        if not full_data:
+            # Legacy mode: return just IPs
+            ips = [result["ip_str"] for result in results["matches"]]
+            return jsonify(ips)
+
+        # Return enriched data with geolocation
+        targets = []
+        for match in results["matches"]:
+            target = {
+                "ip": match.get("ip_str"),
+                "port": match.get("port", 80),
+                "ports": [match.get("port", 80)],
+                "lat": match.get("location", {}).get("latitude"),
+                "lon": match.get("location", {}).get("longitude"),
+                "city": match.get("location", {}).get("city"),
+                "country": match.get("location", {}).get("country_name"),
+                "country_code": match.get("location", {}).get("country_code"),
+                "region": match.get("location", {}).get("region_code"),
+                "org": match.get("org"),
+                "isp": match.get("isp"),
+                "hostnames": match.get("hostnames", []),
+                "domains": match.get("domains", []),
+                "product": match.get("product"),
+                "version": match.get("version"),
+                "os": match.get("os"),
+                "timestamp": match.get("timestamp"),
+            }
+            targets.append(target)
+
+        return jsonify(targets)
     except shodan.APIError as e:
         print(f"ERROR: Shodan API error: {e}")
         return jsonify({"error": f"Shodan API error: {e}"}), 500
@@ -323,6 +354,16 @@ def get_shodan_status():
         "available": SHODAN_AVAILABLE,
         "configured": shodan_api is not None,
         "message": "Shodan API ready" if shodan_api else "Shodan API not configured"
+    })
+
+
+@app.route("/api/config/google-maps-key", methods=["GET"])
+def get_google_maps_key():
+    """Get Google Maps API key for 3D tiles (if configured)."""
+    key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
+    return jsonify({
+        "configured": bool(key),
+        "key": key if key else None
     })
 
 

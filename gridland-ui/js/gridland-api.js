@@ -50,13 +50,24 @@ class GridlandAPI {
 
             const targets = await response.json();
 
-            // Transform to consistent format
-            return targets.map(ip => ({
-                ip: ip,
-                port: 80,
-                source: 'shodan',
-                timestamp: new Date().toISOString()
-            }));
+            // Handle both old format (array of IPs) and new format (array of objects)
+            return targets.map(target => {
+                // If it's a string (old format), convert to object
+                if (typeof target === 'string') {
+                    return {
+                        ip: target,
+                        port: 80,
+                        source: 'shodan',
+                        timestamp: new Date().toISOString()
+                    };
+                }
+                // New format: preserve all data including geo info
+                return {
+                    ...target,
+                    source: 'shodan',
+                    timestamp: target.timestamp || new Date().toISOString()
+                };
+            });
 
         } catch (error) {
             console.error('Discovery failed:', error);

@@ -78,9 +78,28 @@ class CesiumMap {
             this.initialized = true;
             this.updateStatus('Globe ready');
 
+            // Auto-load Google Maps API key from backend
+            this.autoLoadGoogleMapsKey();
+
         } catch (error) {
             console.error('Failed to initialize Cesium:', error);
             this.updateStatus('Failed to initialize 3D globe');
+        }
+    }
+
+    /**
+     * Auto-load Google Maps API key from backend environment
+     */
+    async autoLoadGoogleMapsKey() {
+        try {
+            const response = await fetch('/api/config/google-maps-key');
+            const data = await response.json();
+            if (data.configured && data.key) {
+                await this.enable3DTiles(data.key);
+                this.updateStatus('3D Tiles enabled');
+            }
+        } catch (error) {
+            console.log('Google Maps API key not configured, using default terrain');
         }
     }
 

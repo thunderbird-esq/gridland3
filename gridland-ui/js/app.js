@@ -124,10 +124,13 @@ class GridlandApp {
         try {
             // Use existing /discover endpoint
             const targets = await window.gridlandAPI.discoverTargets(query);
-            
+
             this.discoveredTargets = targets;
             this.displayDiscoveryResults(targets);
-            
+
+            // Auto-add targets with geo data to map
+            this.addDiscoveredTargetsToMap(targets);
+
             window.macSounds.playSuccess();
             this.updateStatus(`Found ${targets.length} targets`);
             
@@ -142,10 +145,10 @@ class GridlandApp {
     displayDiscoveryResults(targets) {
         const targetList = document.getElementById('targetList');
         if (!targetList) return;
-        
+
         // Clear existing results
         targetList.innerHTML = '';
-        
+
         if (targets.length === 0) {
             const placeholder = document.createElement('div');
             placeholder.className = 'list-item placeholder';
@@ -153,16 +156,74 @@ class GridlandApp {
             targetList.appendChild(placeholder);
             return;
         }
-        
-        // Add discovered targets
+
+        // Add discovered targets with enriched info
         targets.forEach(target => {
             const item = document.createElement('div');
             item.className = 'list-item';
-            item.textContent = target.ip;
+
+            // Build display text with location info
+            let displayText = target.ip;
+            if (target.city || target.country) {
+                const location = [target.city, target.country].filter(Boolean).join(', ');
+                displayText += ` (${location})`;
+            }
+            if (target.port && target.port !== 80) {
+                displayText += ` :${target.port}`;
+            }
+
+            item.textContent = displayText;
             item.dataset.ip = target.ip;
-            item.dataset.port = target.port;
+            item.dataset.port = target.port || 80;
+            item.dataset.lat = target.lat || '';
+            item.dataset.lon = target.lon || '';
+            item.dataset.city = target.city || '';
+            item.dataset.country = target.country || '';
+            item.dataset.org = target.org || '';
             targetList.appendChild(item);
         });
+    }
+
+    // Add discovered targets to 3D map
+    async addDiscoveredTargetsToMap(targets) {
+        if (!window.gridlandMap) return;
+
+        // Initialize map if not already done
+        if (!window.gridlandMap.initialized) {
+            await window.gridlandMap.initialize();
+        }
+
+        // Add each target with geo data to the map
+        let addedCount = 0;
+        for (const target of targets) {
+            if (target.lat && target.lon) {
+                try {
+                    await window.gridlandMap.addCameraMarker({
+                        ip: target.ip,
+                        lat: target.lat,
+                        lon: target.lon,
+                        city: target.city,
+                        country: target.country,
+                        org: target.org,
+                        port: target.port,
+                        ports: target.ports || [target.port],
+                        product: target.product,
+                        hostnames: target.hostnames
+                    });
+                    addedCount++;
+                } catch (error) {
+                    console.error(`Failed to add ${target.ip} to map:`, error);
+                }
+            }
+        }
+
+        if (addedCount > 0) {
+            console.log(`Added ${addedCount} targets to map`);
+            // Show map window automatically if targets were added
+            if (window.macUI && window.macUI.showMapWindow) {
+                window.macUI.showMapWindow();
+            }
+        }
     }
     
     // Target management
@@ -194,7 +255,13 @@ class GridlandApp {
         window.macSounds.playTick();
         this.updateStatus(`Added target: ${target.ip}`);
     }
-    
+
+    // Get all targets (for map integration)
+    getTargets() {
+        // Return discovered targets with geo data
+        return this.discoveredTargets || [];
+    }
+
     removeSelectedTarget() {
         const selectedItem = document.querySelector('.queue-item.selected');
         if (!selectedItem) return;
