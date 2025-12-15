@@ -1,3 +1,15 @@
+---
+title: GRIDLAND v3.0
+emoji: 🎯
+colorFrom: gray
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: true
+license: mit
+short_description: Professional Camera Reconnaissance and Security Analysis Toolkit
+---
+
 # GRIDLAND v3.0
 
 **Professional Camera Reconnaissance and Security Analysis Toolkit**
@@ -210,15 +222,46 @@ pip install -r requirements-dev.txt
 python validate_gridland.py
 ```
 
-### Docker Deployment
+### Docker Deployment (Local)
 
 ```bash
 # Build the Docker image
-docker build --build-arg SHODAN_API_KEY_ARG=your_api_key_here -t gridland .
+docker build -t gridland .
 
-# Run the container
-docker run -p 8080:8080 gridland
+# Run the container (set secrets via environment)
+docker run -p 7860:7860 \
+  -e SHODAN_API_KEY=your_shodan_key \
+  -e GOOGLE_MAPS_API_KEY=your_google_maps_key \
+  gridland
 ```
+
+### HuggingFace Spaces Deployment (Recommended)
+
+GRIDLAND is optimized for HuggingFace Spaces deployment with Docker SDK:
+
+1. **Create a new Space** at [huggingface.co/new-space](https://huggingface.co/new-space)
+   - Select **Docker** as the SDK
+   - Choose visibility (Public or Private with Pro account)
+
+2. **Clone and push the repo:**
+   ```bash
+   git clone https://huggingface.co/spaces/YOUR_USERNAME/gridland
+   cd gridland
+   # Copy GRIDLAND files here, or push from this repo
+   git push
+   ```
+
+3. **Set Secrets** in Space Settings → Repository secrets:
+   - `SHODAN_API_KEY` - Your Shodan API key
+   - `GOOGLE_MAPS_API_KEY` - Your Google Maps API key (for 3D tiles)
+
+4. **Access your Space** at `https://YOUR_USERNAME-gridland.hf.space`
+
+**Pro Account Benefits:**
+- Private Spaces for sensitive work
+- More CPU/RAM resources
+- Persistent storage options
+- Priority build queue
 
 ---
 

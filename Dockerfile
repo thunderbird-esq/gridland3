@@ -1,14 +1,9 @@
 # Use an official Python image as a parent image
 FROM python:3.9-slim
 
-# --- Set Build-Time Argument for the API Key ---
-# This declares a build argument that we will pass in from the command line.
-ARG SHODAN_API_KEY_ARG
-
-# --- Set Environment Variable from the Argument ---
-# This creates a permanent environment variable inside the image from the build argument.
-# The server.py script will read this variable.
-ENV SHODAN_API_KEY=$SHODAN_API_KEY_ARG
+# --- HuggingFace Spaces Configuration ---
+# HuggingFace Spaces requires port 7860
+ENV PORT=7860
 
 # Set the working directory in the container
 WORKDIR /app
@@ -32,6 +27,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy all application files
 COPY . .
 
+# --- Create non-root user for HuggingFace Spaces ---
+RUN useradd -m -u 1000 user
+USER user
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH
+
+WORKDIR $HOME/app
+COPY --chown=user . $HOME/app
+
 # --- Expose Port and Run Application ---
-EXPOSE 8080
+EXPOSE 7860
 CMD ["python3", "server.py"]

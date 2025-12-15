@@ -950,15 +950,19 @@ def server_error(e):
 
 
 if __name__ == "__main__":
+    # Get port from environment (HuggingFace Spaces uses 7860, Fly.io uses 8080)
+    port = int(os.environ.get("PORT", 7860))
+
     print("=" * 60)
     print("GRIDLAND v3.0 - Security Reconnaissance Server")
     print("=" * 60)
     print(f"Shodan API: {'Configured' if shodan_api else 'NOT CONFIGURED'}")
+    print(f"Google Maps: {'Configured' if os.environ.get('GOOGLE_MAPS_API_KEY') else 'NOT CONFIGURED'}")
     print(f"CamXploit: {'Available' if Path('CamXploit.py').exists() else 'Not found'}")
     print("=" * 60)
-    print("Starting server on http://0.0.0.0:8080")
-    print("UI available at: http://localhost:8080/")
-    print("Legacy UI at: http://localhost:8080/legacy/")
+    print(f"Starting server on http://0.0.0.0:{port}")
+    print(f"UI available at: http://localhost:{port}/")
+    print(f"Legacy UI at: http://localhost:{port}/legacy/")
     print("=" * 60)
 
-    app.run(host="0.0.0.0", port=8080, threaded=True, debug=True, use_reloader=False)
+    app.run(host="0.0.0.0", port=port, threaded=True, debug=False, use_reloader=False)
