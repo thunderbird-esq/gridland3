@@ -311,7 +311,6 @@ temp/
 tmp/
 scratch/
 debug/
-test_stream_intelligence.py
 
 # Network captures
 *.pcap
