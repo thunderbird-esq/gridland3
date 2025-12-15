@@ -1300,9 +1300,23 @@ class StreamTopologyMapper:
         return primary, backup
 
     def _detect_multicast_groups(self, streams: list[StreamEndpoint]) -> list[str]:
-        """Detect multicast streaming groups."""
-        # Placeholder for multicast detection
-        return []
+        """Detect multicast streaming groups by checking for multicast IP addresses."""
+        import re
+        
+        multicast_groups = []
+        
+        # Multicast IP range: 224.0.0.0 to 239.255.255.255
+        multicast_pattern = re.compile(r'(2(?:2[4-9]|3\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3})')
+        
+        for stream in streams:
+            if stream.url:
+                match = multicast_pattern.search(stream.url)
+                if match:
+                    multicast_ip = match.group(1)
+                    if multicast_ip not in multicast_groups:
+                        multicast_groups.append(multicast_ip)
+        
+        return multicast_groups
 
     def _estimate_bandwidth(self, streams: list[StreamEndpoint]) -> dict[str, float]:
         """Estimate bandwidth requirements for each stream."""
@@ -1328,10 +1342,31 @@ class StreamTopologyMapper:
         return latency
 
     def _map_redundancy_paths(self, streams: list[StreamEndpoint]) -> list[list[StreamEndpoint]]:
-        """Map redundancy and failover paths."""
-        # Group similar streams as redundancy paths
+        """Map redundancy and failover paths by grouping streams with same host/protocol."""
+        from collections import defaultdict
+        from urllib.parse import urlparse
+        
         redundancy_paths = []
-        # Placeholder for redundancy analysis
+        
+        # Group streams by host
+        host_groups = defaultdict(list)
+        for stream in streams:
+            if stream.url:
+                parsed = urlparse(stream.url)
+                host_key = parsed.netloc
+                host_groups[host_key].append(stream)
+        
+        # Create redundancy paths for hosts with multiple streams
+        for host, group_streams in host_groups.items():
+            if len(group_streams) > 1:
+                # Sort by quality for failover order
+                sorted_streams = sorted(
+                    group_streams,
+                    key=lambda s: (s.quality.value if s.quality else 0, -s.response_time if s.response_time else 0),
+                    reverse=True
+                )
+                redundancy_paths.append(sorted_streams)
+        
         return redundancy_paths
 
     def _create_quality_correlation_matrix(self, streams: list[StreamEndpoint]) -> any:

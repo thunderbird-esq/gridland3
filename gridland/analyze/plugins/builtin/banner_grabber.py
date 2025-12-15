@@ -923,18 +923,148 @@ class BannerGrabber(VulnerabilityPlugin):
         return results
 
     async def _check_hikvision_isapi_vulns(self, target_ip: str, target_port: int) -> Any | None:
-        """Check for Hikvision ISAPI vulnerabilities."""
-        # Placeholder for Hikvision-specific vulnerability checks
+        """Check for Hikvision ISAPI vulnerabilities with actual HTTP requests."""
+        try:
+            import aiohttp
+            
+            timeout = aiohttp.ClientTimeout(total=5)
+            connector = aiohttp.TCPConnector(ssl=False)
+            
+            # Known Hikvision ISAPI vulnerability paths
+            vuln_paths = [
+                "/ISAPI/Security/userCheck",  # CVE-2021-36260 auth bypass
+                "/ISAPI/System/deviceInfo",    # Info disclosure without auth
+                "/ISAPI/Streaming/channels",   # Stream enumeration
+                "/SDK/webLanguage",            # CVE-2017-7921 backdoor
+            ]
+            
+            async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
+                for path in vuln_paths:
+                    try:
+                        url = f"http://{target_ip}:{target_port}{path}"
+                        async with session.get(url) as response:
+                            if response.status == 200:
+                                content = await response.text()
+                                if "<model>" in content.lower() or "deviceinfo" in content.lower():
+                                    vuln_result = self.memory_pool.acquire_vulnerability_result()
+                                    vuln_result.ip = target_ip
+                                    vuln_result.port = target_port
+                                    vuln_result.service = "http"
+                                    vuln_result.vulnerability_id = "HIKVISION-ISAPI-UNAUTH"
+                                    vuln_result.severity = "HIGH"
+                                    vuln_result.confidence = 85
+                                    vuln_result.description = f"Hikvision ISAPI endpoint accessible without auth: {path}"
+                                    vuln_result.exploit_available = True
+                                    return vuln_result
+                    except Exception:
+                        continue
+                        
+        except Exception as e:
+            logger.debug(f"Hikvision ISAPI vuln check error: {e}")
         return None
 
     async def _check_dahua_rpc_vulns(self, target_ip: str, target_port: int) -> Any | None:
-        """Check for Dahua JSON RPC vulnerabilities."""
-        # Placeholder for Dahua-specific vulnerability checks
+        """Check for Dahua JSON RPC vulnerabilities with actual HTTP requests."""
+        try:
+            import aiohttp
+            import json
+            
+            timeout = aiohttp.ClientTimeout(total=5)
+            connector = aiohttp.TCPConnector(ssl=False)
+            
+            # Dahua RPC2 vulnerability checks
+            rpc_url = f"http://{target_ip}:{target_port}/RPC2"
+            
+            async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
+                # Test magicBox.getDeviceType without auth
+                rpc_payload = {
+                    "method": "magicBox.getDeviceType",
+                    "params": None,
+                    "id": 1,
+                }
+                
+                try:
+                    async with session.post(rpc_url, json=rpc_payload) as response:
+                        if response.status == 200:
+                            content = await response.text()
+                            if "result" in content and "type" in content.lower():
+                                vuln_result = self.memory_pool.acquire_vulnerability_result()
+                                vuln_result.ip = target_ip
+                                vuln_result.port = target_port
+                                vuln_result.service = "http"
+                                vuln_result.vulnerability_id = "DAHUA-RPC2-UNAUTH"
+                                vuln_result.severity = "HIGH"
+                                vuln_result.confidence = 85
+                                vuln_result.description = "Dahua RPC2 endpoint accessible without authentication"
+                                vuln_result.exploit_available = True
+                                return vuln_result
+                except Exception:
+                    pass
+                    
+                # Check legacy endpoints
+                legacy_paths = ["/cgi-bin/magicBox.cgi", "/cgi-bin/configManager.cgi"]
+                for path in legacy_paths:
+                    try:
+                        url = f"http://{target_ip}:{target_port}{path}?action=getDeviceType"
+                        async with session.get(url) as response:
+                            if response.status == 200:
+                                content = await response.text()
+                                if "type=" in content.lower():
+                                    vuln_result = self.memory_pool.acquire_vulnerability_result()
+                                    vuln_result.ip = target_ip
+                                    vuln_result.port = target_port
+                                    vuln_result.service = "http"
+                                    vuln_result.vulnerability_id = "DAHUA-CGI-UNAUTH"
+                                    vuln_result.severity = "MEDIUM"
+                                    vuln_result.confidence = 75
+                                    vuln_result.description = f"Dahua CGI endpoint accessible without auth: {path}"
+                                    vuln_result.exploit_available = True
+                                    return vuln_result
+                    except Exception:
+                        continue
+                        
+        except Exception as e:
+            logger.debug(f"Dahua RPC vuln check error: {e}")
         return None
 
     async def _check_axis_vapix_vulns(self, target_ip: str, target_port: int) -> Any | None:
-        """Check for Axis VAPIX vulnerabilities."""
-        # Placeholder for Axis-specific vulnerability checks
+        """Check for Axis VAPIX vulnerabilities with actual HTTP requests."""
+        try:
+            import aiohttp
+            
+            timeout = aiohttp.ClientTimeout(total=5)
+            connector = aiohttp.TCPConnector(ssl=False)
+            
+            # Axis VAPIX vulnerability paths
+            vuln_paths = [
+                "/axis-cgi/param.cgi?action=list&group=root.Properties",  # Info disclosure
+                "/axis-cgi/admin/param.cgi?action=list",  # Config disclosure
+                "/axis-cgi/serverreport.cgi",  # System info
+            ]
+            
+            async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
+                for path in vuln_paths:
+                    try:
+                        url = f"http://{target_ip}:{target_port}{path}"
+                        async with session.get(url) as response:
+                            if response.status == 200:
+                                content = await response.text()
+                                if "root." in content or "Properties" in content:
+                                    vuln_result = self.memory_pool.acquire_vulnerability_result()
+                                    vuln_result.ip = target_ip
+                                    vuln_result.port = target_port
+                                    vuln_result.service = "http"
+                                    vuln_result.vulnerability_id = "AXIS-VAPIX-UNAUTH"
+                                    vuln_result.severity = "HIGH"
+                                    vuln_result.confidence = 85
+                                    vuln_result.description = f"Axis VAPIX endpoint accessible without auth: {path}"
+                                    vuln_result.exploit_available = True
+                                    return vuln_result
+                    except Exception:
+                        continue
+                        
+        except Exception as e:
+            logger.debug(f"Axis VAPIX vuln check error: {e}")
         return None
 
 

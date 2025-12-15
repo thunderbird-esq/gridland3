@@ -622,13 +622,50 @@ class EnhancedStreamScanner(VulnerabilityPlugin):
     async def _test_websocket_streams(
         self, target_ip: str, target_port: int, brand: str | None, service: str
     ) -> list[StreamEndpoint]:
-        """WebSocket stream testing"""
+        """WebSocket stream testing with actual upgrade request."""
         streams = []
-
-        # WebSocket testing requires specific implementation
-        # For now, return empty list as placeholder
-        logger.debug("WebSocket stream testing not yet implemented")
-
+        
+        ws_paths = ["/ws", "/websocket", "/stream", "/live", "/video"]
+        protocol = "wss" if target_port == 443 else "ws"
+        
+        for path in ws_paths:
+            try:
+                # Test WebSocket upgrade via HTTP
+                http_protocol = "https" if target_port == 443 else "http"
+                url = f"{http_protocol}://{target_ip}:{target_port}{path}"
+                
+                headers = {
+                    "Upgrade": "websocket",
+                    "Connection": "Upgrade",
+                    "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ==",
+                    "Sec-WebSocket-Version": "13",
+                }
+                
+                timeout = aiohttp.ClientTimeout(total=3)
+                connector = aiohttp.TCPConnector(ssl=False)
+                
+                async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
+                    async with session.get(url, headers=headers) as response:
+                        if response.status == 101:  # Switching Protocols
+                            ws_url = f"{protocol}://{target_ip}:{target_port}{path}"
+                            stream = StreamEndpoint(
+                                url=ws_url,
+                                protocol="websocket",
+                                brand=brand,
+                                content_type="application/octet-stream",
+                                response_size=None,
+                                authentication_required=False,
+                                confidence=0.75,
+                                response_time=0.0,
+                                quality_score=0.7,
+                                metadata={"path": path, "discovery_method": "websocket_upgrade"},
+                            )
+                            streams.append(stream)
+                            self.scan_stats["successful_discoveries"] += 1
+                            
+            except Exception as e:
+                logger.debug(f"WebSocket test failed for {path}: {e}")
+        
         return streams
 
     async def _test_webrtc_streams(

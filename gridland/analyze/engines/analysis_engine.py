@@ -650,13 +650,45 @@ class AnalysisEngine:
         return revolutionary_results
 
     async def _test_rtsp_endpoint(self, endpoint: str) -> bool:
-        """Test if RTSP endpoint is accessible (simplified implementation)."""
-        # This is a placeholder - real implementation would use RTSP client
-        # For now, just simulate some endpoints being accessible
-        import random
-
-        await asyncio.sleep(0.1)  # Simulate network delay
-        return random.random() < 0.1  # 10% chance of accessible stream
+        """Test if RTSP endpoint is accessible using actual RTSP OPTIONS request."""
+        import socket
+        from urllib.parse import urlparse
+        
+        try:
+            parsed = urlparse(endpoint)
+            host = parsed.hostname or ""
+            port = parsed.port or 554
+            path = parsed.path or "/"
+            
+            if not host:
+                return False
+            
+            # Create socket connection with timeout
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5.0)
+            
+            try:
+                sock.connect((host, port))
+                
+                # Send RTSP OPTIONS request
+                request = f"OPTIONS rtsp://{host}:{port}{path} RTSP/1.0\r\nCSeq: 1\r\n\r\n"
+                sock.send(request.encode())
+                
+                # Receive response
+                response = sock.recv(1024).decode("utf-8", errors="ignore")
+                
+                # Check for successful RTSP response
+                return "RTSP/1.0 200 OK" in response or "RTSP/1.0 401" in response
+                
+            finally:
+                sock.close()
+                
+        except (socket.timeout, socket.error, OSError) as e:
+            logger.debug(f"RTSP endpoint test failed for {endpoint}: {e}")
+            return False
+        except Exception as e:
+            logger.debug(f"RTSP endpoint test error: {e}")
+            return False
 
     def _calculate_confidence_score(self, result: AnalysisResult) -> float:
         """Calculate overall confidence score for analysis result."""
