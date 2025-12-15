@@ -13,7 +13,9 @@
         "cvss_score": 9.8,
         "severity": "critical",
         "description": "Command injection vulnerability in web server allowing unauthenticated remote code execution",
-        "affected_versions": ["Multiple Hikvision products"],
+        "affected_versions": [
+          "Multiple Hikvision products"
+        ],
         "exploit_available": true,
         "exploit_references": [
           "https://watchfulip.github.io/2021/09/18/Hikvision-IP-Camera-Unauthenticated-RCE.html",
@@ -26,7 +28,9 @@
         "cvss_score": 9.8,
         "severity": "critical",
         "description": "Authentication bypass allowing unauthorized access to camera configuration and video feeds",
-        "affected_versions": ["Hikvision DS-2CD series and others"],
+        "affected_versions": [
+          "Hikvision DS-2CD series and others"
+        ],
         "exploit_available": true,
         "exploit_references": [
           "https://ipvm.com/reports/hikvision-backdoor",
@@ -39,7 +43,9 @@
         "cvss_score": 7.5,
         "severity": "high",
         "description": "Information disclosure vulnerability exposing sensitive system data",
-        "affected_versions": ["Multiple Hikvision IP cameras"],
+        "affected_versions": [
+          "Multiple Hikvision IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-31955"
@@ -51,7 +57,9 @@
         "cvss_score": 8.1,
         "severity": "high",
         "description": "Privilege escalation allowing low-privileged users to gain administrative access",
-        "affected_versions": ["Multiple Hikvision IP cameras"],
+        "affected_versions": [
+          "Multiple Hikvision IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-31956"
@@ -63,7 +71,9 @@
         "cvss_score": 7.8,
         "severity": "high",
         "description": "Buffer overflow vulnerability in video processing component",
-        "affected_versions": ["Multiple Hikvision IP cameras"],
+        "affected_versions": [
+          "Multiple Hikvision IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-31957"
@@ -75,7 +85,9 @@
         "cvss_score": 6.5,
         "severity": "medium",
         "description": "Cross-site scripting (XSS) vulnerability in web interface",
-        "affected_versions": ["Multiple Hikvision IP cameras"],
+        "affected_versions": [
+          "Multiple Hikvision IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-31958"
@@ -87,7 +99,9 @@
         "cvss_score": 7.2,
         "severity": "high",
         "description": "Remote code execution via malicious firmware update",
-        "affected_versions": ["Multiple Hikvision IP cameras"],
+        "affected_versions": [
+          "Multiple Hikvision IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-31959"
@@ -99,7 +113,9 @@
         "cvss_score": 8.8,
         "severity": "high",
         "description": "Authentication bypass via crafted HTTP requests",
-        "affected_versions": ["Multiple Hikvision IP cameras"],
+        "affected_versions": [
+          "Multiple Hikvision IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-31960"
@@ -111,7 +127,9 @@
         "cvss_score": 7.5,
         "severity": "high",
         "description": "Denial of service vulnerability in network service",
-        "affected_versions": ["Multiple Hikvision IP cameras"],
+        "affected_versions": [
+          "Multiple Hikvision IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-31961"
@@ -123,7 +141,9 @@
         "cvss_score": 6.8,
         "severity": "medium",
         "description": "Path traversal allowing access to arbitrary files",
-        "affected_versions": ["Multiple Hikvision IP cameras"],
+        "affected_versions": [
+          "Multiple Hikvision IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-31962"
@@ -135,7 +155,9 @@
         "cvss_score": 7.1,
         "severity": "high",
         "description": "Command injection in CGI handler",
-        "affected_versions": ["Multiple Hikvision IP cameras"],
+        "affected_versions": [
+          "Multiple Hikvision IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-31963"
@@ -147,7 +169,9 @@
         "cvss_score": 5.3,
         "severity": "medium",
         "description": "Information leakage through error messages",
-        "affected_versions": ["Multiple Hikvision IP cameras"],
+        "affected_versions": [
+          "Multiple Hikvision IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-31964"
@@ -161,7 +185,9 @@
         "cvss_score": 9.8,
         "severity": "critical",
         "description": "Authentication bypass allowing unauthenticated access to camera functionality",
-        "affected_versions": ["Multiple Dahua IP cameras"],
+        "affected_versions": [
+          "Multiple Dahua IP cameras"
+        ],
         "exploit_available": true,
         "exploit_references": [
           "https://www.zerodayinitiative.com/advisories/ZDI-21-991/",
@@ -174,7 +200,9 @@
         "cvss_score": 9.8,
         "severity": "critical",
         "description": "Remote code execution vulnerability in web service",
-        "affected_versions": ["Dahua IPC and other products"],
+        "affected_versions": [
+          "Dahua IPC and other products"
+        ],
         "exploit_available": true,
         "exploit_references": [
           "https://github.com/advisories/GHSA-vpw6-jwm3-7xgq",
@@ -187,7 +215,9 @@
         "cvss_score": 8.8,
         "severity": "high",
         "description": "Command injection via crafted network packets",
-        "affected_versions": ["Multiple Dahua IP cameras"],
+        "affected_versions": [
+          "Multiple Dahua IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-33045"
@@ -199,7 +229,9 @@
         "cvss_score": 7.5,
         "severity": "high",
         "description": "Information disclosure exposing credentials",
-        "affected_versions": ["Multiple Dahua IP cameras"],
+        "affected_versions": [
+          "Multiple Dahua IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-33046"
@@ -211,7 +243,9 @@
         "cvss_score": 6.5,
         "severity": "medium",
         "description": "Cross-site request forgery (CSRF) vulnerability",
-        "affected_versions": ["Multiple Dahua IP cameras"],
+        "affected_versions": [
+          "Multiple Dahua IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-33047"
@@ -223,7 +257,9 @@
         "cvss_score": 8.1,
         "severity": "high",
         "description": "Buffer overflow in video codec processing",
-        "affected_versions": ["Multiple Dahua IP cameras"],
+        "affected_versions": [
+          "Multiple Dahua IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-33048"
@@ -235,7 +271,9 @@
         "cvss_score": 7.8,
         "severity": "high",
         "description": "Privilege escalation through API manipulation",
-        "affected_versions": ["Multiple Dahua IP cameras"],
+        "affected_versions": [
+          "Multiple Dahua IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-33049"
@@ -247,7 +285,9 @@
         "cvss_score": 6.8,
         "severity": "medium",
         "description": "Weak authentication mechanism allowing brute force attacks",
-        "affected_versions": ["Multiple Dahua IP cameras"],
+        "affected_versions": [
+          "Multiple Dahua IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-33050"
@@ -259,7 +299,9 @@
         "cvss_score": 7.5,
         "severity": "high",
         "description": "SQL injection in database query handler",
-        "affected_versions": ["Multiple Dahua IP cameras"],
+        "affected_versions": [
+          "Multiple Dahua IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-33051"
@@ -271,7 +313,9 @@
         "cvss_score": 5.9,
         "severity": "medium",
         "description": "Cleartext transmission of sensitive information",
-        "affected_versions": ["Multiple Dahua IP cameras"],
+        "affected_versions": [
+          "Multiple Dahua IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-33052"
@@ -283,7 +327,9 @@
         "cvss_score": 8.2,
         "severity": "high",
         "description": "Remote command execution via web interface",
-        "affected_versions": ["Multiple Dahua IP cameras"],
+        "affected_versions": [
+          "Multiple Dahua IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-33053"
@@ -295,7 +341,9 @@
         "cvss_score": 6.5,
         "severity": "medium",
         "description": "Directory traversal allowing file system access",
-        "affected_versions": ["Multiple Dahua IP cameras"],
+        "affected_versions": [
+          "Multiple Dahua IP cameras"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2021-33054"
@@ -309,7 +357,9 @@
         "cvss_score": 9.8,
         "severity": "critical",
         "description": "Authentication bypass vulnerability in multiple Axis camera models",
-        "affected_versions": ["Multiple Axis camera products"],
+        "affected_versions": [
+          "Multiple Axis camera products"
+        ],
         "exploit_available": true,
         "exploit_references": [
           "https://www.axis.com/dam/public/6c/cf/3f/cve-2018-10660-en-US-282720.pdf",
@@ -322,7 +372,9 @@
         "cvss_score": 7.5,
         "severity": "high",
         "description": "Information disclosure vulnerability in VAPIX API",
-        "affected_versions": ["Multiple Axis camera products"],
+        "affected_versions": [
+          "Multiple Axis camera products"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2020-29550"
@@ -334,7 +386,9 @@
         "cvss_score": 8.1,
         "severity": "high",
         "description": "Command injection in network configuration interface",
-        "affected_versions": ["Multiple Axis camera products"],
+        "affected_versions": [
+          "Multiple Axis camera products"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2020-29551"
@@ -346,7 +400,9 @@
         "cvss_score": 6.5,
         "severity": "medium",
         "description": "Cross-site scripting in web management interface",
-        "affected_versions": ["Multiple Axis camera products"],
+        "affected_versions": [
+          "Multiple Axis camera products"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2020-29552"
@@ -358,7 +414,9 @@
         "cvss_score": 7.8,
         "severity": "high",
         "description": "Buffer overflow in video stream processing",
-        "affected_versions": ["Multiple Axis camera products"],
+        "affected_versions": [
+          "Multiple Axis camera products"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2020-29553"
@@ -370,7 +428,9 @@
         "cvss_score": 5.3,
         "severity": "medium",
         "description": "Denial of service via malformed RTSP requests",
-        "affected_versions": ["Multiple Axis camera products"],
+        "affected_versions": [
+          "Multiple Axis camera products"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2020-29554"
@@ -382,7 +442,9 @@
         "cvss_score": 8.8,
         "severity": "high",
         "description": "Remote code execution via firmware update mechanism",
-        "affected_versions": ["Multiple Axis camera products"],
+        "affected_versions": [
+          "Multiple Axis camera products"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2020-29555"
@@ -394,7 +456,9 @@
         "cvss_score": 7.2,
         "severity": "high",
         "description": "Privilege escalation through VAPIX interface",
-        "affected_versions": ["Multiple Axis camera products"],
+        "affected_versions": [
+          "Multiple Axis camera products"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2020-29556"
@@ -406,7 +470,9 @@
         "cvss_score": 6.8,
         "severity": "medium",
         "description": "Path traversal in file upload functionality",
-        "affected_versions": ["Multiple Axis camera products"],
+        "affected_versions": [
+          "Multiple Axis camera products"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2020-29557"
@@ -418,7 +484,9 @@
         "cvss_score": 7.5,
         "severity": "high",
         "description": "Information leakage exposing network configuration",
-        "affected_versions": ["Multiple Axis camera products"],
+        "affected_versions": [
+          "Multiple Axis camera products"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2020-29558"
@@ -430,7 +498,9 @@
         "cvss_score": 8.1,
         "severity": "high",
         "description": "Authentication bypass in ONVIF service",
-        "affected_versions": ["Multiple Axis camera products"],
+        "affected_versions": [
+          "Multiple Axis camera products"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2020-29559"
@@ -442,7 +512,9 @@
         "cvss_score": 5.9,
         "severity": "medium",
         "description": "Weak cryptographic algorithm in authentication",
-        "affected_versions": ["Multiple Axis camera products"],
+        "affected_versions": [
+          "Multiple Axis camera products"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2020-29560"
@@ -456,7 +528,9 @@
         "cvss_score": 9.8,
         "severity": "critical",
         "description": "Improper authorization in User Management component of CP Plus Wi-Fi Cameras allowing attackers to bypass security measures",
-        "affected_versions": ["CP Plus Wi-Fi Cameras up to version 20240401"],
+        "affected_versions": [
+          "CP Plus Wi-Fi Cameras up to version 20240401"
+        ],
         "exploit_available": true,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2024-3434"
@@ -468,7 +542,9 @@
         "cvss_score": 7.5,
         "severity": "high",
         "description": "Insufficiently protected credentials in CP Plus KVMS Pro software leading to leakage of sensitive user information",
-        "affected_versions": ["KVMS Pro 2.01.0.T.190521 and prior"],
+        "affected_versions": [
+          "KVMS Pro 2.01.0.T.190521 and prior"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://www.cisa.gov/news-events/ics-advisories/icsa-23-080-01",
@@ -481,7 +557,9 @@
         "cvss_score": 7.5,
         "severity": "high",
         "description": "Improper input handling at web-based management interface allowing unauthenticated remote attackers to obtain sensitive information",
-        "affected_versions": ["CP-VNR-3104, CP-VNR-3108, CP-VNR-3208 prior to B3223P22C02424"],
+        "affected_versions": [
+          "CP-VNR-3104, CP-VNR-3108, CP-VNR-3208 prior to B3223P22C02424"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2023-3705"
@@ -493,7 +571,9 @@
         "cvss_score": 5.3,
         "severity": "medium",
         "description": "Improper input validation in web-based management interface allowing unauthenticated attackers to change system time",
-        "affected_versions": ["CP-Plus DVRs with web management interface"],
+        "affected_versions": [
+          "CP-Plus DVRs with web management interface"
+        ],
         "exploit_available": false,
         "exploit_references": [
           "https://nvd.nist.gov/vuln/detail/CVE-2023-3704"
@@ -505,7 +585,9 @@
         "cvss_score": 9.6,
         "severity": "critical",
         "description": "ThroughTek Kalay P2P SDK vulnerability allowing device impersonation, connection hijacking, and credential extraction",
-        "affected_versions": ["Devices using ThroughTek Kalay SDK (many IP cameras including CP Plus)"],
+        "affected_versions": [
+          "Devices using ThroughTek Kalay SDK (many IP cameras including CP Plus)"
+        ],
         "exploit_available": true,
         "exploit_references": [
           "https://www.cisa.gov/news-events/ics-advisories/icsa-21-229-01",
@@ -513,39 +595,258 @@
         ],
         "year": 2021
       }
+    ],
+    "sony": [
+      {
+        "cve_id": "CVE-2020-36885",
+        "cvss_score": 9.8,
+        "severity": "critical",
+        "description": "Stack buffer overflow in Sony IPELA Network Camera ftpclient.cgi allowing remote code execution",
+        "affected_versions": [
+          "Sony IPELA Network Camera version 1.82.01"
+        ],
+        "exploit_available": true,
+        "exploit_references": [
+          "https://nvd.nist.gov/vuln/detail/CVE-2020-36885"
+        ],
+        "year": 2020
+      },
+      {
+        "cve_id": "CVE-2018-3937",
+        "cvss_score": 8.8,
+        "severity": "high",
+        "description": "Command injection vulnerability in Sony IPELA E Series cameras",
+        "affected_versions": [
+          "Sony IPELA E Series cameras"
+        ],
+        "exploit_available": true,
+        "exploit_references": [
+          "https://nvd.nist.gov/vuln/detail/CVE-2018-3937"
+        ],
+        "year": 2018
+      },
+      {
+        "cve_id": "CVE-2018-3938",
+        "cvss_score": 9.8,
+        "severity": "critical",
+        "description": "Stack buffer overflow in Sony IPELA E Series cameras allowing remote code execution",
+        "affected_versions": [
+          "Sony IPELA E Series cameras"
+        ],
+        "exploit_available": true,
+        "exploit_references": [
+          "https://nvd.nist.gov/vuln/detail/CVE-2018-3938"
+        ],
+        "year": 2018
+      }
+    ],
+    "foscam": [
+      {
+        "cve_id": "CVE-2022-28743",
+        "cvss_score": 7.2,
+        "severity": "high",
+        "description": "TOCTOU race condition in Foscam R2C allowing authenticated remote code execution via malicious firmware",
+        "affected_versions": [
+          "Foscam R2C System FW 1.13.1.6 and earlier"
+        ],
+        "exploit_available": true,
+        "exploit_references": [
+          "https://nvd.nist.gov/vuln/detail/CVE-2022-28743"
+        ],
+        "year": 2022
+      },
+      {
+        "cve_id": "CVE-2021-43517",
+        "cvss_score": 9.8,
+        "severity": "critical",
+        "description": "Backdoor in FOSCAM FI9805E opening Telnet port on command",
+        "affected_versions": [
+          "FOSCAM FI9805E firmware V4.02.R12.00018510.10012.143900.00000"
+        ],
+        "exploit_available": true,
+        "exploit_references": [
+          "https://nvd.nist.gov/vuln/detail/CVE-2021-43517"
+        ],
+        "year": 2021
+      },
+      {
+        "cve_id": "CVE-2020-28096",
+        "cvss_score": 6.8,
+        "severity": "medium",
+        "description": "Hardcoded password in FOSCAM FHD X1 allowing physical UART access",
+        "affected_versions": [
+          "FOSCAM FHD X1 version 1.14.2.4"
+        ],
+        "exploit_available": false,
+        "exploit_references": [
+          "https://nvd.nist.gov/vuln/detail/CVE-2020-28096"
+        ],
+        "year": 2020
+      }
+    ],
+    "panasonic": [
+      {
+        "cve_id": "CVE-2020-29194",
+        "cvss_score": 7.5,
+        "severity": "high",
+        "description": "Denial of service via POST request to cgi-bin/set_factory in Panasonic WV-S2231L",
+        "affected_versions": [
+          "Panasonic WV-S2231L version 4.25"
+        ],
+        "exploit_available": false,
+        "exploit_references": [
+          "https://nvd.nist.gov/vuln/detail/CVE-2020-29194"
+        ],
+        "year": 2020
+      },
+      {
+        "cve_id": "CVE-2020-29193",
+        "cvss_score": 9.8,
+        "severity": "critical",
+        "description": "Hardcoded password 'lkjhgfdsa' in Panasonic WV-S2231L security system",
+        "affected_versions": [
+          "Panasonic WV-S2231L version 4.25"
+        ],
+        "exploit_available": true,
+        "exploit_references": [
+          "https://nvd.nist.gov/vuln/detail/CVE-2020-29193"
+        ],
+        "year": 2020
+      },
+      {
+        "cve_id": "CVE-2022-4621",
+        "cvss_score": 8.8,
+        "severity": "high",
+        "description": "CSRF vulnerability in Panasonic Sanyo CCTV Network Cameras",
+        "affected_versions": [
+          "Panasonic Sanyo CCTV cameras versions 1.02-05, 2.03-0x"
+        ],
+        "exploit_available": true,
+        "exploit_references": [
+          "https://nvd.nist.gov/vuln/detail/CVE-2022-4621"
+        ],
+        "year": 2022
+      }
+    ],
+    "samsung": [
+      {
+        "cve_id": "CVE-2018-6294",
+        "cvss_score": 9.8,
+        "severity": "critical",
+        "description": "Unauthenticated remote code execution in Samsung SmartCam cameras",
+        "affected_versions": [
+          "Samsung SmartCam SNH-V6410PN/PNW"
+        ],
+        "exploit_available": true,
+        "exploit_references": [
+          "https://nvd.nist.gov/vuln/detail/CVE-2018-6294"
+        ],
+        "year": 2018
+      },
+      {
+        "cve_id": "CVE-2018-6295",
+        "cvss_score": 7.5,
+        "severity": "high",
+        "description": "Authentication bypass in Samsung SmartCam web interface",
+        "affected_versions": [
+          "Samsung SmartCam SNH-V6410PN/PNW"
+        ],
+        "exploit_available": true,
+        "exploit_references": [
+          "https://nvd.nist.gov/vuln/detail/CVE-2018-6295"
+        ],
+        "year": 2018
+      },
+      {
+        "cve_id": "CVE-2017-8225",
+        "cvss_score": 9.8,
+        "severity": "critical",
+        "description": "Command injection in multiple Samsung IP cameras via DVR web interface",
+        "affected_versions": [
+          "Multiple Samsung IP cameras with DVR interface"
+        ],
+        "exploit_available": true,
+        "exploit_references": [
+          "https://nvd.nist.gov/vuln/detail/CVE-2017-8225"
+        ],
+        "year": 2017
+      }
+    ],
+    "vivotek": [
+      {
+        "cve_id": "CVE-2018-14768",
+        "cvss_score": 9.8,
+        "severity": "critical",
+        "description": "Remote stack buffer overflow in VIVOTEK IP cameras via Content-Length header",
+        "affected_versions": [
+          "Multiple VIVOTEK IP cameras"
+        ],
+        "exploit_available": true,
+        "exploit_references": [
+          "https://nvd.nist.gov/vuln/detail/CVE-2018-14768"
+        ],
+        "year": 2018
+      },
+      {
+        "cve_id": "CVE-2017-5172",
+        "cvss_score": 7.5,
+        "severity": "high",
+        "description": "Authentication bypass in VIVOTEK network cameras",
+        "affected_versions": [
+          "VIVOTEK network cameras multiple models"
+        ],
+        "exploit_available": false,
+        "exploit_references": [
+          "https://nvd.nist.gov/vuln/detail/CVE-2017-5172"
+        ],
+        "year": 2017
+      }
     ]
   },
   "severity_levels": {
     "critical": {
       "cvss_range": "9.0-10.0",
       "description": "Critical vulnerabilities requiring immediate attention",
-      "count": 5
+      "count": 14
     },
     "high": {
       "cvss_range": "7.0-8.9",
       "description": "High severity vulnerabilities requiring prompt remediation",
-      "count": 22
+      "count": 28
     },
     "medium": {
       "cvss_range": "4.0-6.9",
       "description": "Medium severity vulnerabilities requiring scheduled remediation",
-      "count": 12
+      "count": 14
     }
   },
   "statistics": {
-    "total_cves": 39,
+    "total_cves": 56,
     "by_brand": {
       "hikvision": 12,
       "dahua": 12,
       "axis": 12,
-      "cp_plus": 3
+      "cp_plus": 5,
+      "sony": 3,
+      "foscam": 3,
+      "panasonic": 3,
+      "samsung": 3,
+      "vivotek": 2
     },
     "by_severity": {
-      "critical": 5,
-      "high": 22,
-      "medium": 12
+      "critical": 14,
+      "high": 28,
+      "medium": 14
     },
-    "with_exploits": 5,
-    "unique_years": [2017, 2018, 2020, 2021, 2022, 2023]
+    "with_exploits": 15,
+    "unique_years": [
+      2017,
+      2018,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024
+    ]
   }
 }
