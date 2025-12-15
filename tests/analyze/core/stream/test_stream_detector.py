@@ -513,168 +513,174 @@ class TestStreamDetector(unittest.TestCase):
         )
 
 
-@pytest.mark.skip(
-    reason="Async HTTP mocking requires aioresponses library - TODO: migrate to aioresponses"
-)
-class TestStreamDetectorAsync(unittest.IsolatedAsyncioTestCase):
-    """Async tests for StreamDetector HTTP request methods."""
+class TestStreamDetectorAsync:
+    """Async tests for StreamDetector HTTP request methods using aioresponses."""
 
-    def setUp(self):
-        """Set up test fixtures."""
-        self.detector = StreamDetector()
+    @pytest.fixture
+    def detector(self):
+        return StreamDetector()
 
-    @patch("aiohttp.ClientSession")
-    async def test_head_request_success_with_video_content_type(self, mock_session):
+    @pytest.mark.asyncio
+    async def test_head_request_success_with_video_content_type(self, detector):
         """Test successful HEAD request with video content type."""
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.headers = {"Content-Type": "video/h264"}
-        mock_response.__aenter__.return_value = mock_response
+        from aioresponses import aioresponses
 
-        mock_session_instance = AsyncMock()
-        mock_session_instance.head.return_value = mock_response
-        mock_session.return_value.__aenter__.return_value = mock_session_instance
+        with aioresponses() as m:
+            m.head(
+                "http://example.com/stream",
+                status=200,
+                headers={"Content-Type": "video/h264"}
+            )
 
-        result = await self.detector.check_stream_url("http://example.com/stream", method="HEAD")
+            result = await detector.check_stream_url("http://example.com/stream", method="HEAD")
 
-        self.assertTrue(result["is_stream"])
-        self.assertEqual(result["detection_method"], "content_type")
-        self.assertEqual(result["response_code"], 200)
-        self.assertEqual(result["content_type"], "video/h264")
+            assert result["is_stream"] is True
+            assert result["detection_method"] == "content_type"
+            assert result["response_code"] == 200
+            assert result["content_type"] == "video/h264"
 
-    @patch("aiohttp.ClientSession")
-    async def test_get_request_fallback_when_head_not_allowed(self, mock_session):
+    @pytest.mark.asyncio
+    async def test_get_request_fallback_when_head_not_allowed(self, detector):
         """Test GET request fallback when HEAD returns 405."""
-        # HEAD response (405)
-        mock_head_response = AsyncMock()
-        mock_head_response.status = 405
-        mock_head_response.headers = {}
-        mock_head_response.__aenter__.return_value = mock_head_response
+        from aioresponses import aioresponses
 
-        # GET response (200)
-        mock_get_response = AsyncMock()
-        mock_get_response.status = 200
-        mock_get_response.headers = {"Content-Type": "video/mp4"}
-        mock_get_response.read = AsyncMock(return_value=b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 100)
-        mock_get_response.__aenter__.return_value = mock_get_response
+        with aioresponses() as m:
+            # HEAD returns 405 (method not allowed)
+            m.head(
+                "http://example.com/stream",
+                status=405,
+                headers={}
+            )
+            # GET should be called as fallback
+            m.get(
+                "http://example.com/stream",
+                status=200,
+                headers={"Content-Type": "video/mp4"},
+                body=b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 100
+            )
 
-        mock_session_instance = AsyncMock()
-        mock_session_instance.head.return_value = mock_head_response
-        mock_session_instance.get.return_value = mock_get_response
-        mock_session.return_value.__aenter__.return_value = mock_session_instance
+            result = await detector.check_stream_url("http://example.com/stream", method="HEAD")
 
-        result = await self.detector.check_stream_url("http://example.com/stream", method="HEAD")
+            assert result["is_stream"] is True
+            assert result["response_code"] == 200
 
-        self.assertTrue(result["is_stream"])
-        self.assertEqual(result["response_code"], 200)
-
-    @patch("aiohttp.ClientSession")
-    async def test_get_request_with_content_analysis(self, mock_session):
+    @pytest.mark.asyncio
+    async def test_get_request_with_content_analysis(self, detector):
         """Test GET request with content analysis."""
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.headers = {"Content-Type": "application/octet-stream"}
-        mock_response.read = AsyncMock(return_value=b"#EXTM3U\n#EXT-X-VERSION:3\n")
-        mock_response.__aenter__.return_value = mock_response
+        from aioresponses import aioresponses
 
-        mock_session_instance = AsyncMock()
-        mock_session_instance.get.return_value = mock_response
-        mock_session.return_value.__aenter__.return_value = mock_session_instance
+        with aioresponses() as m:
+            m.get(
+                "http://example.com/stream.unknown",
+                status=200,
+                headers={"Content-Type": "application/octet-stream"},
+                body=b"#EXTM3U\n#EXT-X-VERSION:3\n"
+            )
 
-        result = await self.detector.check_stream_url(
-            "http://example.com/stream.unknown", method="GET"
-        )
+            result = await detector.check_stream_url(
+                "http://example.com/stream.unknown", method="GET"
+            )
 
-        self.assertTrue(result["is_stream"])
-        self.assertEqual(result["detection_method"], "content_analysis")
+            assert result["is_stream"] is True
+            assert result["detection_method"] == "content_analysis"
 
-    @patch("aiohttp.ClientSession")
-    async def test_url_pattern_fallback(self, mock_session):
+    @pytest.mark.asyncio
+    async def test_url_pattern_fallback(self, detector):
         """Test URL pattern detection as fallback."""
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.headers = {"Content-Type": "text/html"}  # Wrong content type
-        mock_response.__aenter__.return_value = mock_response
+        from aioresponses import aioresponses
 
-        mock_session_instance = AsyncMock()
-        mock_session_instance.head.return_value = mock_response
-        mock_session.return_value.__aenter__.return_value = mock_session_instance
+        with aioresponses() as m:
+            m.head(
+                "http://example.com/video/stream.mp4",
+                status=200,
+                headers={"Content-Type": "text/html"}  # Wrong content type
+            )
 
-        result = await self.detector.check_stream_url(
-            "http://example.com/video/stream.mp4", method="HEAD"
-        )
+            result = await detector.check_stream_url(
+                "http://example.com/video/stream.mp4", method="HEAD"
+            )
 
-        # Should detect as stream based on URL pattern
-        self.assertTrue(result["is_stream"])
-        self.assertEqual(result["detection_method"], "url_pattern")
+            # Should detect as stream based on URL pattern
+            assert result["is_stream"] is True
+            assert result["detection_method"] == "url_pattern"
 
-    @patch("aiohttp.ClientSession")
-    async def test_connection_error_handling(self, mock_session):
+    @pytest.mark.asyncio
+    async def test_connection_error_handling(self, detector):
         """Test handling of connection errors."""
+        from aioresponses import aioresponses
         import aiohttp
 
-        mock_session_instance = AsyncMock()
-        mock_session_instance.head.side_effect = aiohttp.ClientError("Connection failed")
-        mock_session.return_value.__aenter__.return_value = mock_session_instance
+        with aioresponses() as m:
+            m.head(
+                "http://example.com/stream",
+                exception=aiohttp.ClientError("Connection failed")
+            )
 
-        result = await self.detector.check_stream_url("http://example.com/stream")
+            result = await detector.check_stream_url("http://example.com/stream")
 
-        self.assertFalse(result["is_stream"])
-        self.assertIsNotNone(result["error"])
-        self.assertIn("Connection error", result["error"])
+            assert result["is_stream"] is False
+            assert result["error"] is not None
+            assert "Connection error" in result["error"]
 
-    @patch("aiohttp.ClientSession")
-    async def test_timeout_error_handling(self, mock_session):
+    @pytest.mark.asyncio
+    async def test_timeout_error_handling(self, detector):
         """Test handling of timeout errors."""
-        mock_session_instance = AsyncMock()
-        mock_session_instance.head.side_effect = asyncio.TimeoutError()
-        mock_session.return_value.__aenter__.return_value = mock_session_instance
+        from aioresponses import aioresponses
+        import asyncio
 
-        result = await self.detector.check_stream_url("http://example.com/stream")
+        with aioresponses() as m:
+            m.head(
+                "http://example.com/stream",
+                exception=asyncio.TimeoutError()
+            )
 
-        self.assertFalse(result["is_stream"])
-        self.assertEqual(result["error"], "Timeout")
+            result = await detector.check_stream_url("http://example.com/stream")
 
-    async def test_invalid_url_handling(self):
+            assert result["is_stream"] is False
+            assert result["error"] == "Timeout"
+
+    @pytest.mark.asyncio
+    async def test_invalid_url_handling(self, detector):
         """Test handling of invalid URLs."""
-        result = await self.detector.check_stream_url("not-a-valid-url")
+        result = await detector.check_stream_url("not-a-valid-url")
 
-        self.assertFalse(result["is_stream"])
-        self.assertIsNotNone(result["error"])
+        assert result["is_stream"] is False
+        assert result["error"] is not None
 
-    @patch("aiohttp.ClientSession")
-    async def test_non_stream_detection(self, mock_session):
+    @pytest.mark.asyncio
+    async def test_non_stream_detection(self, detector):
         """Test detection of non-stream content."""
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.headers = {"Content-Type": "text/html"}
-        mock_response.__aenter__.return_value = mock_response
+        from aioresponses import aioresponses
 
-        mock_session_instance = AsyncMock()
-        mock_session_instance.head.return_value = mock_response
-        mock_session.return_value.__aenter__.return_value = mock_session_instance
+        with aioresponses() as m:
+            m.head(
+                "http://example.com/page",
+                status=200,
+                headers={"Content-Type": "text/html"}
+            )
 
-        result = await self.detector.check_stream_url("http://example.com/page")
+            result = await detector.check_stream_url("http://example.com/page")
 
-        self.assertFalse(result["is_stream"])
+            assert result["is_stream"] is False
 
-    @patch("aiohttp.ClientSession")
-    async def test_404_error_handling(self, mock_session):
+    @pytest.mark.asyncio
+    async def test_404_error_handling(self, detector):
         """Test handling of 404 errors."""
-        mock_response = AsyncMock()
-        mock_response.status = 404
-        mock_response.headers = {}
-        mock_response.__aenter__.return_value = mock_response
+        from aioresponses import aioresponses
 
-        mock_session_instance = AsyncMock()
-        mock_session_instance.head.return_value = mock_response
-        mock_session.return_value.__aenter__.return_value = mock_session_instance
+        with aioresponses() as m:
+            m.head(
+                "http://example.com/notfound",
+                status=404,
+                headers={}
+            )
 
-        result = await self.detector.check_stream_url("http://example.com/notfound")
+            result = await detector.check_stream_url("http://example.com/notfound")
 
-        self.assertFalse(result["is_stream"])
-        self.assertEqual(result["response_code"], 404)
+            assert result["is_stream"] is False
+            assert result["response_code"] == 404
 
 
 if __name__ == "__main__":
     unittest.main()
+

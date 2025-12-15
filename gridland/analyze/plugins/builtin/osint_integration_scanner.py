@@ -268,6 +268,259 @@ class OSINTIntegrationScanner(VulnerabilityPlugin):
         """
         return bool(self.api_keys.get(api_name))
 
+    # =========================================================================
+    # API Query Methods
+    # =========================================================================
+
+    async def query_shodan_api(self, ip: str) -> dict[str, Any]:
+        """
+        Query Shodan API for IP intelligence.
+        
+        Args:
+            ip: Target IP address.
+            
+        Returns:
+            Dict with Shodan results or error.
+        """
+        import aiohttp
+        
+        api_key = self.api_keys.get("shodan")
+        if not api_key:
+            return {"error": "Shodan API key not configured", "available": False}
+        
+        url = f"https://api.shodan.io/shodan/host/{ip}?key={api_key}"
+        
+        try:
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=30)
+            ) as session:
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return {
+                            "available": True,
+                            "ip": data.get("ip_str"),
+                            "organization": data.get("org"),
+                            "hostnames": data.get("hostnames", []),
+                            "ports": data.get("ports", []),
+                            "vulns": data.get("vulns", []),
+                            "country": data.get("country_name"),
+                            "city": data.get("city"),
+                            "asn": data.get("asn"),
+                            "isp": data.get("isp"),
+                            "services": [
+                                {
+                                    "port": s.get("port"),
+                                    "product": s.get("product"),
+                                    "version": s.get("version"),
+                                }
+                                for s in data.get("data", [])[:10]
+                            ],
+                        }
+                    elif response.status == 404:
+                        return {"available": True, "no_data": True, "message": "IP not found in Shodan"}
+                    else:
+                        return {"error": f"Shodan API error: {response.status}", "available": True}
+        except Exception as e:
+            logger.debug(f"Shodan API query failed for {ip}: {e}")
+            return {"error": str(e), "available": True}
+
+    async def query_censys_api(self, ip: str) -> dict[str, Any]:
+        """
+        Query Censys API for IP intelligence.
+        
+        Args:
+            ip: Target IP address.
+            
+        Returns:
+            Dict with Censys results or error.
+        """
+        import aiohttp
+        import base64
+        
+        api_id = self.api_keys.get("censys_id")
+        api_secret = self.api_keys.get("censys_secret")
+        
+        if not api_id or not api_secret:
+            return {"error": "Censys API credentials not configured", "available": False}
+        
+        # Create Basic Auth header
+        credentials = f"{api_id}:{api_secret}"
+        auth_header = base64.b64encode(credentials.encode()).decode()
+        
+        url = f"https://search.censys.io/api/v2/hosts/{ip}"
+        headers = {"Authorization": f"Basic {auth_header}"}
+        
+        try:
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=30)
+            ) as session:
+                async with session.get(url, headers=headers) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        result = data.get("result", {})
+                        return {
+                            "available": True,
+                            "ip": result.get("ip"),
+                            "services": [
+                                {
+                                    "port": s.get("port"),
+                                    "service_name": s.get("service_name"),
+                                    "transport_protocol": s.get("transport_protocol"),
+                                }
+                                for s in result.get("services", [])[:10]
+                            ],
+                            "location": result.get("location", {}),
+                            "autonomous_system": result.get("autonomous_system", {}),
+                            "last_updated": result.get("last_updated_at"),
+                        }
+                    elif response.status == 404:
+                        return {"available": True, "no_data": True, "message": "IP not found in Censys"}
+                    else:
+                        return {"error": f"Censys API error: {response.status}", "available": True}
+        except Exception as e:
+            logger.debug(f"Censys API query failed for {ip}: {e}")
+            return {"error": str(e), "available": True}
+
+    async def query_zoomeye_api(self, ip: str) -> dict[str, Any]:
+        """
+        Query ZoomEye API for IP intelligence.
+        
+        Args:
+            ip: Target IP address.
+            
+        Returns:
+            Dict with ZoomEye results or error.
+        """
+        import aiohttp
+        
+        api_key = self.api_keys.get("zoomeye")
+        if not api_key:
+            return {"error": "ZoomEye API key not configured", "available": False}
+        
+        url = f"https://api.zoomeye.org/host/search?query=ip:{ip}"
+        headers = {"API-KEY": api_key}
+        
+        try:
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=30)
+            ) as session:
+                async with session.get(url, headers=headers) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        matches = data.get("matches", [])
+                        return {
+                            "available": True,
+                            "total": data.get("total", 0),
+                            "matches": [
+                                {
+                                    "ip": m.get("ip"),
+                                    "port": m.get("portinfo", {}).get("port"),
+                                    "service": m.get("portinfo", {}).get("service"),
+                                    "app": m.get("portinfo", {}).get("app"),
+                                    "device": m.get("portinfo", {}).get("device"),
+                                }
+                                for m in matches[:10]
+                            ],
+                        }
+                    elif response.status == 404:
+                        return {"available": True, "no_data": True, "message": "IP not found in ZoomEye"}
+                    else:
+                        return {"error": f"ZoomEye API error: {response.status}", "available": True}
+        except Exception as e:
+            logger.debug(f"ZoomEye API query failed for {ip}: {e}")
+            return {"error": str(e), "available": True}
+
+    async def query_passive_dns(self, ip: str) -> dict[str, Any]:
+        """
+        Query passive DNS sources for IP hostnames.
+        
+        This uses free public DNS lookup services.
+        
+        Args:
+            ip: Target IP address.
+            
+        Returns:
+            Dict with passive DNS results.
+        """
+        import aiohttp
+        
+        results = {"available": True, "hostnames": [], "sources": []}
+        
+        # Try multiple free DNS lookup sources
+        dns_sources = [
+            f"https://dns.google/resolve?name={ip}&type=PTR",
+        ]
+        
+        try:
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as session:
+                for source_url in dns_sources:
+                    try:
+                        async with session.get(source_url) as response:
+                            if response.status == 200:
+                                data = await response.json()
+                                answers = data.get("Answer", [])
+                                for answer in answers:
+                                    if answer.get("data"):
+                                        hostname = answer["data"].rstrip(".")
+                                        if hostname not in results["hostnames"]:
+                                            results["hostnames"].append(hostname)
+                                results["sources"].append("dns.google")
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.debug(f"Passive DNS query failed for {ip}: {e}")
+            results["error"] = str(e)
+        
+        return results
+
+    async def query_all_apis(self, ip: str) -> dict[str, dict[str, Any]]:
+        """
+        Query all available OSINT APIs concurrently.
+        
+        Args:
+            ip: Target IP address.
+            
+        Returns:
+            Dict mapping API names to their results.
+        """
+        results = {}
+        
+        # Build list of queries to run
+        queries = []
+        
+        if self.has_api_key("shodan"):
+            queries.append(("shodan", self.query_shodan_api(ip)))
+        
+        if self.has_api_key("censys_id") and self.has_api_key("censys_secret"):
+            queries.append(("censys", self.query_censys_api(ip)))
+        
+        if self.has_api_key("zoomeye"):
+            queries.append(("zoomeye", self.query_zoomeye_api(ip)))
+        
+        # Always try passive DNS (free)
+        queries.append(("passive_dns", self.query_passive_dns(ip)))
+        
+        # Run all queries concurrently
+        if queries:
+            import asyncio
+            
+            names = [q[0] for q in queries]
+            coroutines = [q[1] for q in queries]
+            
+            query_results = await asyncio.gather(*coroutines, return_exceptions=True)
+            
+            for name, result in zip(names, query_results):
+                if isinstance(result, Exception):
+                    results[name] = {"error": str(result), "available": True}
+                else:
+                    results[name] = result
+        
+        return results
+
 
 # Plugin instance for automatic discovery
 osint_integration_scanner = OSINTIntegrationScanner()
+

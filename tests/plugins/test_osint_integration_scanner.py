@@ -328,3 +328,252 @@ class TestOSINTReport:
             report = await scanner._generate_osint_report("192.168.1.1")
             
             assert "error" in report["geolocation"]
+
+
+# =============================================================================
+# API Query Method Tests
+# =============================================================================
+
+
+class TestShodanAPIQuery:
+    """Tests for Shodan API query method."""
+
+    @pytest.fixture
+    def scanner(self):
+        return OSINTIntegrationScanner()
+
+    @pytest.mark.asyncio
+    async def test_shodan_no_api_key(self, scanner):
+        """Test Shodan query without API key."""
+        with patch.dict("os.environ", {}, clear=True):
+            scanner.api_keys = scanner._load_api_keys()
+            result = await scanner.query_shodan_api("192.168.1.1")
+            assert result["available"] is False
+            assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_shodan_success(self, scanner):
+        """Test successful Shodan query."""
+        from aioresponses import aioresponses
+        
+        with patch.dict("os.environ", {"SHODAN_API_KEY": "test_key"}):
+            scanner.api_keys = scanner._load_api_keys()
+            
+            with aioresponses() as m:
+                m.get(
+                    "https://api.shodan.io/shodan/host/192.168.1.1?key=test_key",
+                    payload={
+                        "ip_str": "192.168.1.1",
+                        "org": "Test Org",
+                        "ports": [80, 443],
+                        "hostnames": ["test.com"],
+                        "data": [{"port": 80, "product": "nginx"}]
+                    }
+                )
+                
+                result = await scanner.query_shodan_api("192.168.1.1")
+                
+                assert result["available"] is True
+                assert result["ip"] == "192.168.1.1"
+                assert result["organization"] == "Test Org"
+
+    @pytest.mark.asyncio
+    async def test_shodan_not_found(self, scanner):
+        """Test Shodan query with IP not found."""
+        from aioresponses import aioresponses
+        
+        with patch.dict("os.environ", {"SHODAN_API_KEY": "test_key"}):
+            scanner.api_keys = scanner._load_api_keys()
+            
+            with aioresponses() as m:
+                m.get(
+                    "https://api.shodan.io/shodan/host/192.168.1.1?key=test_key",
+                    status=404
+                )
+                
+                result = await scanner.query_shodan_api("192.168.1.1")
+                
+                assert result["available"] is True
+                assert result.get("no_data") is True
+
+
+class TestCensysAPIQuery:
+    """Tests for Censys API query method."""
+
+    @pytest.fixture
+    def scanner(self):
+        return OSINTIntegrationScanner()
+
+    @pytest.mark.asyncio
+    async def test_censys_no_credentials(self, scanner):
+        """Test Censys query without credentials."""
+        with patch.dict("os.environ", {}, clear=True):
+            scanner.api_keys = scanner._load_api_keys()
+            result = await scanner.query_censys_api("192.168.1.1")
+            assert result["available"] is False
+            assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_censys_success(self, scanner):
+        """Test successful Censys query."""
+        from aioresponses import aioresponses
+        
+        with patch.dict("os.environ", {
+            "CENSYS_API_ID": "test_id",
+            "CENSYS_API_SECRET": "test_secret"
+        }):
+            scanner.api_keys = scanner._load_api_keys()
+            
+            with aioresponses() as m:
+                m.get(
+                    "https://search.censys.io/api/v2/hosts/192.168.1.1",
+                    payload={
+                        "result": {
+                            "ip": "192.168.1.1",
+                            "services": [{"port": 80, "service_name": "HTTP"}],
+                            "location": {"country": "US"},
+                        }
+                    }
+                )
+                
+                result = await scanner.query_censys_api("192.168.1.1")
+                
+                assert result["available"] is True
+                assert result["ip"] == "192.168.1.1"
+
+
+class TestZoomEyeAPIQuery:
+    """Tests for ZoomEye API query method."""
+
+    @pytest.fixture
+    def scanner(self):
+        return OSINTIntegrationScanner()
+
+    @pytest.mark.asyncio
+    async def test_zoomeye_no_api_key(self, scanner):
+        """Test ZoomEye query without API key."""
+        with patch.dict("os.environ", {}, clear=True):
+            scanner.api_keys = scanner._load_api_keys()
+            result = await scanner.query_zoomeye_api("192.168.1.1")
+            assert result["available"] is False
+            assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_zoomeye_success(self, scanner):
+        """Test successful ZoomEye query."""
+        from aioresponses import aioresponses
+        
+        with patch.dict("os.environ", {"ZOOMEYE_API_KEY": "test_key"}):
+            scanner.api_keys = scanner._load_api_keys()
+            
+            with aioresponses() as m:
+                m.get(
+                    "https://api.zoomeye.org/host/search?query=ip:192.168.1.1",
+                    payload={
+                        "total": 1,
+                        "matches": [{"ip": "192.168.1.1", "portinfo": {"port": 80}}]
+                    }
+                )
+                
+                result = await scanner.query_zoomeye_api("192.168.1.1")
+                
+                assert result["available"] is True
+                assert result["total"] == 1
+
+
+class TestPassiveDNSQuery:
+    """Tests for passive DNS query method."""
+
+    @pytest.fixture
+    def scanner(self):
+        return OSINTIntegrationScanner()
+
+    @pytest.mark.asyncio
+    async def test_passive_dns_success(self, scanner):
+        """Test successful passive DNS query."""
+        from aioresponses import aioresponses
+        
+        with aioresponses() as m:
+            m.get(
+                "https://dns.google/resolve?name=8.8.8.8&type=PTR",
+                payload={
+                    "Answer": [{"data": "test.example.com."}]
+                }
+            )
+            
+            result = await scanner.query_passive_dns("8.8.8.8")
+            
+            assert result["available"] is True
+            assert "test.example.com" in result["hostnames"]
+
+    @pytest.mark.asyncio
+    async def test_passive_dns_no_results(self, scanner):
+        """Test passive DNS with no results."""
+        from aioresponses import aioresponses
+        
+        with aioresponses() as m:
+            m.get(
+                "https://dns.google/resolve?name=192.168.1.1&type=PTR",
+                payload={}
+            )
+            
+            result = await scanner.query_passive_dns("192.168.1.1")
+            
+            assert result["available"] is True
+            assert result["hostnames"] == []
+
+
+class TestQueryAllAPIs:
+    """Tests for query_all_apis method."""
+
+    @pytest.fixture
+    def scanner(self):
+        return OSINTIntegrationScanner()
+
+    @pytest.mark.asyncio
+    async def test_query_all_apis_with_no_keys(self, scanner):
+        """Test query_all_apis with no API keys configured."""
+        from aioresponses import aioresponses
+        
+        with patch.dict("os.environ", {}, clear=True):
+            scanner.api_keys = scanner._load_api_keys()
+            
+            with aioresponses() as m:
+                # Mock passive DNS (always runs)
+                m.get(
+                    "https://dns.google/resolve?name=192.168.1.1&type=PTR",
+                    payload={}
+                )
+                
+                result = await scanner.query_all_apis("192.168.1.1")
+                
+                # Should still have passive_dns since it's free
+                assert "passive_dns" in result
+
+    @pytest.mark.asyncio
+    async def test_query_all_apis_handles_exceptions(self, scanner):
+        """Test query_all_apis handles exceptions gracefully."""
+        from aioresponses import aioresponses
+        
+        with patch.dict("os.environ", {"SHODAN_API_KEY": "test_key"}):
+            scanner.api_keys = scanner._load_api_keys()
+            
+            with aioresponses() as m:
+                # Mock Shodan to fail
+                m.get(
+                    "https://api.shodan.io/shodan/host/192.168.1.1?key=test_key",
+                    exception=Exception("Network error")
+                )
+                # Mock passive DNS to succeed
+                m.get(
+                    "https://dns.google/resolve?name=192.168.1.1&type=PTR",
+                    payload={}
+                )
+                
+                result = await scanner.query_all_apis("192.168.1.1")
+                
+                # Should have shodan with error
+                assert "shodan" in result
+                assert "error" in result["shodan"]
+
+
