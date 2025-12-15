@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -176,7 +176,7 @@ class CredentialTester(VulnerabilityPlugin):
             return
 
         try:
-            timestamp = datetime.utcnow().isoformat()
+            timestamp = datetime.now(timezone.utc).isoformat()
             result = "success" if success else "failure"
 
             # Thread-safe append to audit log

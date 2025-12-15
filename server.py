@@ -235,6 +235,12 @@ def stream(stream_url_b64):
 
     def generate_gstreamer_stream():
         """Stream video using GStreamer pipeline."""
+        # Check if GStreamer is available
+        import shutil
+        if not shutil.which("gst-launch-1.0"):
+            yield b"ERROR: GStreamer not installed. Install with: brew install gstreamer gst-plugins-base gst-plugins-good"
+            return
+            
         gst_command = [
             "gst-launch-1.0",
             "-q",
@@ -617,13 +623,13 @@ def health_check():
         from gridland.core.data_loader import load_camera_ports
         load_camera_ports()
         components["gridland_core"] = True
-    except:
+    except Exception:
         components["gridland_core"] = False
 
     try:
         from gridland.analyze.plugins.manager import get_plugin_manager
         components["gridland_plugins"] = True
-    except:
+    except Exception:
         components["gridland_plugins"] = False
 
     all_healthy = all(components.values())
@@ -668,4 +674,7 @@ if __name__ == "__main__":
     print("Legacy UI at: http://localhost:8080/legacy/")
     print("=" * 60)
 
-    app.run(host="0.0.0.0", port=8080, threaded=True, debug=True, use_reloader=False)
+    # Debug mode configurable via environment - default OFF for production
+    debug_mode = os.environ.get("GRIDLAND_DEBUG", "false").lower() == "true"
+    
+    app.run(host="0.0.0.0", port=8080, threaded=True, debug=debug_mode, use_reloader=False)
