@@ -671,13 +671,63 @@ class EnhancedStreamScanner(VulnerabilityPlugin):
     async def _test_webrtc_streams(
         self, target_ip: str, target_port: int, brand: str | None, service: str
     ) -> list[StreamEndpoint]:
-        """WebRTC stream testing"""
+        """WebRTC stream detection via signaling endpoint probing."""
         streams = []
-
-        # WebRTC testing requires specific implementation
-        # For now, return empty list as placeholder
-        logger.debug("WebRTC stream testing not yet implemented")
-
+        
+        # WebRTC signaling endpoints commonly used by IP cameras
+        webrtc_paths = [
+            "/webrtc",
+            "/api/webrtc",
+            "/rtc/offer",
+            "/signaling",
+            "/api/signaling",
+            "/whip",  # WHEP/WHIP standard
+            "/whep",
+            "/stream/webrtc",
+            "/live/webrtc",
+        ]
+        
+        protocol = "https" if target_port == 443 else "http"
+        
+        timeout = aiohttp.ClientTimeout(total=3)
+        connector = aiohttp.TCPConnector(ssl=False)
+        
+        async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
+            for path in webrtc_paths:
+                try:
+                    url = f"{protocol}://{target_ip}:{target_port}{path}"
+                    
+                    async with session.get(url) as response:
+                        if response.status in [200, 201, 405]:  # 405 = method not allowed (but endpoint exists)
+                            content_type = response.headers.get("content-type", "").lower()
+                            content = await response.text()
+                            
+                            # Check for WebRTC indicators
+                            if any(indicator in content.lower() for indicator in ["webrtc", "sdp", "ice", "stun", "turn"]) or \
+                               any(indicator in content_type for indicator in ["application/sdp", "application/json"]):
+                                webrtc_url = f"webrtc://{target_ip}:{target_port}{path}"
+                                stream = StreamEndpoint(
+                                    url=webrtc_url,
+                                    protocol="webrtc",
+                                    brand=brand,
+                                    content_type=content_type or "application/sdp",
+                                    response_size=len(content),
+                                    authentication_required=response.status == 401,
+                                    confidence=0.70,
+                                    response_time=0.0,
+                                    quality_score=0.8,  # WebRTC typically high quality
+                                    metadata={
+                                        "path": path,
+                                        "discovery_method": "webrtc_signaling_probe",
+                                        "signaling_url": url,
+                                    },
+                                )
+                                streams.append(stream)
+                                self.scan_stats["successful_discoveries"] += 1
+                                
+                except Exception as e:
+                    logger.debug(f"WebRTC test failed for {path}: {e}")
+        
         return streams
 
     def _get_optimized_paths(self, protocol: str, brand: str | None) -> list[str]:

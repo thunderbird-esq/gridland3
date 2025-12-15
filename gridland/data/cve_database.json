@@ -452,43 +452,66 @@
     ],
     "cp_plus": [
       {
-        "cve_id": "CVE-2021-XXXXX",
+        "cve_id": "CVE-2024-3434",
+        "cvss_score": 9.8,
+        "severity": "critical",
+        "description": "Improper authorization in User Management component of CP Plus Wi-Fi Cameras allowing attackers to bypass security measures",
+        "affected_versions": ["CP Plus Wi-Fi Cameras up to version 20240401"],
+        "exploit_available": true,
+        "exploit_references": [
+          "https://nvd.nist.gov/vuln/detail/CVE-2024-3434"
+        ],
+        "year": 2024
+      },
+      {
+        "cve_id": "CVE-2023-1518",
         "cvss_score": 7.5,
         "severity": "high",
-        "description": "Authentication bypass in web interface (placeholder - pending CVE assignment)",
-        "affected_versions": ["Multiple CP Plus IP cameras"],
+        "description": "Insufficiently protected credentials in CP Plus KVMS Pro software leading to leakage of sensitive user information",
+        "affected_versions": ["KVMS Pro 2.01.0.T.190521 and prior"],
         "exploit_available": false,
         "exploit_references": [
-          "https://www.cpplus.com.cn/en/security-advisories"
+          "https://www.cisa.gov/news-events/ics-advisories/icsa-23-080-01",
+          "https://nvd.nist.gov/vuln/detail/CVE-2023-1518"
         ],
-        "year": 2021,
-        "note": "Placeholder CVE ID - actual CVE pending assignment"
+        "year": 2023
       },
       {
-        "cve_id": "CVE-2022-XXXXX",
-        "cvss_score": 8.1,
+        "cve_id": "CVE-2023-3705",
+        "cvss_score": 7.5,
         "severity": "high",
-        "description": "Remote command injection vulnerability (placeholder - pending CVE assignment)",
-        "affected_versions": ["Multiple CP Plus IP cameras"],
+        "description": "Improper input handling at web-based management interface allowing unauthenticated remote attackers to obtain sensitive information",
+        "affected_versions": ["CP-VNR-3104, CP-VNR-3108, CP-VNR-3208 prior to B3223P22C02424"],
         "exploit_available": false,
         "exploit_references": [
-          "https://www.cpplus.com.cn/en/security-advisories"
+          "https://nvd.nist.gov/vuln/detail/CVE-2023-3705"
         ],
-        "year": 2022,
-        "note": "Placeholder CVE ID - actual CVE pending assignment"
+        "year": 2023
       },
       {
-        "cve_id": "CVE-2023-XXXXX",
-        "cvss_score": 6.5,
+        "cve_id": "CVE-2023-3704",
+        "cvss_score": 5.3,
         "severity": "medium",
-        "description": "Information disclosure vulnerability (placeholder - pending CVE assignment)",
-        "affected_versions": ["Multiple CP Plus IP cameras"],
+        "description": "Improper input validation in web-based management interface allowing unauthenticated attackers to change system time",
+        "affected_versions": ["CP-Plus DVRs with web management interface"],
         "exploit_available": false,
         "exploit_references": [
-          "https://www.cpplus.com.cn/en/security-advisories"
+          "https://nvd.nist.gov/vuln/detail/CVE-2023-3704"
         ],
-        "year": 2023,
-        "note": "Placeholder CVE ID - actual CVE pending assignment"
+        "year": 2023
+      },
+      {
+        "cve_id": "CVE-2021-28372",
+        "cvss_score": 9.6,
+        "severity": "critical",
+        "description": "ThroughTek Kalay P2P SDK vulnerability allowing device impersonation, connection hijacking, and credential extraction",
+        "affected_versions": ["Devices using ThroughTek Kalay SDK (many IP cameras including CP Plus)"],
+        "exploit_available": true,
+        "exploit_references": [
+          "https://www.cisa.gov/news-events/ics-advisories/icsa-21-229-01",
+          "https://nvd.nist.gov/vuln/detail/CVE-2021-28372"
+        ],
+        "year": 2021
       }
     ]
   },
