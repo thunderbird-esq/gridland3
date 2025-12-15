@@ -31,6 +31,15 @@ Homepage = "https://github.com/thunderbird-esq/gridland3"
 Repository = "https://github.com/thunderbird-esq/gridland3"
 Issues = "https://github.com/thunderbird-esq/gridland3/issues"
 
+[project.scripts]
+gl-discover = "gridland.cli.discover_cli:discover"
+gl-analyze = "gridland.cli.analyze_cli:analyze"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gridland*"]
+exclude = ["tests*", "legacy*", "static*", "gridland-ui*"]
+
 # Black configuration
 [tool.black]
 line-length = 100
