@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-HelloBird is a web-based sousveillance console for educational security research and authorized auditing of publicly accessible camera feeds. The project consists of a Flask backend that wraps the CamXploit.py reconnaissance script with a web interface for discovery and analysis of camera endpoints.
+GRIDLAND v3.0 is a professional camera reconnaissance and security analysis toolkit for educational security research and authorized auditing. The project consists of a modular Python package with a Flask backend and web interface for discovery and analysis of camera endpoints.
 
 **⚠️ IMPORTANT ETHICAL NOTICE**: This tool is designed for defensive security research, education, and authorized auditing ONLY. All usage must comply with applicable laws and ethical guidelines. Unauthorized scanning of systems you do not own is prohibited.
 
@@ -816,6 +816,7 @@ print(f"Category: {details['category']}")      # 'live'
 ```
 
 **Features:**
+
 - Four-phase detection strategy (protocol, HEAD, GET, path patterns)
 - Content-type validation: video, stream, mpeg, h264, mjpeg, rtsp, rtmp, image
 - URL pattern matching: .mp4, .m3u8, .ts, .flv, .webm, .avi, .mov
@@ -829,6 +830,7 @@ print(f"Category: {details['category']}")      # 'live'
 - 100% feature parity with CamXploit.py check_stream() (lines 1502-1559)
 
 **Methods:**
+
 - `check_stream_url(url, timeout=5)` - Comprehensive stream detection with structured return
 - `get_stream_details(url, timeout=5)` - Extract stream metadata (codec, resolution, category)
 - `validate_stream_url(url, timeout=5)` - Simple boolean validation
@@ -868,6 +870,7 @@ for handler in get_all_handlers():
 ```
 
 **Handlers:**
+
 - **RTSPHandler**: 3 ports, 34 stream paths, rtsp:// protocol
 - **RTMPHandler**: 2 ports, 15 stream paths, rtmp:// protocol
 - **HTTPHandler**: 7 ports, 38 stream paths, http:// or https:// (auto-selected)
@@ -875,6 +878,7 @@ for handler in get_all_handlers():
 - **ONVIFHandler**: 3 ports, 7 ONVIF paths, http:// or https://
 
 **Features:**
+
 - 98 total stream paths across 5 protocols
 - 423 total URL combinations (ports × paths)
 - Protocol-to-port mapping (PROTOCOL_PORT_MAP)
@@ -919,6 +923,7 @@ for stream in result['streams_found']:
 ```
 
 **Features:**
+
 - Multi-threaded architecture (max 30 concurrent threads)
 - Batch threading pattern matching CamXploit.py (lines 1721-1784)
 - Protocol-aware path selection (RTSP for port 554, HTTP for port 80, etc.)
@@ -930,6 +935,7 @@ for stream in result['streams_found']:
 - 100% feature parity with CamXploit.py detect_live_streams() (lines 1562-1799)
 
 **Methods:**
+
 - `discover_streams(ip, open_ports, progress_callback=None)` - Main discovery method
 - `scan_vulnerabilities(ip, open_ports, **kwargs)` - Async interface for plugin framework
 - `get_metadata()` - Return plugin metadata
