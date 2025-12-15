@@ -1,0 +1,74 @@
+version: "3.8"
+
+# GRIDLAND v3.0 Test Environment
+# Provides vulnerable camera simulators for exploit testing
+
+services:
+  # Simulated Hikvision vulnerabilities
+  hikvision-sim:
+    image: python:3.11-slim
+    container_name: gridland-hikvision-sim
+    ports:
+      - "8081:80"
+      - "8554:554"
+    volumes:
+      - ./docker/hikvision_sim:/app
+    command: python /app/server.py
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/ISAPI/System/deviceInfo"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - gridland-test
+
+  # Simulated Dahua vulnerabilities
+  dahua-sim:
+    image: python:3.11-slim
+    container_name: gridland-dahua-sim
+    ports:
+      - "8082:80"
+      - "8555:554"
+    volumes:
+      - ./docker/dahua_sim:/app
+    command: python /app/server.py
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/cgi-bin/magicBox.cgi?action=getSystemInfo"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - gridland-test
+
+  # Simulated Axis vulnerabilities
+  axis-sim:
+    image: python:3.11-slim
+    container_name: gridland-axis-sim
+    ports:
+      - "8083:80"
+      - "8556:554"
+    volumes:
+      - ./docker/axis_sim:/app
+    command: python /app/server.py
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/axis-cgi/param.cgi?action=list&group=root.Brand"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - gridland-test
+
+  # Generic RTSP stream server for testing
+  rtsp-server:
+    image: aler9/rtsp-simple-server:latest
+    container_name: gridland-rtsp-server
+    ports:
+      - "8557:8554"
+    environment:
+      - RTSP_PROTOCOLS=tcp
+    networks:
+      - gridland-test
+
+networks:
+  gridland-test:
+    driver: bridge
