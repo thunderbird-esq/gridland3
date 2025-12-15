@@ -861,6 +861,7 @@ class MacUI {
             { label: 'Zoom', action: () => this.toggleWindowZoom('main') },
             { label: 'Minimize', action: () => this.minimizeWindow() },
             { separator: true },
+            { label: 'Global Map View', action: () => this.showMapWindow() },
             { label: 'Show Channel Guide', action: () => this.showChannelGuide() },
             { separator: true },
             { label: 'GRIDLAND', action: () => this.focusMainWindow() }
@@ -915,10 +916,269 @@ class MacUI {
         }
     }
     showHelp() { console.log('Show Help'); }
-    showShortcuts() {
-        alert('Keyboard Shortcuts:\n\n⌘N - New Scan\n⌘O - Open Target List\n⌘S - Save Results\n⌘T - Add Target\n⌘D - Focus Discovery\n⌘R - Start Analysis\n⌘. - Stop Analysis\n⌘, - Preferences\n⌘Q - Quit');
+
+    // ==========================================================================
+    // 3D Map Window
+    // ==========================================================================
+
+    async showMapWindow() {
+        const mapWindow = document.getElementById('mapWindow');
+        if (!mapWindow) return;
+
+        // Show the window
+        mapWindow.style.display = 'block';
+
+        // Initialize map if not already done
+        if (window.gridlandMap && !window.gridlandMap.initialized) {
+            await window.gridlandMap.initialize();
+            this.bindMapWindowEvents();
+
+            // Add any existing targets to map
+            this.addTargetsToMap();
+        }
     }
-    
+
+    hideMapWindow() {
+        const mapWindow = document.getElementById('mapWindow');
+        if (mapWindow) {
+            mapWindow.style.display = 'none';
+        }
+    }
+
+    bindMapWindowEvents() {
+        // Map window close button
+        const mapCloseBox = document.getElementById('mapCloseBox');
+        if (mapCloseBox) {
+            mapCloseBox.addEventListener('click', () => this.hideMapWindow());
+        }
+
+        // Map window zoom button
+        const mapZoomBox = document.getElementById('mapZoomBox');
+        if (mapZoomBox) {
+            mapZoomBox.addEventListener('click', () => this.toggleMapWindowZoom());
+        }
+
+        // Map controls
+        const mapHomeBtn = document.getElementById('mapHomeBtn');
+        if (mapHomeBtn) {
+            mapHomeBtn.addEventListener('click', () => {
+                if (window.gridlandMap) {
+                    window.gridlandMap.resetView();
+                }
+            });
+        }
+
+        const mapLayersBtn = document.getElementById('mapLayersBtn');
+        if (mapLayersBtn) {
+            mapLayersBtn.addEventListener('click', () => {
+                if (window.gridlandMap) {
+                    window.gridlandMap.zoomToAllCameras();
+                }
+            });
+        }
+
+        const map3DTilesBtn = document.getElementById('map3DTilesBtn');
+        if (map3DTilesBtn) {
+            map3DTilesBtn.addEventListener('click', () => {
+                if (window.gridlandMap) {
+                    window.gridlandMap.toggle3DTiles();
+                }
+            });
+        }
+
+        // Map search
+        const mapSearchBtn = document.getElementById('mapSearchBtn');
+        const mapSearchInput = document.getElementById('mapSearchInput');
+        if (mapSearchBtn && mapSearchInput) {
+            mapSearchBtn.addEventListener('click', () => {
+                if (window.gridlandMap) {
+                    window.gridlandMap.searchLocation(mapSearchInput.value);
+                }
+            });
+            mapSearchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && window.gridlandMap) {
+                    window.gridlandMap.searchLocation(mapSearchInput.value);
+                }
+            });
+        }
+
+        // Camera info overlay close
+        const cameraInfoClose = document.getElementById('cameraInfoClose');
+        if (cameraInfoClose) {
+            cameraInfoClose.addEventListener('click', () => {
+                if (window.gridlandMap) {
+                    window.gridlandMap.hideCameraInfo();
+                }
+            });
+        }
+
+        // Camera info actions
+        const cameraInfoViewStream = document.getElementById('cameraInfoViewStream');
+        if (cameraInfoViewStream) {
+            cameraInfoViewStream.addEventListener('click', () => {
+                this.viewSelectedCameraStream();
+            });
+        }
+
+        const cameraInfoAnalyze = document.getElementById('cameraInfoAnalyze');
+        if (cameraInfoAnalyze) {
+            cameraInfoAnalyze.addEventListener('click', () => {
+                this.analyzeSelectedCamera();
+            });
+        }
+
+        const cameraInfoOSINT = document.getElementById('cameraInfoOSINT');
+        if (cameraInfoOSINT) {
+            cameraInfoOSINT.addEventListener('click', () => {
+                this.showSelectedCameraOSINT();
+            });
+        }
+
+        // PIP controls
+        const pipClose = document.getElementById('pipClose');
+        if (pipClose) {
+            pipClose.addEventListener('click', () => {
+                if (window.gridlandMap) {
+                    window.gridlandMap.hideStreamPIP();
+                }
+            });
+        }
+
+        const pipExpand = document.getElementById('pipExpand');
+        if (pipExpand) {
+            pipExpand.addEventListener('click', () => {
+                this.expandPIPToMain();
+            });
+        }
+    }
+
+    toggleMapWindowZoom() {
+        const mapWindow = document.getElementById('mapWindow');
+        if (!mapWindow) return;
+
+        if (mapWindow.classList.contains('zoomed')) {
+            mapWindow.classList.remove('zoomed');
+            mapWindow.style.width = '900px';
+            mapWindow.style.height = '650px';
+            mapWindow.style.left = '50px';
+            mapWindow.style.top = '50px';
+        } else {
+            mapWindow.classList.add('zoomed');
+            mapWindow.style.width = `${window.innerWidth - 20}px`;
+            mapWindow.style.height = `${window.innerHeight - 40}px`;
+            mapWindow.style.left = '10px';
+            mapWindow.style.top = '30px';
+        }
+
+        // Trigger Cesium resize
+        if (window.gridlandMap && window.gridlandMap.viewer) {
+            setTimeout(() => {
+                window.gridlandMap.viewer.resize();
+            }, 100);
+        }
+    }
+
+    async addTargetsToMap() {
+        if (!window.gridlandMap || !window.gridlandApp) return;
+
+        const targets = window.gridlandApp.getTargets ? window.gridlandApp.getTargets() : [];
+
+        if (targets.length > 0) {
+            await window.gridlandMap.addCamerasFromTargets(targets);
+        }
+    }
+
+    async addTargetToMap(target) {
+        if (!window.gridlandMap || !window.gridlandMap.initialized) return;
+
+        try {
+            // Get geolocation
+            const geoInfo = await window.gridlandAPI.getGeoInfo(target.ip);
+            if (geoInfo && geoInfo.loc) {
+                const [lat, lon] = geoInfo.loc.split(',').map(Number);
+                await window.gridlandMap.addCameraMarker({
+                    ip: target.ip,
+                    lat,
+                    lon,
+                    city: geoInfo.city,
+                    country: geoInfo.country,
+                    org: geoInfo.org,
+                    port: target.port,
+                    ports: target.ports || [target.port]
+                });
+            }
+        } catch (error) {
+            console.error('Failed to add target to map:', error);
+        }
+    }
+
+    flyToTargetOnMap(ip) {
+        if (window.gridlandMap && window.gridlandMap.initialized) {
+            window.gridlandMap.flyToCamera(ip);
+        }
+    }
+
+    viewSelectedCameraStream() {
+        if (!window.gridlandMap || !window.gridlandMap.selectedCamera) return;
+
+        const camera = window.gridlandMap.selectedCamera;
+
+        // If camera has streams, show first one
+        if (camera.streams && camera.streams.length > 0) {
+            const streamUrl = window.gridlandAPI.getStreamUrl(camera.streams[0].url);
+            window.gridlandMap.showStreamPIP(streamUrl, camera.ip);
+        } else {
+            // Try to construct a default RTSP URL
+            const rtspUrl = `rtsp://${camera.ip}:554/live`;
+            const streamUrl = window.gridlandAPI.getStreamUrl(rtspUrl);
+            window.gridlandMap.showStreamPIP(streamUrl, camera.ip);
+        }
+    }
+
+    analyzeSelectedCamera() {
+        if (!window.gridlandMap || !window.gridlandMap.selectedCamera) return;
+
+        const camera = window.gridlandMap.selectedCamera;
+
+        // Add to analysis queue and start
+        if (window.gridlandApp) {
+            window.gridlandApp.addTarget({
+                ip: camera.ip,
+                port: camera.port || 80,
+                source: 'map_selection'
+            });
+        }
+    }
+
+    showSelectedCameraOSINT() {
+        if (!window.gridlandMap || !window.gridlandMap.selectedCamera) return;
+
+        const camera = window.gridlandMap.selectedCamera;
+
+        // Open OSINT URLs in new tabs
+        window.open(`https://www.shodan.io/host/${camera.ip}`, '_blank');
+    }
+
+    expandPIPToMain() {
+        // Move stream to main stream panel
+        const pipVideo = document.getElementById('pipVideo');
+        const mainVideo = document.getElementById('streamVideo');
+
+        if (pipVideo && mainVideo && pipVideo.src) {
+            mainVideo.src = pipVideo.src;
+            mainVideo.style.display = 'block';
+            mainVideo.play().catch(console.error);
+
+            // Hide PIP
+            if (window.gridlandMap) {
+                window.gridlandMap.hideStreamPIP();
+            }
+
+            // Switch to main window
+            this.focusMainWindow();
+        }
+    }
+
     // Clock
     startClock() {
         const updateClock = () => {

@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GRIDLAND v3.0 - Security Reconnaissance</title>
+
+    <!-- Cesium.js for 3D Globe -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.113/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.113/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+
+    <!-- Application Styles -->
     <link rel="stylesheet" href="css/system.css">
     <link rel="stylesheet" href="css/gridland.css">
     <link rel="preload" href="sounds/mac-startup.wav" as="audio">
@@ -120,6 +126,86 @@
 
         <!-- Resize Handle -->
         <div class="size-box" id="sizeBox"></div>
+    </div>
+
+    <!-- 3D Globe Map Window -->
+    <div class="mac-window map-window" id="mapWindow" style="display: none;">
+        <div class="title-bar">
+            <div class="close-box" id="mapCloseBox"></div>
+            <div class="title">GRIDLAND Global View</div>
+            <div class="zoom-box" id="mapZoomBox"></div>
+        </div>
+        <div class="window-content map-content">
+            <!-- Map Controls Bar -->
+            <div class="map-controls">
+                <button class="mac-button small" id="mapHomeBtn" title="Reset View">🌍 Home</button>
+                <button class="mac-button small" id="mapLayersBtn" title="Toggle Layers">📍 Cameras</button>
+                <button class="mac-button small" id="map3DTilesBtn" title="Toggle 3D Buildings">🏢 3D Tiles</button>
+                <div class="map-search">
+                    <input type="text" id="mapSearchInput" class="mac-input" placeholder="Search location...">
+                    <button class="mac-button small" id="mapSearchBtn">Go</button>
+                </div>
+                <div class="map-coords" id="mapCoords">Lat: --, Lon: --</div>
+            </div>
+            <!-- Cesium Globe Container -->
+            <div id="cesiumContainer" class="cesium-container"></div>
+            <!-- Camera Info Overlay -->
+            <div class="camera-info-overlay" id="cameraInfoOverlay" style="display: none;">
+                <div class="camera-info-header">
+                    <span class="camera-info-title" id="cameraInfoTitle">Camera Info</span>
+                    <button class="camera-info-close" id="cameraInfoClose">×</button>
+                </div>
+                <div class="camera-info-content">
+                    <div class="camera-info-row">
+                        <span class="label">IP Address:</span>
+                        <span class="value" id="cameraInfoIP">--</span>
+                    </div>
+                    <div class="camera-info-row">
+                        <span class="label">Location:</span>
+                        <span class="value" id="cameraInfoLocation">--</span>
+                    </div>
+                    <div class="camera-info-row">
+                        <span class="label">Organization:</span>
+                        <span class="value" id="cameraInfoOrg">--</span>
+                    </div>
+                    <div class="camera-info-row">
+                        <span class="label">Coordinates:</span>
+                        <span class="value" id="cameraInfoCoords">--</span>
+                    </div>
+                    <div class="camera-info-row">
+                        <span class="label">Open Ports:</span>
+                        <span class="value" id="cameraInfoPorts">--</span>
+                    </div>
+                    <div class="camera-info-actions">
+                        <button class="mac-button small" id="cameraInfoViewStream">View Stream</button>
+                        <button class="mac-button small" id="cameraInfoAnalyze">Analyze</button>
+                        <button class="mac-button small" id="cameraInfoOSINT">OSINT</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Stream Picture-in-Picture -->
+            <div class="stream-pip" id="streamPIP" style="display: none;">
+                <div class="pip-header">
+                    <span class="pip-title" id="pipTitle">Live Stream</span>
+                    <div class="pip-controls">
+                        <button class="pip-btn" id="pipExpand" title="Expand">⤢</button>
+                        <button class="pip-btn" id="pipClose" title="Close">×</button>
+                    </div>
+                </div>
+                <div class="pip-content">
+                    <video id="pipVideo" autoplay muted></video>
+                    <div class="pip-placeholder" id="pipPlaceholder">No Stream</div>
+                </div>
+            </div>
+        </div>
+        <div class="status-bar">
+            <div class="status-item" id="mapStatus">Ready</div>
+            <div class="status-separator"></div>
+            <div class="status-item" id="mapCameraCount">Cameras: 0</div>
+            <div class="status-separator"></div>
+            <div class="status-item" id="mapTileStatus">3D Tiles: Off</div>
+        </div>
+        <div class="size-box" id="mapSizeBox"></div>
     </div>
 
     <!-- Modal Dialogs -->
@@ -337,6 +423,7 @@
     <!-- Scripts -->
     <script src="js/sounds.js"></script>
     <script src="js/gridland-api.js"></script>
+    <script src="js/cesium-map.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/app.js"></script>
 </body>
