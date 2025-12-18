@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>GRIDLAND API Test Suite</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a2e;
+            color: #0f0;
+            padding: 20px;
+        }
+
+        .test-suite {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .test-result {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+
+        .pass {
+            background: #0a3d0a;
+            border-left: 4px solid #0f0;
+        }
+
+        .fail {
+            background: #3d0a0a;
+            border-left: 4px solid #f00;
+        }
+
+        .running {
+            background: #3d3d0a;
+            border-left: 4px solid #ff0;
+        }
+
+        h1,
+        h2 {
+            color: #0ff;
+        }
+
+        button {
+            background: #0a3d0a;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background: #0f0;
+            color: #000;
+        }
+
+        pre {
+            background: #000;
+            padding: 10px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+
+        #progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        #progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0f0, #0ff);
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="test-suite">
+        <h1>🔍 GRIDLAND API Test Suite</h1>
+        <p>Frontend JavaScript integration tests for Phase 4</p>
+
+        <div>
+            <button onclick="runAllTests()">▶️ Run All Tests</button>
+            <button onclick="testOsintStream()">🌐 Test OSINT Stream</button>
+            <button onclick="testAnalyzeStream()">📡 Test Analyze Stream</button>
+            <button onclick="clearResults()">🗑️ Clear</button>
+        </div>
+
+        <div id="progress-bar">
+            <div id="progress-fill"></div>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script src="js/gridland-api.js"></script>
+    <script>
+        const resultsDiv = document.getElementById('results');
+        const progressFill = document.getElementById('progress-fill');
+
+        function log(message, status = 'running') {
+            const div = document.createElement('div');
+            div.className = `test-result ${status}`;
+            div.innerHTML = message;
+            resultsDiv.appendChild(div);
+            return div;
+        }
+
+        function updateProgress(percent) {
+            progressFill.style.width = `${percent}%`;
+        }
+
+        function clearResults() {
+            resultsDiv.innerHTML = '';
+            updateProgress(0);
+        }
+
+        // Test 1: API Instance Exists
+        async function testApiInstance() {
+            const result = log('Test 1: GridlandAPI instance exists...');
+
+            if (window.gridlandAPI && window.gridlandAPI instanceof GridlandAPI) {
+                result.className = 'test-result pass';
+                result.innerHTML = '✅ Test 1: GridlandAPI instance exists';
+                return true;
+            } else {
+                result.className = 'test-result fail';
+                result.innerHTML = '❌ Test 1: GridlandAPI instance missing';
+                return false;
+            }
+        }
+
+        // Test 2: SSE Methods Exist
+        async function testSseMethods() {
+            const result = log('Test 2: SSE streaming methods exist...');
+
+            const api = window.gridlandAPI;
+            const methods = [
+                'startOsintStream',
+                'startAnalyzeStream',
+                'stopStream',
+                'getActiveStreamCount'
+            ];
+
+            const missing = methods.filter(m => typeof api[m] !== 'function');
+
+            if (missing.length === 0) {
+                result.className = 'test-result pass';
+                result.innerHTML = '✅ Test 2: All SSE methods present: ' + methods.join(', ');
+                return true;
+            } else {
+                result.className = 'test-result fail';
+                result.innerHTML = '❌ Test 2: Missing methods: ' + missing.join(', ');
+                return false;
+            }
+        }
+
+        // Test 3: CLI Methods Exist
+        async function testCliMethods() {
+            const result = log('Test 3: CLI API methods exist...');
+
+            const api = window.gridlandAPI;
+            const methods = [
+                'invokeCLI',
+                'getAvailableCommands',
+                'osintCommand'
+            ];
+
+            const missing = methods.filter(m => typeof api[m] !== 'function');
+
+            if (missing.length === 0) {
+                result.className = 'test-result pass';
+                result.innerHTML = '✅ Test 3: All CLI methods present: ' + methods.join(', ');
+                return true;
+            } else {
+                result.className = 'test-result fail';
+                result.innerHTML = '❌ Test 3: Missing methods: ' + missing.join(', ');
+                return false;
+            }
+        }
+
+        // Test 4: Get Available Commands
+        async function testGetAvailableCommands() {
+            const result = log('Test 4: Get available commands...');
+
+            try {
+                const commands = await window.gridlandAPI.getAvailableCommands();
+
+                if (commands.commands && Object.keys(commands.commands).length >= 4) {
+                    result.className = 'test-result pass';
+                    result.innerHTML = '✅ Test 4: Available commands: ' +
+                        Object.keys(commands.commands).join(', ');
+                    return true;
+                } else {
+                    throw new Error('Missing commands');
+                }
+            } catch (error) {
+                result.className = 'test-result fail';
+                result.innerHTML = '❌ Test 4: ' + error.message;
+                return false;
+            }
+        }
+
+        // Test 5: OSINT Command
+        async function testOsintCommand() {
+            const result = log('Test 5: OSINT dorks command...');
+
+            try {
+                const data = await window.gridlandAPI.osintCommand('dorks', '8.8.8.8');
+
+                if (data.dorks && data.count > 0) {
+                    result.className = 'test-result pass';
+                    result.innerHTML = '✅ Test 5: OSINT dorks returned ' + data.count + ' dorks';
+                    return true;
+                } else {
+                    throw new Error('No dorks returned');
+                }
+            } catch (error) {
+                result.className = 'test-result fail';
+                result.innerHTML = '❌ Test 5: ' + error.message;
+                return false;
+            }
+        }
+
+        // Test 6: Health Check
+        async function testHealthCheck() {
+            const result = log('Test 6: Server health check...');
+
+            try {
+                const health = await window.gridlandAPI.checkHealth();
+
+                if (health.status === 'healthy' || health.status === 'degraded') {
+                    result.className = 'test-result pass';
+                    result.innerHTML = '✅ Test 6: Server status: ' + health.status;
+                    return true;
+                } else {
+                    throw new Error('Unexpected status: ' + health.status);
+                }
+            } catch (error) {
+                result.className = 'test-result fail';
+                result.innerHTML = '❌ Test 6: ' + error.message;
+                return false;
+            }
+        }
+
+        // Full OSINT Stream Test
+        async function testOsintStream() {
+            clearResults();
+            log('<h2>OSINT Stream Test</h2>');
+            const result = log('Starting OSINT stream for 8.8.8.8...');
+
+            let phaseCount = 0;
+
+            const streamId = window.gridlandAPI.startOsintStream('8.8.8.8', {
+                onPhase: (data) => {
+                    phaseCount++;
+                    log(`Phase ${phaseCount}: ${data.phase} - ${data.status}`, 'running');
+                    updateProgress(data.progress || 0);
+                },
+                onProgress: (progress, phase, status) => {
+                    // Progress logging already handled in onPhase
+                },
+                onComplete: (osintData) => {
+                    result.className = 'test-result pass';
+                    result.innerHTML = '✅ OSINT Stream Complete!';
+                    log(`Duration: ${osintData.duration}ms, Phases: ${Object.keys(osintData.phases).length}`, 'pass');
+                    log('<pre>' + JSON.stringify(osintData.report, null, 2).substring(0, 1000) + '...</pre>', 'pass');
+                },
+                onError: (error) => {
+                    result.className = 'test-result fail';
+                    result.innerHTML = '❌ OSINT Stream Error: ' + error.message;
+                }
+            });
+
+            log('Stream ID: ' + streamId);
+        }
+
+        // Full Analyze Stream Test
+        async function testAnalyzeStream() {
+            clearResults();
+            log('<h2>Analyze Stream Test</h2>');
+            const result = log('Starting analyze stream for 127.0.0.1 (localhost)...');
+
+            let phaseCount = 0;
+
+            const streamId = window.gridlandAPI.startAnalyzeStream('127.0.0.1', {
+                onPhase: (data) => {
+                    phaseCount++;
+                    log(`Phase ${phaseCount}: ${data.phase} - ${data.status}`, 'running');
+                    updateProgress(data.progress || 0);
+                },
+                onComplete: (analyzeData) => {
+                    result.className = 'test-result pass';
+                    result.innerHTML = '✅ Analyze Stream Complete!';
+                    log(`Duration: ${analyzeData.duration}ms`, 'pass');
+                    log(`Open Ports: ${analyzeData.openPorts.join(', ') || 'none'}`, 'pass');
+                    log(`Camera: ${JSON.stringify(analyzeData.camera)}`, 'pass');
+                },
+                onError: (error) => {
+                    result.className = 'test-result fail';
+                    result.innerHTML = '❌ Analyze Stream Error: ' + error.message;
+                }
+            });
+
+            log('Stream ID: ' + streamId);
+        }
+
+        // Run all tests
+        async function runAllTests() {
+            clearResults();
+            log('<h2>Running All Tests</h2>');
+
+            const tests = [
+                testApiInstance,
+                testSseMethods,
+                testCliMethods,
+                testGetAvailableCommands,
+                testOsintCommand,
+                testHealthCheck
+            ];
+
+            let passed = 0;
+            let failed = 0;
+
+            for (let i = 0; i < tests.length; i++) {
+                updateProgress((i / tests.length) * 100);
+                try {
+                    const result = await tests[i]();
+                    if (result) passed++;
+                    else failed++;
+                } catch (e) {
+                    failed++;
+                    log('Test error: ' + e.message, 'fail');
+                }
+                await new Promise(r => setTimeout(r, 100));
+            }
+
+            updateProgress(100);
+            log(`<h2>Results: ${passed}/${tests.length} passed</h2>`, passed === tests.length ? 'pass' : 'fail');
+        }
+
+        // Run tests on load
+        document.addEventListener('DOMContentLoaded', runAllTests);
+    </script>
+</body>
+
+</html>

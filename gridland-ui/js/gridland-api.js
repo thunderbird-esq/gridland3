@@ -508,9 +508,13 @@ class GridlandAPI {
     // ==========================================================================
 
     /**
-     * Invoke GRIDLAND CLI commands.
+     * Invoke GRIDLAND CLI commands with subcommand support.
+     * @param {string} command - Main command (discover, analyze, osint, stream)
+     * @param {string} subcommand - Optional subcommand
+     * @param {Array} args - Command arguments
+     * @returns {Promise<object>} - Command output
      */
-    async invokeCLI(command, args = []) {
+    async invokeCLI(command, subcommand = null, args = []) {
         try {
             const response = await fetch(`${this.baseUrl}/api/cli`, {
                 method: 'POST',
@@ -519,6 +523,7 @@ class GridlandAPI {
                 },
                 body: JSON.stringify({
                     command: command,
+                    subcommand: subcommand,
                     args: args
                 })
             });
@@ -532,6 +537,260 @@ class GridlandAPI {
             console.error('CLI invocation failed:', error);
             throw error;
         }
+    }
+
+    /**
+     * Get available CLI commands.
+     * @returns {Promise<object>} - Available commands with descriptions
+     */
+    async getAvailableCommands() {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/cli/available`);
+            if (!response.ok) {
+                throw new Error(`Failed to get commands: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to get available commands:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Direct OSINT CLI command.
+     * @param {string} subcommand - One of: dorks, geolocate, search-urls, full
+     * @param {string} ip - Target IP address
+     * @returns {Promise<object>} - OSINT data
+     */
+    async osintCommand(subcommand, ip) {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/cli/osint/${subcommand}/${ip}`);
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `Command failed: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(`OSINT ${subcommand} failed:`, error);
+            throw error;
+        }
+    }
+
+    // ==========================================================================
+    // SSE Streaming API
+    // ==========================================================================
+
+    /**
+     * Start real-time OSINT gathering stream.
+     * 
+     * @param {string} ip - Target IP address
+     * @param {object} callbacks - Callback functions
+     * @param {function} callbacks.onPhase - Called for each phase update
+     * @param {function} callbacks.onProgress - Called with progress percentage
+     * @param {function} callbacks.onComplete - Called when complete with full report
+     * @param {function} callbacks.onError - Called on error
+     * @returns {string} - Stream ID for cancellation
+     */
+    startOsintStream(ip, callbacks = {}) {
+        const streamId = `osint:${ip}:${this.getRequestId()}`;
+        
+        try {
+            // Close existing stream for this IP
+            this.stopStream(`osint:${ip}`);
+            
+            const eventSource = new EventSource(`${this.baseUrl}/api/osint/stream/${encodeURIComponent(ip)}`);
+            this.eventSources.set(streamId, eventSource);
+            
+            let osintData = {
+                ip: ip,
+                phases: {},
+                progress: 0,
+                startTime: Date.now()
+            };
+            
+            eventSource.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    // Update phase data
+                    osintData.phases[data.phase] = data;
+                    osintData.progress = data.progress || osintData.progress;
+                    
+                    // Call phase callback
+                    if (callbacks.onPhase) {
+                        callbacks.onPhase(data);
+                    }
+                    
+                    // Call progress callback
+                    if (callbacks.onProgress) {
+                        callbacks.onProgress(data.progress, data.phase, data.status);
+                    }
+                    
+                    // Check for completion
+                    if (data.phase === 'complete' && data.status === 'done') {
+                        osintData.endTime = Date.now();
+                        osintData.duration = osintData.endTime - osintData.startTime;
+                        osintData.report = data.data;
+                        
+                        if (callbacks.onComplete) {
+                            callbacks.onComplete(osintData);
+                        }
+                        
+                        eventSource.close();
+                        this.eventSources.delete(streamId);
+                    }
+                    
+                } catch (parseError) {
+                    console.error('Failed to parse SSE event:', parseError);
+                }
+            };
+            
+            eventSource.onerror = (error) => {
+                console.error('OSINT stream error:', error);
+                eventSource.close();
+                this.eventSources.delete(streamId);
+                
+                if (callbacks.onError) {
+                    callbacks.onError(new Error('OSINT stream connection lost'));
+                }
+            };
+            
+            return streamId;
+            
+        } catch (error) {
+            console.error('Failed to start OSINT stream:', error);
+            if (callbacks.onError) {
+                callbacks.onError(error);
+            }
+            return null;
+        }
+    }
+
+    /**
+     * Start real-time network analysis stream.
+     * 
+     * @param {string} ip - Target IP address
+     * @param {object} callbacks - Callback functions
+     * @param {function} callbacks.onPhase - Called for each phase update
+     * @param {function} callbacks.onProgress - Called with progress percentage
+     * @param {function} callbacks.onComplete - Called when complete with full report
+     * @param {function} callbacks.onError - Called on error
+     * @returns {string} - Stream ID for cancellation
+     */
+    startAnalyzeStream(ip, callbacks = {}) {
+        const streamId = `analyze:${ip}:${this.getRequestId()}`;
+        
+        try {
+            // Close existing stream for this IP
+            this.stopStream(`analyze:${ip}`);
+            
+            const eventSource = new EventSource(`${this.baseUrl}/api/analyze/stream/${encodeURIComponent(ip)}`);
+            this.eventSources.set(streamId, eventSource);
+            
+            let analyzeData = {
+                ip: ip,
+                phases: {},
+                progress: 0,
+                openPorts: [],
+                services: {},
+                camera: null,
+                startTime: Date.now()
+            };
+            
+            eventSource.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    // Update phase data
+                    analyzeData.phases[data.phase] = data;
+                    analyzeData.progress = data.progress || analyzeData.progress;
+                    
+                    // Extract specific data from phases
+                    if (data.phase === 'port_scan' && data.status === 'complete') {
+                        analyzeData.openPorts = data.data?.open_ports || [];
+                    }
+                    if (data.phase === 'service_detection' && data.status === 'complete') {
+                        analyzeData.services = data.data?.services || {};
+                    }
+                    if (data.phase === 'camera_detection' && data.status === 'complete') {
+                        analyzeData.camera = data.data;
+                    }
+                    
+                    // Call phase callback
+                    if (callbacks.onPhase) {
+                        callbacks.onPhase(data);
+                    }
+                    
+                    // Call progress callback
+                    if (callbacks.onProgress) {
+                        callbacks.onProgress(data.progress, data.phase, data.status);
+                    }
+                    
+                    // Check for completion
+                    if (data.phase === 'complete' && data.status === 'done') {
+                        analyzeData.endTime = Date.now();
+                        analyzeData.duration = analyzeData.endTime - analyzeData.startTime;
+                        analyzeData.report = data.data;
+                        
+                        if (callbacks.onComplete) {
+                            callbacks.onComplete(analyzeData);
+                        }
+                        
+                        eventSource.close();
+                        this.eventSources.delete(streamId);
+                    }
+                    
+                } catch (parseError) {
+                    console.error('Failed to parse SSE event:', parseError);
+                }
+            };
+            
+            eventSource.onerror = (error) => {
+                console.error('Analyze stream error:', error);
+                eventSource.close();
+                this.eventSources.delete(streamId);
+                
+                if (callbacks.onError) {
+                    callbacks.onError(new Error('Analysis stream connection lost'));
+                }
+            };
+            
+            return streamId;
+            
+        } catch (error) {
+            console.error('Failed to start analysis stream:', error);
+            if (callbacks.onError) {
+                callbacks.onError(error);
+            }
+            return null;
+        }
+    }
+
+    /**
+     * Stop an active SSE stream.
+     * @param {string} streamIdPrefix - Stream ID or prefix to match
+     * @returns {number} - Number of streams stopped
+     */
+    stopStream(streamIdPrefix) {
+        let stopped = 0;
+        
+        for (const [key, eventSource] of this.eventSources.entries()) {
+            if (key.startsWith(streamIdPrefix)) {
+                eventSource.close();
+                this.eventSources.delete(key);
+                stopped++;
+            }
+        }
+        
+        return stopped;
+    }
+
+    /**
+     * Get count of active streams.
+     * @returns {number} - Number of active SSE streams
+     */
+    getActiveStreamCount() {
+        return this.eventSources.size;
     }
 
     // ==========================================================================
