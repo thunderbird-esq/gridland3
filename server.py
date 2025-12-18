@@ -436,6 +436,14 @@ def get_plugins():
 # CLI API
 # =============================================================================
 
+# Map CLI commands to their module paths
+CLI_MODULES = {
+    "discover": "gridland.cli.discover_cli",
+    "analyze": "gridland.cli.analyze_cli",
+    "osint": "gridland.cli.osint_cli",
+    "stream": "gridland.cli.stream_cli",
+}
+
 
 @app.route("/api/cli", methods=["POST"])
 def invoke_cli():
@@ -443,30 +451,39 @@ def invoke_cli():
     Invoke GRIDLAND CLI commands programmatically.
 
     Request Body:
-        command (str): CLI command to run ("discover" or "analyze")
+        command (str): CLI command to run ("discover", "analyze", "osint", "stream")
+        subcommand (str, optional): Subcommand (e.g., "dorks", "geolocate")
         args (list): Command arguments
 
     Returns:
-        Command output.
+        Command output with stdout, stderr, and return code.
     """
     data = request.get_json(silent=True) or {}
     command = data.get("command")
+    subcommand = data.get("subcommand")
     args = data.get("args", [])
 
     if not command:
         return jsonify({"error": "Command is required"}), 400
 
-    if command not in ["discover", "analyze"]:
-        return jsonify({"error": f"Unknown command: {command}"}), 400
+    if command not in CLI_MODULES:
+        return jsonify({
+            "error": f"Unknown command: {command}",
+            "available_commands": list(CLI_MODULES.keys())
+        }), 400
 
     try:
+        cli_module = CLI_MODULES[command]
+        
         # Build CLI command
-        if command == "discover":
-            cli_module = "gridland.cli.discover_cli"
-        else:
-            cli_module = "gridland.cli.analyze_cli"
-
-        cmd = [sys.executable, "-m", cli_module] + [str(a) for a in args]
+        cmd = [sys.executable, "-m", cli_module]
+        
+        # Add subcommand if provided
+        if subcommand:
+            cmd.append(subcommand)
+        
+        # Add arguments
+        cmd.extend([str(a) for a in args])
 
         result = subprocess.run(
             cmd,
@@ -478,6 +495,8 @@ def invoke_cli():
 
         return jsonify({
             "success": result.returncode == 0,
+            "command": command,
+            "subcommand": subcommand,
             "stdout": result.stdout,
             "stderr": result.stderr,
             "return_code": result.returncode,
@@ -489,7 +508,123 @@ def invoke_cli():
         return jsonify({"error": str(e)}), 500
 
 
-# =============================================================================
+@app.route("/api/cli/osint/<subcommand>/<ip>", methods=["GET"])
+def invoke_osint_cli(subcommand, ip):
+    """
+    Direct OSINT CLI endpoint for quick access.
+
+    Args:
+        subcommand: One of "dorks", "geolocate", "search-urls", "full"
+        ip: Target IP address
+
+    Returns:
+        OSINT command output as JSON.
+    """
+    # Validate IP
+    try:
+        ipaddress.ip_address(ip)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid IP address"}), 400
+
+    # Validate subcommand
+    valid_subcommands = ["dorks", "geolocate", "search-urls", "full"]
+    if subcommand not in valid_subcommands:
+        return jsonify({
+            "error": f"Unknown subcommand: {subcommand}",
+            "valid_subcommands": valid_subcommands
+        }), 400
+
+    # Use native functions instead of subprocess for better performance
+    try:
+        from gridland.core.osint import (
+            get_google_dork_urls,
+            get_geolocation,
+            get_search_urls,
+            osint_report,
+        )
+
+        if subcommand == "dorks":
+            dorks = get_google_dork_urls(ip)
+            return jsonify({
+                "ip": ip,
+                "command": "osint dorks",
+                "dorks": [{"query": q, "url": u} for q, u in dorks.items()],
+                "count": len(dorks),
+            })
+
+        elif subcommand == "geolocate":
+            geo = get_geolocation(ip)
+            if geo is None:
+                return jsonify({
+                    "ip": ip,
+                    "command": "osint geolocate",
+                    "error": "Geolocation lookup failed",
+                }), 404
+            return jsonify({
+                "ip": ip,
+                "command": "osint geolocate",
+                **geo.to_dict(),
+            })
+
+        elif subcommand == "search-urls":
+            urls = get_search_urls(ip)
+            return jsonify({
+                "ip": ip,
+                "command": "osint search-urls",
+                "urls": urls,
+                "count": len(urls),
+            })
+
+        elif subcommand == "full":
+            report = osint_report(ip)
+            return jsonify({
+                "command": "osint full",
+                **report,
+            })
+
+    except ImportError as e:
+        return jsonify({"error": f"OSINT module not available: {e}"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/cli/available", methods=["GET"])
+def get_available_commands():
+    """
+    Get list of available CLI commands and their subcommands.
+
+    Returns:
+        Available commands with descriptions.
+    """
+    return jsonify({
+        "commands": {
+            "discover": {
+                "description": "Discover camera targets using various sources",
+                "subcommands": ["shodan", "censys", "local", "file"],
+            },
+            "analyze": {
+                "description": "Analyze camera targets for vulnerabilities",
+                "subcommands": ["target", "file", "network"],
+            },
+            "osint": {
+                "description": "Open Source Intelligence gathering",
+                "subcommands": ["dorks", "geolocate", "search-urls", "full"],
+                "direct_endpoints": [
+                    "/api/cli/osint/dorks/<ip>",
+                    "/api/cli/osint/geolocate/<ip>",
+                    "/api/cli/osint/search-urls/<ip>",
+                    "/api/cli/osint/full/<ip>",
+                ],
+            },
+            "stream": {
+                "description": "Access and record video streams",
+                "subcommands": ["view", "record"],
+            },
+        },
+    })
+
+
+
 # OSINT API
 # =============================================================================
 
