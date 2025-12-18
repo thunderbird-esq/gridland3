@@ -1028,6 +1028,145 @@ def health_check():
 
 
 # =============================================================================
+# Map API - Tile Proxy and Camera Locations
+# =============================================================================
+
+# In-memory camera location store
+_camera_locations = {}
+_camera_lock = threading.Lock()
+
+
+@app.route("/api/map/tiles/<int:z>/<int:x>/<int:y>.png")
+def map_tiles(z, x, y):
+    """
+    Proxy map tiles from CartoDB Dark Matter.
+    
+    Provides locally-routed tile access for privacy.
+    """
+    # CartoDB Dark Matter tiles (dark theme matches our UI)
+    tile_url = f"https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png"
+    
+    try:
+        response = requests.get(tile_url, timeout=10, headers={
+            "User-Agent": "GRIDLAND/3.0"
+        })
+        
+        if response.status_code == 200:
+            return Response(
+                response.content,
+                mimetype="image/png",
+                headers={"Cache-Control": "public, max-age=86400"}
+            )
+        else:
+            return Response(status=response.status_code)
+            
+    except requests.RequestException as e:
+        return jsonify({"error": str(e)}), 502
+
+
+@app.route("/api/map/cameras", methods=["GET"])
+def get_camera_locations():
+    """
+    Get all tracked camera locations.
+    
+    Returns list of cameras with geolocation data.
+    """
+    with _camera_lock:
+        cameras = list(_camera_locations.values())
+    
+    return jsonify({
+        "cameras": cameras,
+        "count": len(cameras)
+    })
+
+
+@app.route("/api/map/cameras", methods=["POST"])
+def add_camera_location():
+    """
+    Add or update a camera location.
+    
+    Request Body:
+        ip (str): Camera IP address
+        lat (float): Latitude
+        lon (float): Longitude
+        city (str, optional): City name
+        country (str, optional): Country name
+        brand (str, optional): Camera brand
+    """
+    data = request.get_json()
+    ip = data.get("ip")
+    
+    if not ip:
+        return jsonify({"error": "IP required"}), 400
+    
+    camera = {
+        "ip": ip,
+        "lat": data.get("lat"),
+        "lon": data.get("lon"),
+        "city": data.get("city"),
+        "country": data.get("country"),
+        "brand": data.get("brand"),
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    with _camera_lock:
+        _camera_locations[ip] = camera
+    
+    return jsonify({"status": "added", "camera": camera})
+
+
+@app.route("/api/map/cameras/<ip>", methods=["DELETE"])
+def remove_camera_location(ip):
+    """Remove a camera from the map."""
+    with _camera_lock:
+        if ip in _camera_locations:
+            del _camera_locations[ip]
+            return jsonify({"status": "removed"})
+        else:
+            return jsonify({"error": "Camera not found"}), 404
+
+
+@app.route("/api/map/geo/<ip>")
+def get_and_add_camera_geo(ip):
+    """
+    Get geolocation for IP and add to camera map.
+    
+    Combines geolocation lookup with automatic map tracking.
+    """
+    try:
+        from gridland.core.osint import IPGeolocationService
+        
+        service = IPGeolocationService()
+        geo = service.get_location_sync(ip)
+        
+        if geo:
+            camera = {
+                "ip": ip,
+                "lat": geo.latitude,
+                "lon": geo.longitude,
+                "city": geo.city,
+                "country": geo.country,
+                "region": geo.region,
+                "org": geo.org,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            with _camera_lock:
+                _camera_locations[ip] = camera
+            
+            return jsonify({
+                "status": "located",
+                "camera": camera,
+                "map_url": f"https://www.google.com/maps?q={geo.latitude},{geo.longitude}"
+            })
+        else:
+            return jsonify({"error": "Geolocation failed"}), 404
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# =============================================================================
 # Error Handlers
 # =============================================================================
 

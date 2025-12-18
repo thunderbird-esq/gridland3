@@ -4,10 +4,6 @@ Credential Tester Plugin for GRIDLAND v3.0
 This plugin tests default credentials on IP camera authentication endpoints through
 multi-threaded brute force testing. Supports Basic, Digest, and Form-based authentication.
 
-⚠️ ETHICAL USE WARNING: This tool performs credential testing and must only be used on
-systems you own or have explicit authorization to test. Rate limiting and audit logging
-are provided to ensure responsible security research.
-
 100% feature parity with CamXploit.py test_default_passwords() (lines 1201-1283).
 """
 

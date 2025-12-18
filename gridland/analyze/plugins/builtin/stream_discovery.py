@@ -4,10 +4,6 @@ Stream Discovery Plugin for GRIDLAND v3.0
 This plugin performs multi-protocol stream enumeration on IP camera systems through
 comprehensive path testing. Supports RTSP, RTMP, HTTP/HTTPS, WebSocket, and WebRTC protocols.
 
-⚠️ ETHICAL USE WARNING: This tool performs stream discovery and must only be used on
-systems you own or have explicit authorization to test. Stream discovery should be
-conducted responsibly and in compliance with applicable laws.
-
 100% feature parity with CamXploit.py detect_live_streams() (lines 1562-1799).
 """
 
