@@ -503,7 +503,7 @@ def get_osint_urls(ip):
         ip: Target IP address
 
     Returns:
-        OSINT platform search URLs.
+        OSINT platform search URLs and Google dork queries.
     """
     try:
         ipaddress.ip_address(ip)
@@ -511,35 +511,35 @@ def get_osint_urls(ip):
         return jsonify({"error": "Invalid IP address"}), 400
 
     try:
-        from gridland.analyze.core.osint import OSINTURLGenerator
-        urls = OSINTURLGenerator.generate_search_urls(ip)
-        dorks = OSINTURLGenerator.generate_google_dorks(ip)
+        from gridland.core.osint import get_search_urls, get_google_dork_urls
+        
+        search_urls = get_search_urls(ip)
+        dork_urls = get_google_dork_urls(ip)
+        
         return jsonify({
-            "search_urls": urls,
-            "google_dorks": dorks,
+            "ip": ip,
+            "search_urls": search_urls,
+            "google_dorks": [
+                {"query": query, "url": url}
+                for query, url in dork_urls.items()
+            ],
         })
-    except ImportError:
-        # Fallback
-        return jsonify({
-            "search_urls": {
-                "shodan": f"https://www.shodan.io/host/{ip}",
-                "censys": f"https://search.censys.io/hosts/{ip}",
-                "zoomeye": f"https://www.zoomeye.org/searchResult?q={ip}",
-            },
-            "google_dorks": [],
-        })
+    except ImportError as e:
+        return jsonify({"error": f"OSINT module not available: {e}"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/osint/geo/<ip>", methods=["GET"])
 def get_geo_info(ip):
     """
-    Get geolocation information for an IP address.
+    Get geolocation information for an IP address via ipinfo.io.
 
     Args:
         ip: Target IP address
 
     Returns:
-        Geolocation data.
+        Geolocation data including city, region, country, coordinates, and map URLs.
     """
     try:
         ipaddress.ip_address(ip)
@@ -547,25 +547,53 @@ def get_geo_info(ip):
         return jsonify({"error": "Invalid IP address"}), 400
 
     try:
-        import asyncio
-        from gridland.analyze.core.osint import GeoLookup
-
-        async def lookup():
-            geo = GeoLookup()
-            return await geo.get_ip_info(ip)
-
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            info = loop.run_until_complete(lookup())
-            return jsonify(info)
-        finally:
-            loop.close()
-
-    except ImportError:
-        return jsonify({"error": "GeoLookup module not available"}), 500
+        from gridland.core.osint import get_geolocation
+        
+        geo = get_geolocation(ip)
+        
+        if geo is None:
+            return jsonify({
+                "error": "Geolocation lookup failed",
+                "ip": ip,
+            }), 404
+        
+        return jsonify(geo.to_dict())
+        
+    except ImportError as e:
+        return jsonify({"error": f"OSINT module not available: {e}"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/osint/full/<ip>", methods=["GET"])
+def get_full_osint(ip):
+    """
+    Get complete OSINT report for an IP address.
+
+    Combines geolocation, search engine URLs, and Google dork queries.
+
+    Args:
+        ip: Target IP address
+
+    Returns:
+        Complete OSINT intelligence report.
+    """
+    try:
+        ipaddress.ip_address(ip)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid IP address"}), 400
+
+    try:
+        from gridland.core.osint import osint_report
+        
+        report = osint_report(ip)
+        return jsonify(report)
+        
+    except ImportError as e:
+        return jsonify({"error": f"OSINT module not available: {e}"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 
 # =============================================================================
