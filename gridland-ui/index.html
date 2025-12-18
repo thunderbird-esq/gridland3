@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +12,7 @@
     <link rel="preload" href="sounds/mac-alert.wav" as="audio">
     <link rel="preload" href="sounds/mac-success.wav" as="audio">
 </head>
+
 <body class="mac-desktop">
     <!-- Menu Bar -->
     <div class="menu-bar">
@@ -217,9 +219,11 @@
                     </div>
                     <div class="field-group">
                         <label for="shodanApiKey">API Key:</label>
-                        <input type="password" id="shodanApiKey" class="mac-input" placeholder="Enter your Shodan API key">
+                        <input type="password" id="shodanApiKey" class="mac-input"
+                            placeholder="Enter your Shodan API key">
                     </div>
-                    <div class="field-hint">Get your API key from <a href="https://account.shodan.io" target="_blank">account.shodan.io</a></div>
+                    <div class="field-hint">Get your API key from <a href="https://account.shodan.io"
+                            target="_blank">account.shodan.io</a></div>
                     <button class="mac-button" id="saveShodanKeyBtn">Save API Key</button>
                 </div>
                 <div class="settings-section">
@@ -241,6 +245,138 @@
         </div>
     </div>
 
+    <!-- OSINT Intelligence Window (Floating) -->
+    <div class="mac-window osint-window" id="osintWindow"
+        style="display: none; position: fixed; top: 100px; left: 50px; width: 600px; z-index: 100;">
+        <div class="title-bar" id="osintTitleBar">
+            <div class="close-box" onclick="toggleOsintWindow()"></div>
+            <div class="title">🌐 OSINT Intelligence</div>
+            <div class="zoom-box"></div>
+        </div>
+        <div class="window-content osint-content">
+            <!-- IP Input -->
+            <div class="osint-input-section">
+                <div class="field-group inline">
+                    <label for="osintIp">Target IP:</label>
+                    <input type="text" id="osintIp" class="mac-input" placeholder="8.8.8.8" style="width: 140px;">
+                    <button class="mac-button default-button" id="startOsintBtn" onclick="startOsintGathering()">Gather
+                        Intel</button>
+                    <button class="mac-button" id="stopOsintBtn" onclick="stopOsintGathering()" disabled>Stop</button>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="osint-progress" id="osintProgress" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="osintProgressFill" style="width: 0%"></div>
+                </div>
+                <div class="progress-status" id="osintProgressStatus">Initializing...</div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="osint-tabs">
+                <button class="tab-btn active" data-tab="search-urls" onclick="switchOsintTab('search-urls')">Search
+                    URLs</button>
+                <button class="tab-btn" data-tab="dorks" onclick="switchOsintTab('dorks')">Google Dorks</button>
+                <button class="tab-btn" data-tab="geo" onclick="switchOsintTab('geo')">Geolocation</button>
+                <button class="tab-btn" data-tab="report" onclick="switchOsintTab('report')">Full Report</button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="osint-tab-content" id="osintTabContent">
+                <!-- Search URLs Tab -->
+                <div class="tab-pane active" id="tab-search-urls">
+                    <div class="url-list" id="searchUrlList">
+                        <div class="placeholder-text">Enter an IP and click "Gather Intel"</div>
+                    </div>
+                </div>
+
+                <!-- Dorks Tab -->
+                <div class="tab-pane" id="tab-dorks">
+                    <div class="dork-list" id="dorkList">
+                        <div class="placeholder-text">Google dork queries will appear here</div>
+                    </div>
+                </div>
+
+                <!-- Geo Tab -->
+                <div class="tab-pane" id="tab-geo">
+                    <div class="geo-info" id="geoInfo">
+                        <div class="placeholder-text">Geolocation data will appear here</div>
+                    </div>
+                </div>
+
+                <!-- Report Tab -->
+                <div class="tab-pane" id="tab-report">
+                    <div class="report-json" id="reportJson">
+                        <pre class="placeholder-text">Complete OSINT report will appear here</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Network Analyze Window (Floating) -->
+    <div class="mac-window analyze-window" id="analyzeWindow"
+        style="display: none; position: fixed; top: 120px; left: 680px; width: 500px; z-index: 100;">
+        <div class="title-bar" id="analyzeTitleBar">
+            <div class="close-box" onclick="toggleAnalyzeWindow()"></div>
+            <div class="title">📡 Network Analyzer</div>
+            <div class="zoom-box"></div>
+        </div>
+        <div class="window-content analyze-content">
+            <!-- IP Input -->
+            <div class="analyze-input-section">
+                <div class="field-group inline">
+                    <label for="analyzeIp">Target IP:</label>
+                    <input type="text" id="analyzeIp" class="mac-input" placeholder="192.168.1.1" style="width: 140px;">
+                    <button class="mac-button default-button" id="startAnalyzeBtn"
+                        onclick="startNetworkAnalysis()">Analyze</button>
+                </div>
+            </div>
+
+            <!-- Progress -->
+            <div class="analyze-progress" id="analyzeProgress" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="analyzeProgressFill" style="width: 0%"></div>
+                </div>
+                <div class="progress-status" id="analyzeProgressStatus">Starting...</div>
+            </div>
+
+            <!-- Results -->
+            <div class="analyze-results" id="analyzeResults">
+                <div class="result-section">
+                    <div class="section-header">Open Ports</div>
+                    <div class="port-list" id="portList">
+                        <div class="placeholder-text">No scan results yet</div>
+                    </div>
+                </div>
+
+                <div class="result-section">
+                    <div class="section-header">Camera Detection</div>
+                    <div class="camera-info" id="cameraInfo">
+                        <div class="placeholder-text">Run analysis to detect camera</div>
+                    </div>
+                </div>
+
+                <div class="result-section">
+                    <div class="section-header">Services</div>
+                    <div class="service-list" id="serviceList">
+                        <div class="placeholder-text">Services will appear here</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tools Menu Items (Update menu bar) -->
+    <div class="menu-dropdown" id="toolsMenu"
+        style="display: none; position: fixed; top: 20px; left: 340px; background: #fff; border: 1px solid #000; box-shadow: 2px 2px 4px rgba(0,0,0,0.3); z-index: 200;">
+        <div class="menu-dropdown-item" onclick="toggleOsintWindow()">🌐 OSINT Intelligence</div>
+        <div class="menu-dropdown-item" onclick="toggleAnalyzeWindow()">📡 Network Analyzer</div>
+        <div class="menu-dropdown-divider"></div>
+        <div class="menu-dropdown-item" onclick="openApiTests()">🧪 API Test Suite</div>
+    </div>
+
     <!-- Channel Guide (Hidden by default) -->
     <div class="channel-guide" id="channelGuide" style="display: none;">
         <div class="guide-header">Camera Channels</div>
@@ -253,6 +389,8 @@
     <script src="js/sounds.js"></script>
     <script src="js/gridland-api.js"></script>
     <script src="js/ui.js"></script>
+    <script src="js/osint-ui.js"></script>
     <script src="js/app.js"></script>
 </body>
+
 </html>
