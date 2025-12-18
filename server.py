@@ -213,6 +213,230 @@ def scan():
 
 
 # =============================================================================
+# SSE Streaming API
+# =============================================================================
+
+
+@app.route("/api/osint/stream/<ip>", methods=["GET"])
+def osint_stream(ip):
+    """
+    Stream OSINT gathering as Server-Sent Events.
+
+    Provides real-time progress updates as each OSINT phase completes.
+
+    Args:
+        ip: Target IP address
+
+    Returns:
+        Server-Sent Events stream with OSINT data.
+    """
+    # Validate IP
+    try:
+        ipaddress.ip_address(ip)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid IP address"}), 400
+
+    def generate_osint_stream():
+        """Stream OSINT gathering phases as SSE events."""
+        import time
+        
+        # Phase 1: Start
+        yield f"data: {json.dumps({'phase': 'start', 'ip': ip, 'status': 'Starting OSINT gathering', 'progress': 0})}\n\n"
+        
+        # Phase 2: Search URLs
+        try:
+            from gridland.core.osint import get_search_urls
+            
+            yield f"data: {json.dumps({'phase': 'search_urls', 'status': 'Generating search engine URLs', 'progress': 20})}\n\n"
+            
+            urls = get_search_urls(ip)
+            yield f"data: {json.dumps({'phase': 'search_urls', 'status': 'complete', 'progress': 25, 'data': {'urls': urls, 'count': len(urls)}})}\n\n"
+            
+        except Exception as e:
+            yield f"data: {json.dumps({'phase': 'search_urls', 'status': 'error', 'error': str(e)})}\n\n"
+        
+        # Phase 3: Google Dorks
+        try:
+            from gridland.core.osint import get_google_dork_urls
+            
+            yield f"data: {json.dumps({'phase': 'google_dorks', 'status': 'Generating Google dork queries', 'progress': 40})}\n\n"
+            
+            dorks = get_google_dork_urls(ip)
+            dork_list = [{"query": q, "url": u} for q, u in dorks.items()]
+            yield f"data: {json.dumps({'phase': 'google_dorks', 'status': 'complete', 'progress': 50, 'data': {'dorks': dork_list, 'count': len(dork_list)}})}\n\n"
+            
+        except Exception as e:
+            yield f"data: {json.dumps({'phase': 'google_dorks', 'status': 'error', 'error': str(e)})}\n\n"
+        
+        # Phase 4: Geolocation
+        try:
+            from gridland.core.osint import get_geolocation
+            
+            yield f"data: {json.dumps({'phase': 'geolocation', 'status': 'Looking up IP geolocation', 'progress': 65})}\n\n"
+            
+            geo = get_geolocation(ip)
+            if geo:
+                geo_data = geo.to_dict()
+                yield f"data: {json.dumps({'phase': 'geolocation', 'status': 'complete', 'progress': 80, 'data': geo_data})}\n\n"
+            else:
+                yield f"data: {json.dumps({'phase': 'geolocation', 'status': 'not_found', 'progress': 80, 'data': None})}\n\n"
+                
+        except Exception as e:
+            yield f"data: {json.dumps({'phase': 'geolocation', 'status': 'error', 'error': str(e)})}\n\n"
+        
+        # Phase 5: Complete
+        try:
+            from gridland.core.osint import osint_report
+            
+            yield f"data: {json.dumps({'phase': 'complete', 'status': 'Compiling final report', 'progress': 95})}\n\n"
+            
+            report = osint_report(ip)
+            yield f"data: {json.dumps({'phase': 'complete', 'status': 'done', 'progress': 100, 'data': report})}\n\n"
+            
+        except Exception as e:
+            yield f"data: {json.dumps({'phase': 'complete', 'status': 'error', 'error': str(e)})}\n\n"
+
+    return Response(
+        stream_with_context(generate_osint_stream()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
+@app.route("/api/analyze/stream/<ip>", methods=["GET"])
+def analyze_stream(ip):
+    """
+    Stream network analysis as Server-Sent Events.
+
+    Provides real-time progress updates as each analysis phase completes.
+
+    Args:
+        ip: Target IP address
+
+    Returns:
+        Server-Sent Events stream with analysis data.
+    """
+    # Validate IP
+    try:
+        ipaddress.ip_address(ip)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid IP address"}), 400
+
+    def generate_analyze_stream():
+        """Stream analysis phases as SSE events."""
+        import socket
+        import time
+        
+        # Phase 1: Start
+        yield f"data: {json.dumps({'phase': 'start', 'ip': ip, 'status': 'Starting network analysis', 'progress': 0})}\n\n"
+        
+        # Phase 2: Port Scanning
+        yield f"data: {json.dumps({'phase': 'port_scan', 'status': 'Scanning common camera ports', 'progress': 10})}\n\n"
+        
+        # Common camera ports to check
+        common_ports = [80, 443, 554, 8080, 8443, 8554, 37777, 37778, 34567, 5000, 9000]
+        open_ports = []
+        
+        for i, port in enumerate(common_ports):
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(1)
+                result = sock.connect_ex((ip, port))
+                if result == 0:
+                    open_ports.append(port)
+                sock.close()
+            except Exception:
+                pass
+            
+            # Report progress every few ports
+            if (i + 1) % 3 == 0:
+                progress = 10 + int((i / len(common_ports)) * 30)
+                yield f"data: {json.dumps({'phase': 'port_scan', 'status': f'Scanning port {port}', 'progress': progress, 'ports_checked': i + 1})}\n\n"
+        
+        yield f"data: {json.dumps({'phase': 'port_scan', 'status': 'complete', 'progress': 40, 'data': {'open_ports': open_ports, 'count': len(open_ports)}})}\n\n"
+        
+        # Phase 3: Service Detection
+        yield f"data: {json.dumps({'phase': 'service_detection', 'status': 'Detecting services on open ports', 'progress': 45})}\n\n"
+        
+        services = {}
+        for port in open_ports:
+            # Map ports to likely services
+            port_services = {
+                80: "HTTP",
+                443: "HTTPS",
+                554: "RTSP",
+                8080: "HTTP-Proxy",
+                8443: "HTTPS-Alt",
+                8554: "RTSP-Alt",
+                37777: "Dahua",
+                37778: "Dahua-Config",
+                34567: "Hikvision-DVR",
+                5000: "ONVIF",
+                9000: "Web-Interface",
+            }
+            services[port] = port_services.get(port, "Unknown")
+        
+        yield f"data: {json.dumps({'phase': 'service_detection', 'status': 'complete', 'progress': 60, 'data': {'services': services}})}\n\n"
+        
+        # Phase 4: Camera Detection
+        yield f"data: {json.dumps({'phase': 'camera_detection', 'status': 'Detecting camera brand', 'progress': 65})}\n\n"
+        
+        camera_info = {"detected": False, "brand": None, "model": None}
+        
+        # Check for common camera indicators
+        if 37777 in open_ports or 37778 in open_ports:
+            camera_info = {"detected": True, "brand": "Dahua", "confidence": 0.9}
+        elif 34567 in open_ports:
+            camera_info = {"detected": True, "brand": "Hikvision-DVR", "confidence": 0.85}
+        elif 554 in open_ports:
+            camera_info = {"detected": True, "brand": "Generic RTSP", "confidence": 0.7}
+        elif 80 in open_ports or 443 in open_ports:
+            camera_info = {"detected": True, "brand": "Possible IP Camera", "confidence": 0.5}
+        
+        yield f"data: {json.dumps({'phase': 'camera_detection', 'status': 'complete', 'progress': 80, 'data': camera_info})}\n\n"
+        
+        # Phase 5: OSINT
+        yield f"data: {json.dumps({'phase': 'osint', 'status': 'Gathering OSINT data', 'progress': 85})}\n\n"
+        
+        try:
+            from gridland.core.osint import get_search_urls
+            urls = get_search_urls(ip)
+            yield f"data: {json.dumps({'phase': 'osint', 'status': 'complete', 'progress': 95, 'data': {'search_urls': urls}})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'phase': 'osint', 'status': 'error', 'error': str(e)})}\n\n"
+        
+        # Phase 6: Complete
+        final_report = {
+            "ip": ip,
+            "open_ports": open_ports,
+            "services": services,
+            "camera": camera_info,
+            "summary": {
+                "ports_scanned": len(common_ports),
+                "ports_open": len(open_ports),
+                "camera_detected": camera_info.get("detected", False),
+                "camera_brand": camera_info.get("brand"),
+            }
+        }
+        
+        yield f"data: {json.dumps({'phase': 'complete', 'status': 'done', 'progress': 100, 'data': final_report})}\n\n"
+
+    return Response(
+        stream_with_context(generate_analyze_stream()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
+# =============================================================================
 # Stream API
 # =============================================================================
 
